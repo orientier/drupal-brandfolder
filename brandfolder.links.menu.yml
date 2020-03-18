@@ -1,0 +1,6 @@
+media.brandfolder.api_key_form:
+  title: 'Brandfolder'
+  route_name: brandfolder.api_key_form
+  description: 'Brandfolder API key.'
+  parent: system.admin_config_media
+  weight: 20

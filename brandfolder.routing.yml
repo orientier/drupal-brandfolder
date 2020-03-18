@@ -1,0 +1,9 @@
+brandfolder.api_key_form:
+  path: '/admin/config/brandfolder/apikey'
+  defaults:
+    _form: '\Drupal\brandfolder\Form\ApiKeyForm'
+    _title: 'BrandFolder'
+  requirements:
+    _permission: 'access administration pages'
+  options:
+    _admin_route: TRUE

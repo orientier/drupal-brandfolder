@@ -1,0 +1,36 @@
+<?php
+
+/**
+ * @file
+ * Contains brandfolder.module.
+ */
+
+use Drupal\Core\Routing\RouteMatchInterface;
+use Brandfolder\Brandfolder;
+
+
+
+function brandfolder_api() {
+  // Gets the API key form db
+  $apikey = \Drupal::config('brandfolder.apikey')->get("api_key");
+  // initialize BrandFolder object
+  $brandfolder = new Brandfolder($apikey);
+  // Return object
+  return $brandfolder;
+}
+
+/**
+ * Implements hook_help().
+ */
+function brandfolder_help($route_name, RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    // Main module help for the brandfolder module.
+    case 'help.page.brandfolder':
+      $output = '';
+      $output .= '<h3>' . t('About') . '</h3>';
+      $output .= '<p>' . t('My simple config form') . '</p>';
+      return $output;
+
+    default:
+  }
+}

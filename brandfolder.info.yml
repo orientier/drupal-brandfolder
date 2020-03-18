@@ -1,0 +1,5 @@
+name: 'brandfolder'
+type: module
+description: 'Brandfolder API module.'
+core: 8.x
+package: 'Custom'

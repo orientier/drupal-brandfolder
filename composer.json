@@ -1,0 +1,16 @@
+{
+    "name": "drupal/brandfolder",
+    "type": "drupal-module",
+    "description": "Developer focused integration with Brandfolder digital asset management system.",
+    "keywords": [
+    ],
+    "homepage": "https://www.drupal.org/sandbox/ndewhurst/3094518",
+    "minimum-stability": "dev",
+    "support": {
+        "issues": "https://www.drupal.org/project/issues/brandfolder",
+        "source": "http://cgit.drupalcode.org/brandfolder"
+    },
+    "require": {
+        "brandfolder/brandfolder-sdk-php": ">=0.1.0"
+    }
+}
