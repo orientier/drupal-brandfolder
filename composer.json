@@ -3,6 +3,7 @@
     "type": "drupal-module",
     "description": "Developer focused integration with Brandfolder digital asset management system.",
     "keywords": [
+        "media", "digital asset management", "dam", "images", "files"
     ],
     "homepage": "https://www.drupal.org/sandbox/ndewhurst/3094518",
     "minimum-stability": "dev",

@@ -8,17 +8,18 @@
 use Drupal\Core\Routing\RouteMatchInterface;
 use Brandfolder\Brandfolder;
 
-
-
 function brandfolder_api() {
-  // Gets the API key form db
-  $apikey = \Drupal::config('brandfolder.apikey')->get("api_key");
-  // initialize BrandFolder object
+  // Get the API key from module configuration.
+  $apikey = \Drupal::config('brandfolder.brandfoldersettings')->get("brandfolder_api_key");
+  if (empty($apikey)) {
+    return FALSE;
+  }
+  // Initialize Brandfolder object.
   $brandfolder = new Brandfolder($apikey);
   // Return object
   return $brandfolder;
 }
-
+brandfolder_api();
 /**
  * Implements hook_help().
  */
@@ -28,9 +29,10 @@ function brandfolder_help($route_name, RouteMatchInterface $route_match) {
     case 'help.page.brandfolder':
       $output = '';
       $output .= '<h3>' . t('About') . '</h3>';
-      $output .= '<p>' . t('My simple config form') . '</p>';
+      $output .= '<p>' . t('Allows Drupal developers to easily integrate with a Brandfolder account.') . '</p>';
       return $output;
 
     default:
   }
 }
+

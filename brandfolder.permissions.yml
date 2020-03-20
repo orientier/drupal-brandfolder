@@ -1,0 +1,4 @@
+administer brandfolder settings:
+  title: 'Administer Brandfolders configuration settings'
+  description: 'Grants access to use the Brandfolder configuration settings.'
+  restrict access: TRUE

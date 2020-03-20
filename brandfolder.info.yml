@@ -1,5 +1,5 @@
-name: 'brandfolder'
+name: 'Brandfolder'
 type: module
-description: 'Brandfolder API module.'
+description: 'Allows Drupal developers to easily integrate with a Brandfolder account.'
 core: 8.x
-package: 'Custom'
+package: 'brandfolder'
