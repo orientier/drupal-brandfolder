@@ -19,7 +19,7 @@ function brandfolder_api() {
   // Return object
   return $brandfolder;
 }
-brandfolder_api();
+
 /**
  * Implements hook_help().
  */
