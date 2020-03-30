@@ -1,7 +1,7 @@
 {
     "name": "drupal/brandfolder",
     "type": "drupal-module",
-    "description": "Developer focused integration with Brandfolder digital asset management system.",
+    "description": "Developer-focused integration with Brandfolder Digital Asset Management system.",
     "keywords": [
         "media", "digital asset management", "dam", "images", "files"
     ],

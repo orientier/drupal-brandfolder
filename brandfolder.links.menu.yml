@@ -1,4 +1,4 @@
-media.brandfolder.api_key_form:
+media.brandfolder.brandfolder_settings_form:
   title: 'Brandfolder'
   route_name: brandfolder.brandfolder_settings_form
   description: 'Brandfolder API key.'
