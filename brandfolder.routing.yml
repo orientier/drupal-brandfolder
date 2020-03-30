@@ -1,0 +1,8 @@
+brandfolder.brandfolder_settings_form:
+  path: '/admin/config/media/brandfolder'
+  defaults:
+    _form: '\Drupal\brandfolder\Form\BrandfolderSettingsForm'
+    _title: 'Brandfolder'
+  requirements:
+    _permission: 'administer brandfolder settings'
+
