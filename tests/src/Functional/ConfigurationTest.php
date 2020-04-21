@@ -7,7 +7,7 @@ use Drupal\user\Entity\Role;
 use Drupal\Tests\BrowserTestBase;
 
 /**
- * Test basic functionality of My Module.
+ * Test basic functionality of the Brandfolder module.
  *
  * @group brandfolder
  */
@@ -28,7 +28,7 @@ class ConfigurationTest extends BrowserTestBase {
   ];
 
   /**
-   * A user with permission to administer site configuration.
+   * Created three users, each will be assigned different permissions.
    *
    * @var \Drupal\user\UserInterface
    */
@@ -64,17 +64,26 @@ class ConfigurationTest extends BrowserTestBase {
    * Tests that the home page loads with a 200 response.
    */
   public function testUserAccess() {
-    // Users with the 'administer brandfolder settings' permission should be able to access the configuration settings.
+    /**
+     * Users with the 'administer brandfolder settings' permission should be
+     * able to access the Branddfolder configuration settings.
+    */
     $this->drupalLogin($this->privilegedUser);
     $this->drupalGet(Url::fromRoute('brandfolder.brandfolder_settings_form'));
     $this->assertSession()->statusCodeEquals(200);
 
-    // Admin users without the 'administer brandfolder settings' permission should no be able to access the configuration settings.
+    /**
+     * Admin users without the 'administer brandfolder settings' permission
+     * should be able to access the Brandfolder configuration settings.
+    */
     $this->drupalLogin($this->adminUser);
     $this->drupalGet(Url::fromRoute('brandfolder.brandfolder_settings_form'));
     $this->assertSession()->statusCodeEquals(200);
 
-    // Regular Users without the 'administer brandfolder settings' permission should not be able to access the configuration settings.
+    /**
+     * Regular Users without the 'administer brandfolder settings'
+     * permission should not be able to access the Brandfolder configuration settings.
+    */
     $this->drupalLogin($this->nonPrivilegedUser);
     $this->drupalGet(Url::fromRoute('brandfolder.brandfolder_settings_form'));
     $this->assertSession()->statusCodeEquals(403);
@@ -104,6 +113,15 @@ class ConfigurationTest extends BrowserTestBase {
     $this->drupalGet(Url::fromRoute('brandfolder.brandfolder_settings_form'));
     $this->assertSession()->statusCodeEquals(200);
     $this->assertSession()->fieldValueEquals('edit-brandfolder-api-key', '123456789' );
+
+    // Get this to a working state.
+    // Check if value was stored in the configurations.
+//    $config = $this->config('brandfolder.brandfoldersettings');
+//    $api_key = \Drupal::config('brandfolder.brandfoldersettings')->get('brandfolder.brandfolder_api_key');
+//    $this->assertEquals(
+//      '123456789',
+//      $api_key
+//    );
 
   }
 

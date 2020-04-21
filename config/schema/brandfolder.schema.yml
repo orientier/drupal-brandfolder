@@ -1,7 +1,7 @@
 brandfolder.brandfoldersettings:
   type: config_object
-  label: 'My Module Settings'
+  label: 'Brandfolder Settings'
   mapping:
     brandfolder_api_key:
       type: string
-      label: 'My text field'
+      label: 'API key text field'
