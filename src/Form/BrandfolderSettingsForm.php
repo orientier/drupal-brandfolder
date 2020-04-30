@@ -34,7 +34,7 @@ class BrandfolderSettingsForm extends ConfigFormBase {
 
     $form['brandfolder_api_key'] = [
       '#type' => 'textarea',
-      '#title' => t('Insert Brandfolder API key here'),
+      '#title' => $this->t('Insert Brandfolder API key here'),
       '#description' => $this->t('Store the Brandfolder API Key'),
       '#maxlength' => 255,
       '#size' => 64,

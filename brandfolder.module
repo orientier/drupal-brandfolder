@@ -9,11 +9,14 @@ use Drupal\Core\Routing\RouteMatchInterface;
 use Brandfolder\Brandfolder;
 
 /**
+ * Brandfolder helper function.
+ *
  * Helper function to get a Brandfolder object that can be used to interact with
  * the Brandfolder API, having been instantiated with the API key stored in the
  * module configuration.
  *
- * @return bool|\Brandfolder\Brandfolder
+ * @return object
+ *   bool|\Brandfolder\Brandfolder
  */
 function brandfolder_api() {
   // Get the API key from module configuration.
@@ -42,4 +45,3 @@ function brandfolder_help($route_name, RouteMatchInterface $route_match) {
       return $output;
   }
 }
-
