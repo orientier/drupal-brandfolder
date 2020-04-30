@@ -13,8 +13,6 @@ use Drupal\Tests\BrowserTestBase;
  */
 class ConfigurationTest extends BrowserTestBase {
 
-
-
   /**
    * {@inheritdoc}
    */
@@ -28,11 +26,25 @@ class ConfigurationTest extends BrowserTestBase {
   ];
 
   /**
-   * Created three users, each will be assigned different permissions.
+   * Privileged users will be assigned valid permissions.
    *
    * @var \Drupal\user\UserInterface
    */
-  protected $privilegedUser, $nonPrivilegedUser, $adminUser;
+  protected $privilegedUser;
+
+  /**
+   * NonPrivileged users will not have valid permissions.
+   *
+   * @var \Drupal\user\UserInterface
+   */
+  protected $nonPrivilegedUser;
+
+  /**
+   * Admin user.
+   *
+   * @var \Drupal\user\UserInterface
+   */
+  protected $adminUser;
 
   /**
    * {@inheritdoc}
@@ -64,31 +76,32 @@ class ConfigurationTest extends BrowserTestBase {
    * Tests that the home page loads with a 200 response.
    */
   public function testUserAccess() {
-    /**
-     * Users with the 'administer brandfolder settings' permission should be
-     * able to access the Branddfolder configuration settings.
-    */
+
+    // Users with the 'administer brandfolder settings' permission should be
+    // able to access the Branddfolder configuration settings.
     $this->drupalLogin($this->privilegedUser);
     $this->drupalGet(Url::fromRoute('brandfolder.brandfolder_settings_form'));
     $this->assertSession()->statusCodeEquals(200);
 
-    /**
-     * Admin users without the 'administer brandfolder settings' permission
-     * should be able to access the Brandfolder configuration settings.
-    */
+    // Admin users without the 'administer brandfolder settings' permission
+    // should be able to access the Brandfolder configuration settings.
     $this->drupalLogin($this->adminUser);
     $this->drupalGet(Url::fromRoute('brandfolder.brandfolder_settings_form'));
     $this->assertSession()->statusCodeEquals(200);
 
-    /**
-     * Regular Users without the 'administer brandfolder settings'
-     * permission should not be able to access the Brandfolder configuration settings.
-    */
+    // Regular Users without the 'administer brandfolder settings'
+    // permission should not be able to access the Brandfolder configuration
+    // settings.
     $this->drupalLogin($this->nonPrivilegedUser);
     $this->drupalGet(Url::fromRoute('brandfolder.brandfolder_settings_form'));
     $this->assertSession()->statusCodeEquals(403);
   }
 
+  /**
+   * Load form and save a value.
+   *
+   * @todo Load value from the configuration
+   */
   public function testSubmitForm() {
     // Login as an admin and go to the config page.
     $this->drupalLogin($this->adminUser);
@@ -104,7 +117,7 @@ class ConfigurationTest extends BrowserTestBase {
 
     // Test form submission.
     $edit = [
-      'brandfolder_api_key' => '123456789'
+      'brandfolder_api_key' => '123456789',
     ];
     $this->drupalPostForm(NULL, $edit, 'Save configuration');
     $this->assertSession()->pageTextContains('The configuration options have been saved.');
@@ -112,17 +125,14 @@ class ConfigurationTest extends BrowserTestBase {
     // Check the form loads and the API key was saved.
     $this->drupalGet(Url::fromRoute('brandfolder.brandfolder_settings_form'));
     $this->assertSession()->statusCodeEquals(200);
-    $this->assertSession()->fieldValueEquals('edit-brandfolder-api-key', '123456789' );
-
-    // Get this to a working state.
+    $this->assertSession()->fieldValueEquals('edit-brandfolder-api-key', '123456789');
     // Check if value was stored in the configurations.
-//    $config = $this->config('brandfolder.brandfoldersettings');
-//    $api_key = \Drupal::config('brandfolder.brandfoldersettings')->get('brandfolder.brandfolder_api_key');
-//    $this->assertEquals(
-//      '123456789',
-//      $api_key
-//    );
-
+    // $config = $this->config('brandfolder.brandfoldersettings');.
+    // $api_key = \Drupal::config('brandfolder.brandfoldersettings')->get('brandfolder.brandfolder_api_key');
+    // $this->assertEquals(
+    // $config->get($api_key),
+    // '123456789'
+    // );
   }
 
 }

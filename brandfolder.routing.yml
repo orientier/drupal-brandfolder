@@ -5,4 +5,3 @@ brandfolder.brandfolder_settings_form:
     _title: 'Brandfolder'
   requirements:
     _permission: 'administer brandfolder settings'
-
