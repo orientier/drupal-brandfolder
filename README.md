@@ -14,9 +14,10 @@ If you have any feature requests, please add them to the issue queue!
 
 # Initial Setup
 -------------------------------------------------------------------------------
-1. Log in to your Brandfolder account as an administrator
-2. Navigate to "My Profile" > "Integrations"
-3. In the "API Keys" section, copy the key for the Brandfolder organization you
-wish to integrate.
-4. Visit /admin/config/media/brandfolder on your Drupal site
-5. Enter the API key and save the settings form.
+1. Enable the module on your Drupal site
+2. Log in to your Brandfolder account as an administrator
+3. Navigate to "My Profile" > "Integrations"
+4. In the "API Keys" section, copy the key for the Brandfolder organization you
+wish to integrate
+5. Visit /admin/config/media/brandfolder on your Drupal site
+6. Enter the API key and save the settings form
