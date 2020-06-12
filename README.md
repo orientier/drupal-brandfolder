@@ -1,3 +1,7 @@
+# Brandfolder Drupal Integration 
+-------------------------------------------------------------------------------
+![CircleCI](https://img.shields.io/circleci/build/github/brandfolder/integration-drupal?token=94d3945b6680f1ca5e786886ac94757e49c5136b)
+
 This module allows you to interact with the Brandfolder
 (https://brandfolder.com) Digital Asset Management system using the
 Brandfolder PHP SDK. It is currently geared toward developers, but we plan
