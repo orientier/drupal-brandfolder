@@ -2,5 +2,5 @@ name: 'Brandfolder'
 type: module
 description: 'Allows Drupal developers to easily integrate with a Brandfolder account.'
 core: 8.x
-core_version_requirement: ^8
+core_version_requirement: ^8 || ^9
 package: 'Brandfolder'
