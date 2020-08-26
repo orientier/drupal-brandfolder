@@ -2,15 +2,28 @@
     "name": "drupal/brandfolder",
     "type": "drupal-module",
     "description": "Developer-focused integration with Brandfolder Digital Asset Management system.",
-    "keywords": [
-        "media", "digital asset management", "dam", "images", "files"
-    ],
-    "homepage": "https://www.drupal.org/sandbox/ndewhurst/3094518",
-    "minimum-stability": "dev",
+    "keywords": ["brandfolder", "dam", "media", "images", "digital asset management"],
+    "homepage": "https://www.drupal.org/project/brandfolder",
+    "license": "GNU-2.0+",
     "support": {
-        "issues": "https://www.drupal.org/project/issues/brandfolder",
-        "source": "http://cgit.drupalcode.org/brandfolder"
+      "issues": "https://www.drupal.org/project/issues/brandfolder",
+      "source": "http://cgit.drupalcode.org/brandfolder"
     },
+    "authors": [
+      {
+        "name": "Nathanael Dewhurst",
+        "email": "nathanael@orientier.com",
+        "homepage": "https://www.orientier.com",
+        "role": "Developer"
+      },
+      {
+        "name": "Milvio Bello",
+        "email": "milvio@orientier.com",
+        "homepage": "https://www.orientier.com",
+        "role": "Tester"
+      }
+    ],
+    "minimum-stability": "dev",
     "require": {
         "brandfolder/brandfolder-sdk-php": ">=0.1.0"
     }
