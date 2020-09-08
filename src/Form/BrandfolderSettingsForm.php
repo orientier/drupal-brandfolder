@@ -37,7 +37,7 @@ class BrandfolderSettingsForm extends ConfigFormBase {
     $brandfolders_list = $collections_list = [];
 
     /************************************
-     * Credentials.
+     * Credentials
      ************************************/
     $form['credentials'] = [
       '#type'  => 'details',
@@ -92,6 +92,32 @@ class BrandfolderSettingsForm extends ConfigFormBase {
       '#default_value' => $default_collection,
       '#description'   => $this->t('The collection to use for all operations unless otherwise specified.'),
     ];
+
+    /************************************
+     * Sample Images
+     ************************************/
+    // Display some images from the selected Brandfolder/collection if
+    // applicable.
+    if ($default_brandfolder && isset($bf)) {
+      $bf->default_brandfolder_id = $default_brandfolder;
+      if ($default_collection) {
+        $assets = $bf->listAssets([], $default_collection);
+      }
+      else {
+        $assets = $bf->listAssets();
+      }
+      if ($assets) {
+        $thumbnails = array_map(function ($asset) {
+          return '<img src="' . $asset->attributes->thumbnail_url . '">';
+        }, $assets->data);
+
+        $form['sample_pics'] = [
+          '#type' => 'markup',
+          '#prefix' => '<h2>Sample Images</h2>',
+          '#markup' => implode(' ', $thumbnails),
+        ];
+      }
+    }
 
     return parent::buildForm($form, $form_state);
   }
