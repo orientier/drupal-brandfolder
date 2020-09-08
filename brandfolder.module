@@ -15,20 +15,22 @@ use Brandfolder\Brandfolder;
  * the Brandfolder API, having been instantiated with the API key stored in the
  * module configuration.
  *
- * @return object
- *   bool|\Brandfolder\Brandfolder
+ * @return bool|object
+ *   A \Brandfolder\Brandfolder object for interacting with the Brandfolder SDK,
+ *   or FALSE on failure.
  */
-function brandfolder_api() {
-  // Get the API key from module configuration.
-  $apikey = \Drupal::config('brandfolder.settings')->get('api_key');
-  if (empty($apikey)) {
+function brandfolder_api(string $api_key = NULL) {
+  // Get the default API key from module configuration if none is explicitly
+  // provided.
+  if (is_null($api_key)) {
+    $api_key = \Drupal::config('brandfolder.settings')->get('api_key');
+  }
+  if (empty($api_key)) {
     return FALSE;
   }
-  // Initialize Brandfolder object.
-  $brandfolder = new Brandfolder($apikey);
 
-  // Return object.
-  return $brandfolder;
+  // Return a new Brandfolder object.
+  return new Brandfolder($api_key);
 }
 
 /**
