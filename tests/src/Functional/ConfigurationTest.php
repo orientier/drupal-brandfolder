@@ -109,10 +109,10 @@ class ConfigurationTest extends BrowserTestBase {
     $this->assertSession()->statusCodeEquals(200);
 
     // Make sure the field exist.
-    $config = $this->config('brandfolder.brandfoldersettings');
+    $config = $this->config('brandfolder.settings');
     $this->assertSession()->fieldValueEquals(
       'brandfolder_api_key',
-      $config->get('brandfolder.brandfolder_api_key')
+      $config->get('api_key')
     );
 
     // Test form submission.
@@ -127,8 +127,8 @@ class ConfigurationTest extends BrowserTestBase {
     $this->assertSession()->statusCodeEquals(200);
     $this->assertSession()->fieldValueEquals('edit-brandfolder-api-key', '123456789');
     // Check if value was stored in the configurations.
-    // $config = $this->config('brandfolder.brandfoldersettings');.
-    // $api_key = \Drupal::config('brandfolder.brandfoldersettings')->get('brandfolder.brandfolder_api_key');
+    // $config = $this->config('brandfolder.settings');.
+    // $api_key = \Drupal::config('brandfolder.settings')->get('api_key');
     // $this->assertEquals(
     // $config->get($api_key),
     // '123456789'

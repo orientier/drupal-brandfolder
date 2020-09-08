@@ -20,7 +20,7 @@ use Brandfolder\Brandfolder;
  */
 function brandfolder_api() {
   // Get the API key from module configuration.
-  $apikey = \Drupal::config('brandfolder.brandfoldersettings')->get("brandfolder_api_key");
+  $apikey = \Drupal::config('brandfolder.settings')->get('api_key');
   if (empty($apikey)) {
     return FALSE;
   }

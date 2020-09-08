@@ -15,7 +15,7 @@ class BrandfolderSettingsForm extends ConfigFormBase {
    */
   protected function getEditableConfigNames() {
     return [
-      'brandfolder.brandfoldersettings',
+      'brandfolder.settings',
     ];
   }
 
@@ -30,15 +30,15 @@ class BrandfolderSettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
-    $config = $this->config('brandfolder.brandfoldersettings');
+    $config = $this->config('brandfolder.settings');
 
     $form['brandfolder_api_key'] = [
       '#type' => 'textarea',
-      '#title' => $this->t('Insert Brandfolder API key here'),
-      '#description' => $this->t('Store the Brandfolder API Key'),
+      '#title' => $this->t('Brandfolder API key'),
+      '#description' => $this->t('An API key for a Brandfolder user who has access to the Brandfolder you wish to integrate with your Drupal site. This can be found in Brandfolder under "My Profile > Integrations > API Keys."'),
       '#maxlength' => 255,
       '#size' => 64,
-      '#default_value' => $config->get('brandfolder_api_key'),
+      '#default_value' => $config->get('api_key'),
     ];
 
     return parent::buildForm($form, $form_state);
@@ -50,8 +50,8 @@ class BrandfolderSettingsForm extends ConfigFormBase {
   public function submitForm(array &$form, FormStateInterface $form_state) {
     parent::submitForm($form, $form_state);
 
-    $this->config('brandfolder.brandfoldersettings')
-      ->set('brandfolder_api_key', $form_state->getValue('brandfolder_api_key'))
+    $this->config('brandfolder.settings')
+      ->set('api_key', $form_state->getValue('brandfolder_api_key'))
       ->save();
   }
 
