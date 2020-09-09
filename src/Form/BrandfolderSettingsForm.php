@@ -6,7 +6,7 @@ use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 
 /**
- * Class BrandfolderSettingsForm.
+ * Define the administrative form used to configure the Brandfolder integration.
  */
 class BrandfolderSettingsForm extends ConfigFormBase {
 

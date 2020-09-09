@@ -68,15 +68,17 @@ class ConfigurationTest extends BrowserTestBase {
     $this->adminUser = $this->drupalCreateUser(['administer users'], "admin_user", TRUE);
 
     // Create regular user with invalid permission.
-    $this->nonPrivilegedUser = $this->drupalCreateUser(['access content', 'access user profiles'], 'regular_user');
-
+    $permissions = [
+      'access content',
+      'access user profiles',
+    ];
+    $this->nonPrivilegedUser = $this->drupalCreateUser($permissions, 'regular_user');
   }
 
   /**
    * Tests that the home page loads with a 200 response.
    */
   public function testUserAccess() {
-
     // Users with the 'administer brandfolder settings' permission should be
     // able to access the Branddfolder configuration settings.
     $this->drupalLogin($this->privilegedUser);
