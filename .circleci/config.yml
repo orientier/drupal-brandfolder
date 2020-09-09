@@ -98,5 +98,5 @@ jobs:
       - run: echo 'export PATH="$PATH:$HOME/.composer/vendor/bin"' >> $BASH_ENV
       # Run sniff tests.
       - run: cd $HOME/project
-      - run: phpcs --standard=Drupal --ignore=/vendor ./
-      - run: phpcs --standard=Drupalpractice --ignore=/vendor ./
+      - run: phpcs --standard=Drupal --ignore=/vendor ./ --extensions=php,module,inc,install,test,profile,theme,css,info,txt,md,yml
+      - run: phpcs --standard=Drupalpractice --ignore=/vendor ./ --extensions=php,module,inc,install,test,profile,theme,css,info,txt,md,yml
