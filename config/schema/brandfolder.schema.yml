@@ -5,3 +5,9 @@ brandfolder.settings:
     api_key:
       type: string
       label: 'Default API key for interacting with Brandfolder REST API'
+    default_brandfolder:
+      type: string
+      label: 'ID of a Brandfolder to use for all operations by default'
+    default_collection:
+      type: string
+      label: 'ID of a Collection to use for all operations by default'
