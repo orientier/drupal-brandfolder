@@ -44,6 +44,7 @@ class BrandfolderSettingsForm extends ConfigFormBase {
       '#title' => $this->t('Brandfolder Credentials'),
       '#open'  => empty($api_key),
     ];
+    
     $form['credentials']['brandfolder_api_key'] = [
       '#type' => 'textarea',
       '#title' => $this->t('Brandfolder API key'),
@@ -55,7 +56,7 @@ class BrandfolderSettingsForm extends ConfigFormBase {
 
     if ($api_key) {
       $bf = brandfolder_api($api_key);
-      $messenger = \Drupal::messenger();
+      $messenger = $this->messenger();
       try {
         $brandfolders_list = $bf->getBrandfolders();
       }
@@ -78,6 +79,7 @@ class BrandfolderSettingsForm extends ConfigFormBase {
       '#title' => $this->t('Basic Configuration Options'),
       '#open'  => empty($default_brandfolder),
     );
+
     $form['basic']['brandfolder_default_brandfolder'] = [
       '#type'          => 'select',
       '#title'         => $this->t('Default Brandfolder'),
@@ -85,6 +87,7 @@ class BrandfolderSettingsForm extends ConfigFormBase {
       '#default_value' => $default_brandfolder,
       '#description'   => $this->t('The Brandfolder to use for all operations unless otherwise specified.'),
     ];
+
     $form['basic']['brandfolder_default_collection'] = [
       '#type'          => 'select',
       '#title'         => $this->t('Default Collection'),
