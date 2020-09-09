@@ -44,7 +44,7 @@ class BrandfolderSettingsForm extends ConfigFormBase {
       '#title' => $this->t('Brandfolder Credentials'),
       '#open'  => empty($api_key),
     ];
-    
+
     $form['credentials']['brandfolder_api_key'] = [
       '#type' => 'textarea',
       '#title' => $this->t('Brandfolder API key'),
@@ -74,11 +74,11 @@ class BrandfolderSettingsForm extends ConfigFormBase {
     /************************************
      * Basic Configuration
      ************************************/
-    $form['basic'] = array(
+    $form['basic'] = [
       '#type'  => 'details',
       '#title' => $this->t('Basic Configuration Options'),
       '#open'  => empty($default_brandfolder),
-    );
+    ];
 
     $form['basic']['brandfolder_default_brandfolder'] = [
       '#type'          => 'select',
