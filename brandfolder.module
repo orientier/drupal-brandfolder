@@ -15,6 +15,10 @@ use Brandfolder\Brandfolder;
  * the Brandfolder API, having been instantiated with the API key stored in the
  * module configuration.
  *
+ * @param string|null $api_key
+ *   If provided, an API key to use when connecting to Brandfolder. If not
+ *   provided, the default API key set in the module configuration will be used.
+ *
  * @return bool|object
  *   A \Brandfolder\Brandfolder object for interacting with the Brandfolder SDK,
  *   or FALSE on failure.
