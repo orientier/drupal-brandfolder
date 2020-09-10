@@ -12,8 +12,7 @@ use Brandfolder\Brandfolder;
  * Brandfolder helper function.
  *
  * Helper function to get a Brandfolder object that can be used to interact with
- * the Brandfolder API, having been instantiated with the API key stored in the
- * module configuration.
+ * the Brandfolder API.
  *
  * @param string|null $api_key
  *   If provided, an API key to use when connecting to Brandfolder. If not
