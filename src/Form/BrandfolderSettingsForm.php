@@ -71,6 +71,9 @@ class BrandfolderSettingsForm extends ConfigFormBase {
       }
     }
 
+    $brandfolders_list['none'] = $this->t('< None >');
+    $collections_list['none'] = $this->t('< None >');
+
     /************************************
      * Basic Configuration
      ************************************/
@@ -84,7 +87,7 @@ class BrandfolderSettingsForm extends ConfigFormBase {
       '#type'          => 'select',
       '#title'         => $this->t('Default Brandfolder'),
       '#options'       => $brandfolders_list,
-      '#default_value' => $default_brandfolder,
+      '#default_value' => $default_brandfolder ? $default_brandfolder : 'none',
       '#description'   => $this->t('The Brandfolder to use for all operations unless otherwise specified.'),
     ];
 
@@ -92,7 +95,7 @@ class BrandfolderSettingsForm extends ConfigFormBase {
       '#type'          => 'select',
       '#title'         => $this->t('Default Collection'),
       '#options'       => $collections_list,
-      '#default_value' => $default_collection,
+      '#default_value' => $default_collection ? $default_collection : 'none',
       '#description'   => $this->t('The collection to use for all operations unless otherwise specified.'),
     ];
 
@@ -133,8 +136,23 @@ class BrandfolderSettingsForm extends ConfigFormBase {
 
     $config = $this->config('brandfolder.settings');
     $config->set('api_key', $form_state->getValue('brandfolder_api_key'));
-    $config->set('default_brandfolder', $form_state->getValue('brandfolder_default_brandfolder'));
-    $config->set('default_collection', $form_state->getValue('brandfolder_default_collection'));
+    $old_brandfolder = $config->get('default_brandfolder');
+    $specified_brandfolder = $form_state->getValue('brandfolder_default_brandfolder');
+    if ($specified_brandfolder == 'none') {
+      $specified_brandfolder = NULL;
+    }
+    $config->set('default_brandfolder', $specified_brandfolder);
+    // If the Brandfolder selection is being changed, reset the collection,
+    // which is dependent on the Brandfolder. Otherwise, use the value
+    // specified by the form.
+    $specified_collection = $form_state->getValue('brandfolder_default_collection');
+    if ($specified_brandfolder != $old_brandfolder || $specified_collection == 'none') {
+      $collection = NULL;
+    }
+    else {
+      $collection = $specified_collection;
+    }
+    $config->set('default_collection', $collection);
     $config->save();
   }
 
