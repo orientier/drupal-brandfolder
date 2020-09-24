@@ -32,6 +32,8 @@ function brandfolder_api(string $api_key = NULL) {
     return FALSE;
   }
 
+  // @todo: Set Brandfolder and collection based on module config if present.
+
   // Return a new Brandfolder object.
   return new Brandfolder($api_key);
 }
