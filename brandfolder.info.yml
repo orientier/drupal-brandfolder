@@ -4,3 +4,4 @@ description: 'Allows Drupal developers to easily integrate with a Brandfolder ac
 core: 8.x
 core_version_requirement: ^8 || ^9
 package: 'Brandfolder'
+configure: brandfolder.brandfolder_settings_form
