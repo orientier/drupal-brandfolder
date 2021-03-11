@@ -131,9 +131,40 @@ class BrandfolderSettingsForm extends ConfigFormBase {
   /**
    * {@inheritdoc}
    */
-  public function submitForm(array &$form, FormStateInterface $form_state) {
-    parent::submitForm($form, $form_state);
+  public function validateForm(array &$form, FormStateInterface $form_state) {
+    $api_key = $form_state->getValue('brandfolder_api_key');
+    if (!empty($api_key)) {
+      $bf = brandfolder_api($api_key);
+      $api_success = FALSE;
+      try {
+        $brandfolders = $bf->getBrandfolders();
+        // Note that the getBrandfolders request will return a 200 response even
+        // if the API key is invalid, and the brandfolders array will simply be
+        // empty. This is a quirk of the Brandfolder API.
+        if (!empty($brandfolders)) {
+          $api_success = TRUE;
+        }
+      }
+      catch (\Exception $e) {
+        $api_success = FALSE;
+      }
+      if (!$api_success) {
+        $message = $this->t('Could not connect to Brandfolder using this API key. Make sure the key is correct and is linked to a Brandfolder user who has permission to access at least one Brandfolder.');
+        $form_state->setErrorByName('brandfolder_api_key', $message);
+      }
+    }
+    else {
+      // If no API key is specified, clear out any existing Brandfolder and
+      // Collection choices.
+      $form_state->setValue('brandfolder_default_brandfolder', 'none');
+      $form_state->setValue('brandfolder_default_collection', 'none');
+    }
+  }
 
+  /**
+   * {@inheritdoc}
+   */
+  public function submitForm(array &$form, FormStateInterface $form_state) {
     $config = $this->config('brandfolder.settings');
     $config->set('api_key', $form_state->getValue('brandfolder_api_key'));
     $old_brandfolder = $config->get('default_brandfolder');
@@ -154,6 +185,8 @@ class BrandfolderSettingsForm extends ConfigFormBase {
     }
     $config->set('default_collection', $collection);
     $config->save();
+
+    parent::submitForm($form, $form_state);
   }
 
 }
