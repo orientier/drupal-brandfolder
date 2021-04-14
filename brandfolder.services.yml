@@ -1,0 +1,5 @@
+services:
+  brandfolder.stream_wrapper:
+    class: Drupal\brandfolder\StreamWrapper\BrandfolderStreamWrapper
+    tags:
+      - { name: stream_wrapper, scheme: bf }
