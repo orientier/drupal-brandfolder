@@ -58,7 +58,7 @@ class BrandfolderStreamWrapper implements StreamWrapperInterface {
   }
 
   /**
-   * {@inheritdoc}
+   * Class constructor.
    *
    * @todo: The following code doesn't seem to be necessary, but keep it on hand for now.
    * @code
@@ -76,9 +76,13 @@ class BrandfolderStreamWrapper implements StreamWrapperInterface {
    *   }
    * @endcode
    */
-  public function __construct(Connection $connection) {
+  public function __construct() {
     $this->baseUrl = 'https://cdn.bfldr.com';
-    $this->connection = $connection;
+    // Note: we can't use dependency injection for the DB connection because
+    // certain low-level operations like is_dir() will not pass any params
+    // even if arguments are registered in the stream wrapper service
+    // definition.
+    $this->connection = \Drupal::database();
   }
 
   /**
