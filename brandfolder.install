@@ -105,3 +105,21 @@ function brandfolder_schema() {
 
   return $schema;
 }
+
+/**
+ * Implements hook_install().
+ */
+//function brandfolder_install() {
+//  // @todo: Ensure 'bf://' scheme is fully accessible/usable upon module installation.
+//  // @todo: Enable our custom image toolkit, which will provide, which provides functionality for Brandfolder-hosted images and fall back to a more traditional image toolkit for everything else.
+//}
+
+/**
+ * Implements hook_uninstall().
+ */
+//function brandfolder_uninstall() {
+//  // @todo: Delete or flag all files using the bf:// file scheme.
+//  // @todo: Update all fields using the BF scheme and/or the Brandfolder Browser widget, attempting to reconfigure them to use reasonable alternatives.
+//  // @todo: Ensure 'bf' is removed from the list of public file schemas.
+//  // @todo: Restore the image toolkit selection to its pre-Brandfolder state as well as possible.
+//}
