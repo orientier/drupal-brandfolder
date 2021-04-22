@@ -1,0 +1,107 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the Brandfolder module.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function brandfolder_schema() {
+  $schema = [];
+  $schema['brandfolder_file'] = [
+    'description' => 'Stores information about managed files that live in Brandfolder.',
+    'fields' => [
+      'fid' => [
+        'description' => 'The Drupal file ID.',
+        'type' => 'varchar',
+        'length' => 32,
+        // This is an important piece of data, but will not be present when
+        // we initially add a record to this table during the asset/file mapping
+        // process.
+        'not null' => FALSE,
+        'default' => '',
+      ],
+      'bf_asset_id' => [
+        'description' => 'The Brandfolder asset ID.',
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+        'default' => '',
+      ],
+      'cdn_id' => [
+        'description' => 'The non-asset-specific identifier from the Smart CDN URL for an asset.',
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+        'default' => '',
+      ],
+      'uri' => [
+        'description' => 'The file URI.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+        'binary' => TRUE,
+      ],
+      'filesize' => [
+        'description' => 'The size of the file in bytes.',
+        'type' => 'int',
+        'size' => 'big',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+        'default' => 0,
+      ],
+      'width' => [
+        'description' => 'The width of the file in pixels.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+        'default' => 0,
+      ],
+      'height' => [
+        'description' => 'The height of the file in pixels.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+        'default' => 0,
+      ],
+      'mime_type' => [
+        'description' => 'The file MIME type.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ],
+      'timestamp' => [
+        'description' => 'UNIX timestamp of when the file was added.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+        'default' => 0,
+      ],
+    ],
+    'primary key' => ['bf_asset_id'],
+    'indexes' => [
+      'fid' => [
+        'fid',
+      ],
+      'uri' => [
+        'uri',
+      ],
+    ],
+    // For documentation purposes only; foreign keys are not created in the
+    // database.
+    'foreign keys' => [
+      'managed_file' => [
+        'table' => 'file_managed',
+        'columns' => [
+          'fid' => 'fid',
+        ],
+      ],
+    ],
+  ];
+
+  return $schema;
+}
