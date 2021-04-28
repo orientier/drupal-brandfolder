@@ -32,10 +32,18 @@ function brandfolder_api(string $api_key = NULL) {
     return FALSE;
   }
 
-  // @todo: Set Brandfolder and collection based on module config if present.
+  // Set Brandfolder and collection based on module config if present (NULL
+  // otherwise).
+  $default_brandfolder = \Drupal::config('brandfolder.settings')->get('default_brandfolder');
+  $bf = new Brandfolder($api_key, $default_brandfolder);
 
-  // Return a new Brandfolder object.
-  return new Brandfolder($api_key);
+  $default_collection = \Drupal::config('brandfolder.settings')->get('default_collection');
+  if ($default_collection) {
+    // @todo: getter/setter methods.
+    $bf->default_collection_id = $default_collection;
+  }
+
+  return $bf;
 }
 
 /**
