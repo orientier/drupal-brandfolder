@@ -52,3 +52,20 @@ function brandfolder_help($route_name, RouteMatchInterface $route_match) {
       return $output;
   }
 }
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function brandfolder_form_field_config_edit_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id) {
+  // If this is a config form for a file-esque field using the Brandfolder
+  // URI scheme, disable the file upload directory setting.
+  $route_params = \Drupal::routeMatch()->getParameters();
+  if ($field_config = $route_params->get('field_config', FALSE)) {
+    if ($field_storage = $field_config->getFieldStorageDefinition()) {
+      if ($field_storage->getSetting('uri_scheme') == 'bf') {
+        $form['settings']['file_directory']['#default_value'] = '';
+        $form['settings']['file_directory']['#access'] = FALSE;
+      }
+    }
+  }
+}
