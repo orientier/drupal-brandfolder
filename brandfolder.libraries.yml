@@ -1,0 +1,9 @@
+brandfolder-browser:
+  version: 1.x
+  css:
+    layout:
+      css/brandfolder-browser-layout.css: {}
+    theme:
+      css/brandfolder-browser-theme.css: {}
+  js:
+    js/brandfolder-browser.js: {}

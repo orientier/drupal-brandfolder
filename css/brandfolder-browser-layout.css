@@ -1,0 +1,33 @@
+.brandfolder-browser .brandfolder-asset-list {
+  list-style-type: none;
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 0.5rem;
+}
+
+.brandfolder-browser .brandfolder-asset {
+  flex: 1;
+  margin: 0.5rem;
+  min-width: 100px;
+  max-width: 175px;
+  position: relative;
+}
+.brandfolder-browser .brandfolder-asset figure {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  position: relative;
+  display: flex;
+}
+
+.brandfolder-browser .brandfolder-asset figcaption {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  width: calc(100% - 1rem);
+  height: calc(100% - 1rem);
+  padding: 0.5rem;
+}

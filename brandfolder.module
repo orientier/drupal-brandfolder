@@ -7,6 +7,9 @@
 
 use Drupal\Core\Routing\RouteMatchInterface;
 use Brandfolder\Brandfolder;
+use Drupal\Core\Render\Element;
+use Drupal\file\Entity\File;
+use Drupal\Core\Database;
 
 /**
  * Brandfolder helper function.
@@ -76,4 +79,311 @@ function brandfolder_form_field_config_edit_form_alter(&$form, \Drupal\Core\Form
       }
     }
   }
+}
+
+/**
+ * Implements hook_theme().
+ */
+function brandfolder_theme() {
+  return [
+    'brandfolder_browser_widget' => [
+      'render element' => 'element',
+    ],
+  ];
+}
+
+/**
+ * Prepares variables for Brandfolder Browser widget templates.
+ *
+ * Default template: brandfolder-browser-widget.html.twig.
+ *
+ * @param array $variables
+ *   An associative array containing:
+ *   - element: A render element representing the Brandfolder Browser widget.
+ */
+function template_preprocess_brandfolder_browser_widget(&$variables) {
+  $element = $variables['element'];
+
+  $variables['attributes'] = ['class' => ['brandfolder-browser-widget', 'js-form-managed-file', 'form-managed-file', 'clearfix']];
+
+  $variables['data'] = [];
+  foreach (Element::children($element) as $child) {
+    $variables['data'][$child] = $element[$child];
+  }
+}
+
+/**
+ * Given a Brandfolder asset ID, return a Drupal file ID.
+ *
+ * If no managed file yet exists in Drupal for the given asset, attempt to
+ * create one.
+ *
+ * @param string|object $asset
+ *   Unique Brandfolder asset ID, or an object representing a Brandfolder asset.
+ *   Objects must include the asset ID and CDN URL.
+ * @param bool $create_new_file
+ *   If TRUE, and no Drupal file exists for the given asset, create a new Drupal
+ *   file entity and link it to the asset.
+ *
+ * @return bool|int
+ *   The file ID on success; FALSE on failure.
+ *
+ * @throws \GuzzleHttp\Exception\GuzzleException
+ *
+ * @todo Move to class.
+ */
+function brandfolder_map_asset_to_file($asset, $create_new_file = TRUE) {
+  $fid = FALSE;
+
+  $logger = \Drupal::logger('brandfolder');
+
+  $asset_id = is_string($asset) ? $asset : $asset->id;
+
+  $db = \Drupal::database();
+//  $options = [
+//    'return' => Database::RETURN_AFFECTED,
+//  ];
+  $options = [];
+  $result = $db->select('brandfolder_file', 'bf', $options)
+    ->fields('bf', ['fid'])
+    ->condition('bf_asset_id', $asset_id)
+    ->execute();
+
+  // @todo.
+//  $num_affected = $result->rowCount();
+  $num_affected = 1;
+  if ($num_affected > 0) {
+    $fid = $result->fetch()->fid;
+  }
+  elseif ($create_new_file) {
+    $bf = brandfolder_api();
+    $params = [
+      'fields' => 'cdn_url',
+      'include' => 'attachments',
+    ];
+    if (is_string($asset)) {
+      if ($asset = $bf->fetchAsset($asset_id, $params)) {
+        $asset = $asset->data;
+      }
+    }
+    if ($asset) {
+      $bf_file_data = [
+        'bf_asset_id' => $asset_id,
+        'timestamp' => \Drupal::time()->getRequestTime(),
+      ];
+      $cdn_url = $asset->attributes->cdn_url;
+      $file = new File();
+      $info = brandfolder_parse_cdn_url($cdn_url);
+      // @todo: Store CDN ID with each file/asset record or store once globally and assume it will not change? Or store once but update periodically?
+      $bf_file_data['cdn_id'] = $info['cdn_id'];
+
+      // @todo Review.
+//      global $user;
+//      $file->uid = $user->uid;
+
+      // Note: Start with 0 (temporary) file status, which will be
+      // changed to 1 (permanent) by the File module if/when the
+      // host entity is saved. File module will also create a file_usage record.
+      // Saving the file with temporary status here may be the correct approach
+      // depending on the managed file validation process (which may otherwise
+      // not allow it to be referenced by the host entity).
+      // @todo: Test.
+      $file->setTemporary();
+
+      if (isset($asset->attachments)) {
+        // Pull critical file data from the asset's first attachment.
+        $primary_attachment = reset($asset->attachments);
+        $filename = $primary_attachment->filename;
+        $mime_type = $primary_attachment->mimetype;
+        if (empty($mime_type)) {
+          if (!$mime_type = brandfolder_get_mimetype_from_filename($filename)) {
+            $logger->error('Attempting to map an asset to a Drupal file but this asset appears not to have a mimetype (asset ID !asset_id).', ['!asset_id' => $asset_id]);
+
+            return FALSE;
+          }
+        }
+        $bf_file_data['mime_type'] = $mime_type;
+        $file->setMimeType($mime_type);
+        // Consider scenarios where this metadata is (temporarily) unavailable
+        // due to delays in processing files for a recently created/updated
+        // asset.
+        if (is_null($primary_attachment->size) || is_null($primary_attachment->width) || is_null($primary_attachment->height)) {
+          $logger->error('Attempting to map an asset to a Drupal file but this asset appears not to have the necessary file size data (asset ID !asset_id).', ['!asset_id' => $asset_id]);
+
+          return FALSE;
+        }
+        $bf_file_data['filesize'] = $primary_attachment->size;
+        $bf_file_data['width'] = $primary_attachment->width;
+        $bf_file_data['height'] = $primary_attachment->height;
+      }
+      else {
+        $logger->error('Attempting to map an asset to a Drupal file but this asset appears not to have any attachments (asset ID !asset_id).', ['!asset_id' => $asset_id]);
+
+        return FALSE;
+      }
+      // The file extension in the CDN URL does not necessarily correspond to
+      // the original file type. Use the latter in the URI so we can reliably
+      // look up assets/Drupal files later based on URI.
+      $uri = $info['uri'];
+      if ($extension = brandfolder_image_mimetype_extension_mapping($primary_attachment->mimetype)) {
+        $uri = preg_replace('/\.(\w+)$/', ".$extension", $uri);
+        // If the attachment has a mime type but its filename has no extension,
+        // add an appropriate extension to the Drupal file entity's filename.
+        if (!preg_match('/\.\w+$/', $filename)) {
+          $filename .= '.' . $extension;
+        }
+      }
+      $bf_file_data['uri'] = $uri;
+      $file->setFileUri($uri);
+
+      // Store data in the brandfolder_file table before saving the file, so
+      // we can use it to lookup things like filesize when the file is being
+      // saved.
+      $db->insert('brandfolder_file')
+        ->fields($bf_file_data)
+        ->execute();
+
+      $file->setFilename($filename);
+      try {
+        $file->save();
+        $fid = $bf_file_data['fid'] = $file->id();
+
+        // Update the brandfolder_file table with the newly created FID.
+        // @todo: Test result format.
+        $result = $db->merge('brandfolder_file')
+          ->key([
+            'uri'         => $uri,
+            'bf_asset_id' => $asset_id,
+          ])
+          ->fields(['fid' => $fid])
+          ->execute();
+        if ($result != 2) {
+          $logger->error('Could not find an existing record in the brandfolder_file table for asset ID !asset_id and file ID !fid.', [
+            '!fid'      => $fid,
+            '!asset_id' => $asset_id
+          ]);
+        }
+
+        \Drupal::moduleHandler()->invokeAll('brandfolder_file_insert', [
+          $file,
+          $asset_id
+        ]);
+      }
+      catch (\Drupal\Core\Entity\EntityStorageException $e) {
+        $logger->error('There was an error saving a new file for Brandfolder asset !asset_id.', ['!asset_id' => $asset_id]);
+      }
+    }
+  }
+
+  return $fid;
+}
+
+/**
+ * Helper function to parse a CDN URL and return useful derived data.
+ *
+ * @param string $cdn_url
+ *   A full URL via which a Brandfolder asset is served on the Brandfolder CDN.
+ *
+ * @return array
+ *   Array containing the following keys:
+ *   ['uri', 'cdn_id', 'id', 'filename', 'type'].
+ */
+function brandfolder_parse_cdn_url($cdn_url) {
+  $return = [
+    'uri' => '',
+    'cdn_id' => '',
+    'id' => '',
+    'filename' => '',
+    'type' => '',
+  ];
+
+  if (preg_match("/.*cdn\.(brandfolder\.io|bfldr\.com)\/(([^\/]+)\/(as|at)\/([\w\-]+)\/(.*))/", $cdn_url, $matches)) {
+    $uri_suffix = $matches[2];
+    $return = [
+      'uri' => 'bf://' . $uri_suffix,
+      'cdn_id' => $matches[3],
+      'id' => $matches[5],
+      'filename' => $matches[6],
+    ];
+    $return['type'] = ($matches[4] == 'as') ? 'asset' : 'attachment';
+  }
+
+  return $return;
+}
+
+/**
+ * Given a Drupal file ID, return a corresponding Brandfolder asset ID.
+ *
+ * If the file does not correspond to a Brandfolder asset, return FALSE.
+ *
+ * @param int $fid
+ *   Drupal managed file ID.
+ *
+ * @return bool|string
+ *   The asset ID on success; FALSE on failure.
+ */
+function brandfolder_map_file_id_to_asset($fid) {
+  $asset_id = FALSE;
+
+  $db = \Drupal::database();
+  $result = $db->select('brandfolder_file', 'bf')
+    ->fields('bf', ['bf_asset_id'])
+    ->condition('fid', $fid)
+    ->execute();
+
+  if ($result->rowCount() > 0) {
+    $asset_id = $result->fetch()->bf_asset_id;
+  }
+
+  return $asset_id;
+}
+
+/**
+ * Helper function to translate certain image mimetypes to file extensions.
+ *
+ * @param string $mimetype
+ *   The file mime type (e.g. "image/jpeg").
+ *
+ * @return bool|string
+ *   The file extension (e.g. "jpg") on success; FALSE if the given mime type
+ *   cannot be mapped to an extension.
+ */
+function brandfolder_image_mimetype_extension_mapping($mimetype) {
+  $extension = FALSE;
+
+  $mime_type_mapping = [
+    'image/gif' => 'gif',
+    'image/jpeg' => 'jpg',
+    'image/png' => 'png',
+    'image/svg+xml' => 'svg',
+    'image/tiff' => 'tiff',
+    'image/webp' => 'webp',
+  ];
+  if (isset($mime_type_mapping[$mimetype])) {
+    $extension = $mime_type_mapping[$mimetype];
+  }
+
+  return $extension;
+}
+
+/**
+ * Helper function to determine a mime type based on a given filename.
+ *
+ * @param string $filename
+ *   The name of the file to examine.
+ *
+ * @return null|string
+ *   The mime type (e.g. "image/jpeg") on success; FALSE if the given file name
+ *   cannot be mapped to a mime type.
+ */
+function brandfolder_get_mimetype_from_filename($filename) {
+  $mimetype = NULL;
+
+  if (preg_match('/\.([^\.]+)$/', $filename, $matches)) {
+    $extension = $matches[1];
+
+    $mimetype = \GuzzleHttp\Psr7\mimetype_from_extension($extension);
+  }
+
+  return $mimetype;
 }

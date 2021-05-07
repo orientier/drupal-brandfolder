@@ -1,0 +1,23 @@
+.brandfolder-browser .brandfolder-asset img {
+  max-width: 100%;
+  object-fit: scale-down;
+}
+
+.brandfolder-browser .brandfolder-asset figcaption {
+  display: none;
+  background: rgba(0,0,0,0.5);
+  color: #ffffff;
+  overflow-wrap: break-word;
+}
+
+.brandfolder-browser .brandfolder-asset:hover {
+  cursor: pointer;
+  /*transform: scale(1.05);*/
+}
+
+/*.brandfolder-browser .brandfolder-asset:hover img {*/
+/*}*/
+
+.brandfolder-browser .brandfolder-asset:hover figcaption {
+  display: block;
+}
