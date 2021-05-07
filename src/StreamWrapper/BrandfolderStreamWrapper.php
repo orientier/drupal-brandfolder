@@ -400,12 +400,12 @@ class BrandfolderStreamWrapper implements StreamWrapperInterface {
    */
   protected function loadFileData($uri): bool {
     // @todo: static/cache; data other than file size; etc.
-    $result = $this->connection->select('brandfolder_file', 'bf')
+    $query = $this->connection->select('brandfolder_file', 'bf')
       ->fields('bf', ['filesize'])
-      ->condition('uri', $uri)
-      ->execute();
+      ->condition('uri', $uri);
 
-    if ($result->rowCount() > 0) {
+    if ($query->countQuery()->execute()->fetchField()) {
+      $result = $query->execute();
       $row = $result->fetch();
       if (!empty($row->filesize)) {
         // Set the appropriate items in the _stat array, which is used to

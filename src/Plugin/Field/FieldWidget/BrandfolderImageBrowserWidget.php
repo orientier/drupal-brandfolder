@@ -3,14 +3,8 @@
 namespace Drupal\brandfolder\Plugin\Field\FieldWidget;
 
 use Drupal\image\Plugin\Field\FieldWidget\ImageWidget;
-use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Field\FieldItemListInterface;
-use Drupal\Core\Image\ImageFactory;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\Core\Render\ElementInfoManagerInterface;
-use Drupal\file\Entity\File;
-use Drupal\file\Plugin\Field\FieldWidget\FileWidget;
-use Drupal\image\Entity\ImageStyle;
 
 /**
  * Plugin implementation of the 'brandfolder_image_browser' widget.
@@ -73,46 +67,6 @@ class BrandfolderImageBrowserWidget extends ImageWidget {
 
     $element['#attached']['library'][] = 'brandfolder/brandfolder-browser';
 
-//    $field_settings = $this->getFieldSettings();
-//
-//    // Add image validation.
-//    $element['#upload_validators']['file_validate_is_image'] = [];
-//
-//    // Add upload resolution validation.
-//    if ($field_settings['max_resolution'] || $field_settings['min_resolution']) {
-//      $element['#upload_validators']['file_validate_image_resolution'] = [$field_settings['max_resolution'], $field_settings['min_resolution']];
-//    }
-//
-//    $extensions = $field_settings['file_extensions'];
-//    $supported_extensions = $this->imageFactory->getSupportedExtensions();
-//
-//    // If using custom extension validation, ensure that the extensions are
-//    // supported by the current image toolkit. Otherwise, validate against all
-//    // toolkit supported extensions.
-//    $extensions = !empty($extensions) ? array_intersect(explode(' ', $extensions), $supported_extensions) : $supported_extensions;
-//    $element['#upload_validators']['file_validate_extensions'][0] = implode(' ', $extensions);
-//
-//    // Add mobile device image capture acceptance.
-//    $element['#accept'] = 'image/*';
-//
-//    // Add properties needed by process() method.
-//    $element['#preview_image_style'] = $this->getSetting('preview_image_style');
-//    $element['#title_field'] = $field_settings['title_field'];
-//    $element['#title_field_required'] = $field_settings['title_field_required'];
-//    $element['#alt_field'] = $field_settings['alt_field'];
-//    $element['#alt_field_required'] = $field_settings['alt_field_required'];
-//
-//    // Default image.
-//    $default_image = $field_settings['default_image'];
-//    if (empty($default_image['uuid'])) {
-//      $default_image = $this->fieldDefinition->getFieldStorageDefinition()->getSetting('default_image');
-//    }
-//    // Convert the stored UUID into a file ID.
-//    if (!empty($default_image['uuid']) && $entity = \Drupal::service('entity.repository')->loadEntityByUuid('file', $default_image['uuid'])) {
-//      $default_image['fid'] = $entity->id();
-//    }
-//    $element['#default_image'] = !empty($default_image['fid']) ? $default_image : [];
-
     return $element;
   }
 
@@ -127,22 +81,33 @@ class BrandfolderImageBrowserWidget extends ImageWidget {
     return $element;
   }
 
-
   /**
    * @inerhitDoc
    */
   public static function value($element, $input, FormStateInterface $form_state) {
     $return = parent::value($element, $input, $form_state);
 
-    // Map selected Brandfolder asset IDs to Drupal file IDs as applicable.
-//    $asset_ids = $form_state->getValue('bf_asset_ids', []);
-    $asset_ids = $element['bf_asset_ids']['#value'];
+    $cardinality = $element['#cardinality'];
 
-    // @todo Multi vs. single cardinality, etc.
-    foreach ($asset_ids as $asset_id) {
-      if ($fid = brandfolder_map_asset_to_file($asset_id)) {
-        $return['fids'][] = $fid;
-        $return['target_id'] = $fid;
+    // Map selected Brandfolder asset IDs to Drupal file IDs as applicable.
+    if (!empty($input)) {
+      //    $asset_ids = $form_state->getValue('bf_asset_ids', []);
+      $asset_ids = $input['bf_asset_ids'];
+      if (!is_array($asset_ids)) {
+        $asset_ids = [$asset_ids];
+      }
+
+      // @todo Multi vs. single cardinality, etc.
+      if ($cardinality > 0) {
+        $asset_ids = array_slice($asset_ids, 0, $cardinality);
+      }
+
+      foreach ($asset_ids as $index => $asset_id) {
+        if ($fid = brandfolder_map_asset_to_file($asset_id)) {
+          $return['fids'][$index] = $fid;
+          // @todo
+          $return['target_id'] = $fid;
+        }
       }
     }
 

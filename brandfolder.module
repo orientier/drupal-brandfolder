@@ -140,19 +140,11 @@ function brandfolder_map_asset_to_file($asset, $create_new_file = TRUE) {
   $asset_id = is_string($asset) ? $asset : $asset->id;
 
   $db = \Drupal::database();
-//  $options = [
-//    'return' => Database::RETURN_AFFECTED,
-//  ];
-  $options = [];
-  $result = $db->select('brandfolder_file', 'bf', $options)
+  $query = $db->select('brandfolder_file', 'bf')
     ->fields('bf', ['fid'])
-    ->condition('bf_asset_id', $asset_id)
-    ->execute();
-
-  // @todo.
-//  $num_affected = $result->rowCount();
-  $num_affected = 1;
-  if ($num_affected > 0) {
+    ->condition('bf_asset_id', $asset_id);
+  if ($query->countQuery()->execute()->fetchField()) {
+    $result = $query->execute();
     $fid = $result->fetch()->fid;
   }
   elseif ($create_new_file) {
@@ -167,28 +159,23 @@ function brandfolder_map_asset_to_file($asset, $create_new_file = TRUE) {
       }
     }
     if ($asset) {
+      $file_data = [
+        // Note: Start with 0 (temporary) file status, which will be changed to
+        // 1 (permanent) by the File module if/when the host entity is saved.
+        // File module will also create a file_usage record.
+        // @todo: If the file is never made permanent, remove its brandfolder_file record? Or see if we can just jump straight to permanent status? That might run afoul of file/entity reference validation.
+        'status' => 0,
+        'uid' => \Drupal::currentUser()->id(),
+      ];
       $bf_file_data = [
         'bf_asset_id' => $asset_id,
         'timestamp' => \Drupal::time()->getRequestTime(),
       ];
       $cdn_url = $asset->attributes->cdn_url;
-      $file = new File();
       $info = brandfolder_parse_cdn_url($cdn_url);
       // @todo: Store CDN ID with each file/asset record or store once globally and assume it will not change? Or store once but update periodically?
       $bf_file_data['cdn_id'] = $info['cdn_id'];
 
-      // @todo Review.
-//      global $user;
-//      $file->uid = $user->uid;
-
-      // Note: Start with 0 (temporary) file status, which will be
-      // changed to 1 (permanent) by the File module if/when the
-      // host entity is saved. File module will also create a file_usage record.
-      // Saving the file with temporary status here may be the correct approach
-      // depending on the managed file validation process (which may otherwise
-      // not allow it to be referenced by the host entity).
-      // @todo: Test.
-      $file->setTemporary();
 
       if (isset($asset->attachments)) {
         // Pull critical file data from the asset's first attachment.
@@ -202,8 +189,8 @@ function brandfolder_map_asset_to_file($asset, $create_new_file = TRUE) {
             return FALSE;
           }
         }
-        $bf_file_data['mime_type'] = $mime_type;
-        $file->setMimeType($mime_type);
+        $file_data['filemime'] = $bf_file_data['mime_type'] = $mime_type;
+
         // Consider scenarios where this metadata is (temporarily) unavailable
         // due to delays in processing files for a recently created/updated
         // asset.
@@ -233,8 +220,8 @@ function brandfolder_map_asset_to_file($asset, $create_new_file = TRUE) {
           $filename .= '.' . $extension;
         }
       }
-      $bf_file_data['uri'] = $uri;
-      $file->setFileUri($uri);
+      $file_data['filename'] = $filename;
+      $file_data['uri'] = $bf_file_data['uri'] = $uri;
 
       // Store data in the brandfolder_file table before saving the file, so
       // we can use it to lookup things like filesize when the file is being
@@ -243,13 +230,12 @@ function brandfolder_map_asset_to_file($asset, $create_new_file = TRUE) {
         ->fields($bf_file_data)
         ->execute();
 
-      $file->setFilename($filename);
       try {
+        $file = File::Create($file_data);
         $file->save();
         $fid = $bf_file_data['fid'] = $file->id();
 
         // Update the brandfolder_file table with the newly created FID.
-        // @todo: Test result format.
         $result = $db->merge('brandfolder_file')
           ->key([
             'uri'         => $uri,
@@ -257,7 +243,7 @@ function brandfolder_map_asset_to_file($asset, $create_new_file = TRUE) {
           ])
           ->fields(['fid' => $fid])
           ->execute();
-        if ($result != 2) {
+        if ($result != \Drupal\Core\Database\Query\Merge::STATUS_UPDATE) {
           $logger->error('Could not find an existing record in the brandfolder_file table for asset ID !asset_id and file ID !fid.', [
             '!fid'      => $fid,
             '!asset_id' => $asset_id
