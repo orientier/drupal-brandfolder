@@ -3,3 +3,7 @@ services:
     class: Drupal\brandfolder\StreamWrapper\BrandfolderStreamWrapper
     tags:
       - { name: stream_wrapper, scheme: bf }
+
+  image.factory:
+    class: Drupal\brandfolder\Image\BrandfolderImageFactory
+    arguments: ['@image.toolkit.manager']

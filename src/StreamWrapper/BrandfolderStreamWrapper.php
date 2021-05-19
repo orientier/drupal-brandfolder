@@ -6,6 +6,8 @@ use Drupal\Core\StreamWrapper\StreamWrapperInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Url;
+use Drupal\image\Entity\ImageStyle;
+use Psr\Log\LoggerInterface;
 
 /**
  * Drupal stream wrapper implementation for Brandfolder.
@@ -51,6 +53,13 @@ class BrandfolderStreamWrapper implements StreamWrapperInterface {
   protected Connection $connection;
 
   /**
+   * Drupal logger.
+   *
+   * @var LoggerInterface $logger
+   */
+  protected LoggerInterface $logger;
+
+  /**
    * @inheritDoc
    */
   public static function getType(): int {
@@ -83,6 +92,7 @@ class BrandfolderStreamWrapper implements StreamWrapperInterface {
     // even if arguments are registered in the stream wrapper service
     // definition.
     $this->connection = \Drupal::database();
+    $this->logger = \Drupal::logger('brandfolder');
   }
 
   /**
@@ -214,8 +224,11 @@ class BrandfolderStreamWrapper implements StreamWrapperInterface {
 // @codingStandardsIgnoreEnd
     // Load file size from DB before proceeding.
     $file_data_loaded = $this->loadFileData($url);
+    if (!$file_data_loaded) {
+      $this->logger->error('Could not load file data for !url', ['!url' => $url]);
+    }
 
-    return $file_data_loaded ? $this->stream_stat() : FALSE;
+    return $this->stream_stat();
   }
 
   /**
@@ -316,42 +329,49 @@ class BrandfolderStreamWrapper implements StreamWrapperInterface {
     $query_params = [];
 
     // Handle image styles.
-    $image_style = NULL;
     if (preg_match("/^styles\/([^\/]+)\/bf\/(.*)$/", $uri_sans_scheme, $matches)) {
-      $image_style = $matches[1];
+      $image_style_id = $matches[1];
       // Remove the style portion of the URI.
       $uri_sans_scheme = $matches[2];
 
       // Temp: Append style name as query param for testing purposes.
-      $query_params['drupal-image-style'] = $image_style;
+      $query_params['drupal-image-style'] = $image_style_id;
 
-      // @todo:
-//      $all_image_styles = image_styles();
-//      if (isset($all_image_styles[$image_style])) {
-//        // Apply all effects from the given image style. Our image toolkit will
-//        // handle compatible effects and add corresponding Smart CDN URL
-//        // transformation params to the image object.
-//        // @todo: Test scenarios with stacked effects; try to provide more robust pass-through support for non BF images.
-//        $style = $all_image_styles[$image_style];
-//        if ($image = image_load("bf://$uri_sans_scheme")) {
-//          foreach ($style['effects'] as $effect) {
-//            image_effect_apply($image, $effect);
-//          }
-//          if (!empty($image->brandfolder['url_params'])) {
-//            // Safeguard against illegal values for crop zone and final image
-//            // size. These can occur when the image metadata is missing, etc.
-//            // The assumption here is that it is better to fall back to a
-//            // non-transformed image than to nothing.
-//            if ($image->brandfolder['url_params']['crop_width'] == 0 || $image->brandfolder['url_params']['crop_height'] == 0) {
-//              unset($image->brandfolder['url_params']['crop_width'], $image->brandfolder['url_params']['crop_height']);
-//            }
-//            if ($image->brandfolder['url_params']['width'] == 0 || $image->brandfolder['url_params']['height'] == 0) {
-//              unset($image->brandfolder['url_params']['width'], $image->brandfolder['url_params']['height']);
-//            }
-//            $query_params = array_merge($query_params, $image->brandfolder['url_params']);
-//          }
-//        }
-//      }
+      if ($image_style = ImageStyle::load($image_style_id)) {
+        // Apply all effects from the given image style. Our image toolkit will
+        // handle compatible effects and add corresponding Smart CDN URL
+        // transformation params to the image object.
+        // @todo: Test scenarios with stacked effects; try to provide more robust pass-through support for non BF images.
+        $full_uri = "bf://$uri_sans_scheme";
+        // Note: we will always use the BF image toolkit for BF images, without
+        // making BF the default sitewide toolkit.
+        // @see \Drupal\brandfolder\Image\BrandfolderImageFactory.
+        $image = \Drupal::service('image.factory')->get($full_uri);
+        if ($image->isValid()) {
+          foreach ($image_style->getEffects() as $effect) {
+            if (!$effect->applyEffect($image)) {
+              $this->logger->error('Could not apply the image effect !effect_name to the Brandfolder image !uri.', [
+                '!effect_name'      => $effect->label(),
+                '!uri' => $full_uri,
+              ]);
+            }
+          }
+          $bf_params = $image->getToolkit()->getCdnUrlParams();
+          if (!empty($bf_params)) {
+            // Safeguard against illegal values for crop zone and final image
+            // size. These can occur when the image metadata is missing, etc.
+            // The assumption here is that it is better to fall back to a
+            // non-transformed image than to nothing.
+            if ($bf_params['crop_width'] == 0 || $bf_params['crop_height'] == 0) {
+              unset($bf_params['crop_width'], $bf_params['crop_height']);
+            }
+            if ($bf_params['width'] == 0 || $bf_params['height'] == 0) {
+              unset($bf_params['width'], $bf_params['height']);
+            }
+            $query_params = array_merge($query_params, $bf_params);
+          }
+        }
+      }
     }
 
     // Lastly, convert the file format/extension to match the globally
