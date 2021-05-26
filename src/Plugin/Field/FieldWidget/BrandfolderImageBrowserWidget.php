@@ -54,10 +54,21 @@ class BrandfolderImageBrowserWidget extends ImageWidget {
       $element['bf_asset_list'] = [
         '#markup' => "<div class=\"brandfolder-browser\"><div class=\"brandfolder-assets\"><ul class=\"brandfolder-asset-list\">$bf_asset_list_string</ul></div></div>",
       ];
+      $selected_bf_asset_ids = '';
+      $input = $form_state->getUserInput();
+      $field_name = $element['#field_name'];
+      if (!empty($input[$field_name][$delta]['bf_asset_ids'])) {
+        $selected_bf_asset_ids = $input[$field_name][$delta]['bf_asset_ids'];
+      }
+      elseif (!empty($element['#default_value']['target_id'])) {
+        if ($bf_asset_id = brandfolder_map_file_id_to_asset($element['#default_value']['target_id'])) {
+          $selected_bf_asset_ids = $bf_asset_id;
+        }
+      }
       $element['bf_asset_ids'] = [
         '#type' => 'hidden',
         '#value' => [
-          '4g6zpzmbkc97pxjpjpks9r4t'
+          $selected_bf_asset_ids,
         ],
         '#attributes' => [
           'class' => 'bf-asset-ids'

@@ -312,12 +312,11 @@ function brandfolder_map_file_id_to_asset($fid) {
   $asset_id = FALSE;
 
   $db = \Drupal::database();
-  $result = $db->select('brandfolder_file', 'bf')
+  $query = $db->select('brandfolder_file', 'bf')
     ->fields('bf', ['bf_asset_id'])
-    ->condition('fid', $fid)
-    ->execute();
-
-  if ($result->rowCount() > 0) {
+    ->condition('fid', $fid);
+  if ($query->countQuery()->execute()->fetchField()) {
+    $result = $query->execute();
     $asset_id = $result->fetch()->bf_asset_id;
   }
 
