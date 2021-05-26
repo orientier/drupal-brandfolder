@@ -5,6 +5,9 @@
       $bf_browser_assets.once('brandfolder-browser').on('click', function (event) {
         event.preventDefault();
         let $selected_asset = $(event.currentTarget);
+        const selected_class = 'brandfolder-asset--selected';
+        $bf_browser_assets.removeClass(selected_class);
+        $selected_asset.addClass(selected_class);
         let $widget = $selected_asset.closest('.brandfolder-browser-widget');
         // Store asset ID as selection, to be mapped to FID.
         // @todo: Multiple selections, etc.
