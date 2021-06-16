@@ -5,11 +5,14 @@
  * Contains brandfolder.module.
  */
 
+use Drupal\brandfolder\Plugin\media\Source\BrandfolderImage;
 use Drupal\Core\Routing\RouteMatchInterface;
 use Brandfolder\Brandfolder;
 use Drupal\Core\Render\Element;
+use Drupal\field\Entity\FieldStorageConfig;
 use Drupal\file\Entity\File;
 use Drupal\Core\Database;
+use Drupal\media\MediaTypeInterface;
 
 /**
  * Brandfolder helper function.
@@ -243,7 +246,7 @@ function brandfolder_map_asset_to_file($asset, $create_new_file = TRUE) {
           ])
           ->fields(['fid' => $fid])
           ->execute();
-        if ($result != \Drupal\Core\Database\Query\Merge::STATUS_UPDATE) {
+        if ($result != Database\Query\Merge::STATUS_UPDATE) {
           $logger->error('Could not find an existing record in the brandfolder_file table for asset ID !asset_id and file ID !fid.', [
             '!fid'      => $fid,
             '!asset_id' => $asset_id
@@ -371,4 +374,26 @@ function brandfolder_get_mimetype_from_filename($filename) {
   }
 
   return $mimetype;
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_insert().
+ */
+function brandfolder_media_type_insert(MediaTypeInterface $media_type) {
+  // Do not alter configuration during config sync.
+  if ($media_type->isSyncing()) {
+    return;
+  }
+  // Create an image field on new BrandfolderImage-sourced media types.
+  if ($media_type->getSource() instanceof BrandfolderImage) {
+    $source = $media_type->getSource();
+    $image_field_storage = FieldStorageConfig::loadByName('media', 'bf_image');
+    if (!$image_field_storage) {
+      $image_field_storage = $source->createImageFieldStorage();
+      $image_field_storage->save();
+    }
+
+    $image_field = $source->createImageField($media_type);
+    $image_field->save();
+  }
 }

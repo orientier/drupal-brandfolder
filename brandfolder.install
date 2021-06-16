@@ -5,6 +5,10 @@
  * Install, update and uninstall functions for the Brandfolder module.
  */
 
+use Drupal\field\Entity\FieldStorageConfig;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\brandfolder\Plugin\media\Source\BrandfolderImage;
+
 /**
  * Implements hook_schema().
  */
@@ -109,10 +113,54 @@ function brandfolder_schema() {
 /**
  * Implements hook_install().
  */
-//function brandfolder_install() {
-//  // @todo: Ensure 'bf://' scheme is fully accessible/usable upon module installation.
-//  // @todo: Enable our custom image toolkit, which will provide, which provides functionality for Brandfolder-hosted images and fall back to a more traditional image toolkit for everything else.
-//}
+function brandfolder_install() {
+  // @todo: Ensure 'bf://' scheme is fully accessible/usable upon module installation.
+
+
+  // Create fields for Brandfolder media types.
+  // @todo: consider using custom field type, etc.
+  $field_name = 'brandfolder_image';
+  if ($field_storage = FieldStorageConfig::loadByName('media', $field_name)) {
+    if (!is_null($field_storage)) {
+      throw new UpdateException("The '$field_name' field already exists. Please remove it before re-running this update.");
+    }
+
+    return;
+  }
+
+  $entity_type_manager = \Drupal::entityTypeManager();
+
+  // Create field instances for each of the Brandfolder media types.
+  foreach ($entity_type_manager->getStorage('media_type')->loadMultiple() as $media_type_id => $media_type) {
+    $source = $media_type->getSource();
+    if ($source instanceof BrandfolderImage) {
+      if (!$field_storage) {
+        $field_storage = $source->createImageFieldStorage();
+        $field_storage->save();
+      }
+
+      $field = $source->createImageField($media_type);
+      $field->save();
+
+      // Remove the image field from entity form.
+      // @todo: disable/restrict instead of removing altogether?
+//      $form_display = $entity_type_manager->getStorage('entity_form_display')
+//        ->load("media.$media_type_id.default");
+//      if ($form_display) {
+//        $form_display->removeComponent($field_name)
+//          ->save();
+//      }
+
+      // @todo: consider setting default display
+//      $view_display = $entity_type_manager->getStorage('entity_view_display')
+//        ->load("media.$media_type_id.default");
+//      if ($view_display) {
+//        $view_display->...
+//          ->save();
+//      }
+    }
+  }
+}
 
 /**
  * Implements hook_uninstall().
@@ -121,5 +169,4 @@ function brandfolder_schema() {
 //  // @todo: Delete or flag all files using the bf:// file scheme.
 //  // @todo: Update all fields using the BF scheme and/or the Brandfolder Browser widget, attempting to reconfigure them to use reasonable alternatives.
 //  // @todo: Ensure 'bf' is removed from the list of public file schemas.
-//  // @todo: Restore the image toolkit selection to its pre-Brandfolder state as well as possible.
 //}

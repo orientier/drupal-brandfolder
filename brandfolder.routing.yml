@@ -5,3 +5,10 @@ brandfolder.brandfolder_settings_form:
     _title: 'Brandfolder'
   requirements:
     _permission: 'administer brandfolder settings'
+
+brandfolder.asset_fetch_callback:
+  path: '/brandfolder-asset-fetch-callback/{context-id}'
+  defaults:
+    _controller: '\Drupal\brandfolder\Controller\AssetFetchController::fetchAssetsCallback'
+  requirements:
+    _permission: 'read brandfolder assets'

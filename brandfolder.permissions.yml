@@ -2,3 +2,11 @@ administer brandfolder settings:
   title: 'Administer Brandfolder configuration settings'
   description: 'Grants access to modify the Brandfolder configuration settings.'
   restrict access: TRUE
+read brandfolder assets:
+  title: 'Browse and select Brandfolder assets'
+  description: 'Allows users to browse available assets from Brandfolder and select them for use in Drupal, subject to configured limitations.'
+  restrict access: TRUE
+create brandfolder assets:
+  title: 'Add new Brandfolder assets'
+  description: 'Allows users to upload files to be added to Brandfolder as new assets.'
+  restrict access: TRUE

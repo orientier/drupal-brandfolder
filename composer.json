@@ -25,6 +25,7 @@
     ],
     "minimum-stability": "dev",
     "require": {
-        "brandfolder/brandfolder-sdk-php": ">=0.1.0"
+        "brandfolder/brandfolder-sdk-php": ">=0.1.0",
+        "drupal/entity_browser": "^2.5"
     }
 }
