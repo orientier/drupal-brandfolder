@@ -191,7 +191,7 @@ class BrandfolderImage extends MediaSourceBase {
     }
 
     switch ($name) {
-      case 'thumbnail_url':
+      case 'thumbnail_uri':
         // @todo: store in local metadata cache/store. Look into "sig" (signature) URL param lifespan and expiry param, etc.
 //          $thumbnail_url = "https://thumbs.bfldr.com/as/$bf_asset_id?expiry=1624467346&fit=bounds&height=162&sig=ZTY3ZDA5MTFjMWQxMmQ1Yjk5ZjJjYTg3OTczZGYxZDgzODYwZWQ3Yw%3D%3D&width=262";
         // Temp.

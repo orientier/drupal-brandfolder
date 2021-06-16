@@ -12,6 +12,7 @@ use Drupal\Core\Render\Element;
 use Drupal\field\Entity\FieldStorageConfig;
 use Drupal\file\Entity\File;
 use Drupal\Core\Database;
+use Drupal\media\MediaInterface;
 use Drupal\media\MediaTypeInterface;
 
 /**
@@ -395,5 +396,22 @@ function brandfolder_media_type_insert(MediaTypeInterface $media_type) {
 
     $image_field = $source->createImageField($media_type);
     $image_field->save();
+  }
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_presave().
+ */
+function brandfolder_media_presave(MediaInterface $media) {
+  // Create an image field on new BrandfolderImage-sourced media types.
+  $source = $media->getSource();
+  if ($source instanceof BrandfolderImage) {
+    $bf_asset_id = $source->getSourceFieldValue($media);
+    if (!empty($bf_asset_id)) {
+      // @todo: If changed. Dupe reconciliation, etc.
+      if ($fid = brandfolder_map_asset_to_file($bf_asset_id)) {
+        $media->set('bf_image', ['target_id' => $fid]);
+      }
+    }
   }
 }

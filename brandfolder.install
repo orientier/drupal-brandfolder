@@ -116,16 +116,14 @@ function brandfolder_schema() {
 function brandfolder_install() {
   // @todo: Ensure 'bf://' scheme is fully accessible/usable upon module installation.
 
+  // @todo: Pre-create certain default BF media types.
 
   // Create fields for Brandfolder media types.
   // @todo: consider using custom field type, etc.
   $field_name = 'brandfolder_image';
-  if ($field_storage = FieldStorageConfig::loadByName('media', $field_name)) {
-    if (!is_null($field_storage)) {
-      throw new UpdateException("The '$field_name' field already exists. Please remove it before re-running this update.");
-    }
-
-    return;
+  $field_storage = FieldStorageConfig::loadByName('media', $field_name);
+  if (!is_null($field_storage)) {
+    throw new UpdateException("The '$field_name' field already exists. Please remove it before re-installing this module.");
   }
 
   $entity_type_manager = \Drupal::entityTypeManager();
