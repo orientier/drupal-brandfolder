@@ -410,7 +410,25 @@ function brandfolder_media_presave(MediaInterface $media) {
     if (!empty($bf_asset_id)) {
       // @todo: If changed. Dupe reconciliation, etc.
       if ($fid = brandfolder_map_asset_to_file($bf_asset_id)) {
-        $media->set('bf_image', ['target_id' => $fid]);
+        $file = File::load($fid);
+        $image_file_data = [
+          'target_id' => $fid,
+        ];
+        $image = Drupal::service('image.factory')->get($file->getFileUri());
+        if ($image->isValid()) {
+          $image_file_data['width'] = $image->getWidth();
+          $image_file_data['height'] = $image->getHeight();
+        }
+        $bf = brandfolder_api();
+        $params = [
+          'include' => 'custom_fields',
+        ];
+        if ($asset = $bf->fetchAsset($bf_asset_id, $params)) {
+          if (!empty($asset->data->custom_field_values['alt-text'])) {
+            $image_file_data['alt'] = $asset->data->custom_field_values['alt-text'];
+          }
+        }
+        $media->set('bf_image', $image_file_data);
       }
     }
   }

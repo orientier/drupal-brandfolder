@@ -17,6 +17,7 @@ use Drupal\media\MediaInterface;
 use Drupal\media\MediaSourceBase;
 use Drupal\media\MediaTypeInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Drupal\file\Entity\File;
 
 /**
  * Allows Brandfolder image assets to be used by Drupal's Media system.
@@ -192,12 +193,18 @@ class BrandfolderImage extends MediaSourceBase {
 
     switch ($name) {
       case 'thumbnail_uri':
-        // @todo: store in local metadata cache/store. Look into "sig" (signature) URL param lifespan and expiry param, etc.
+        // @todo: Use specified thumb from Brandfolder. Store in local metadata cache/store. Look into "sig" (signature) URL param lifespan and expiry param, etc.
 //          $thumbnail_url = "https://thumbs.bfldr.com/as/$bf_asset_id?expiry=1624467346&fit=bounds&height=162&sig=ZTY3ZDA5MTFjMWQxMmQ1Yjk5ZjJjYTg3OTczZGYxZDgzODYwZWQ3Yw%3D%3D&width=262";
-        // Temp.
-        $cdn_thumb_url = "https://cdn.bfldr.com/U91JRM9I/as/$bf_asset_id/bf-drupal-media-thumb--$bf_asset_id.jpg?width=262&height=162&fit=bounds";
 
-        return $cdn_thumb_url;
+        $thumb_uri = NULL;
+
+        // Alt.
+        if ($fid = brandfolder_map_asset_to_file($bf_asset_id)) {
+          $file = File::load($fid);
+          $thumb_uri = $file->getFileUri();
+        }
+
+        return $thumb_uri;
 
 //        case 'created':
 //          return isset($this->metadata[$bf_asset_id]['dateCreated']) ? $this->metadata[$bf_asset_id]['dateCreated'] : FALSE;
