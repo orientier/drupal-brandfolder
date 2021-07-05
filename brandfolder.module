@@ -403,32 +403,35 @@ function brandfolder_media_type_insert(MediaTypeInterface $media_type) {
  * Implements hook_ENTITY_TYPE_presave().
  */
 function brandfolder_media_presave(MediaInterface $media) {
-  // Create an image field on new BrandfolderImage-sourced media types.
-  $source = $media->getSource();
-  if ($source instanceof BrandfolderImage) {
-    $bf_asset_id = $source->getSourceFieldValue($media);
-    if (!empty($bf_asset_id)) {
-      // @todo: If changed. Dupe reconciliation, etc.
-      if ($fid = brandfolder_map_asset_to_file($bf_asset_id)) {
-        $file = File::load($fid);
-        $image_file_data = [
-          'target_id' => $fid,
-        ];
-        $image = Drupal::service('image.factory')->get($file->getFileUri());
-        if ($image->isValid()) {
-          $image_file_data['width'] = $image->getWidth();
-          $image_file_data['height'] = $image->getHeight();
-        }
-        $bf = brandfolder_api();
-        $params = [
-          'include' => 'custom_fields',
-        ];
-        if ($asset = $bf->fetchAsset($bf_asset_id, $params)) {
-          if (!empty($asset->data->custom_field_values['alt-text'])) {
-            $image_file_data['alt'] = $asset->data->custom_field_values['alt-text'];
+  // Create an image field on BrandfolderImage-sourced media types if one does
+  // not already exist.
+  if (empty($media->get('bf_image')->getValue())) {
+    $source = $media->getSource();
+    if ($source instanceof BrandfolderImage) {
+      $bf_asset_id = $source->getSourceFieldValue($media);
+      if (!empty($bf_asset_id)) {
+        // @todo: If changed. Dupe reconciliation, etc.
+        if ($fid = brandfolder_map_asset_to_file($bf_asset_id)) {
+          $file = File::load($fid);
+          $image_file_data = [
+            'target_id' => $fid,
+          ];
+          $image = Drupal::service('image.factory')->get($file->getFileUri());
+          if ($image->isValid()) {
+            $image_file_data['width'] = $image->getWidth();
+            $image_file_data['height'] = $image->getHeight();
           }
+          $bf = brandfolder_api();
+          $params = [
+            'include' => 'custom_fields',
+          ];
+          if ($asset = $bf->fetchAsset($bf_asset_id, $params)) {
+            if (!empty($asset->data->custom_field_values['alt-text'])) {
+              $image_file_data['alt'] = $asset->data->custom_field_values['alt-text'];
+            }
+          }
+          $media->set('bf_image', $image_file_data);
         }
-        $media->set('bf_image', $image_file_data);
       }
     }
   }
