@@ -7,3 +7,13 @@ services:
   image.factory:
     class: Drupal\brandfolder\Image\BrandfolderImageFactory
     arguments: ['@image.toolkit.manager']
+
+  brandfolder.webhook_access_check:
+    class: Drupal\brandfolder\Controller\IncomingWebhookController
+    tags:
+      - { name: access_check, applies_to: _brandfolder_webhook_access_check }
+
+  brandfolder.webhook_event_subscriber:
+    class: Drupal\brandfolder\EventSubscriber\WebhookEventSubscriber
+    tags:
+      - { name: event_subscriber }

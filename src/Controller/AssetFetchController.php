@@ -15,14 +15,9 @@ use Drupal\Core\Controller\ControllerBase;
 class AssetFetchController extends ControllerBase {
 
   /**
-   * {@inheritdoc}
-   */
-  protected function getModuleName() {
-    return 'brandfolder';
-  }
-
-  /**
    * Fetch assets applicable to the current context.
+   *
+   * @return AjaxResponse
    */
   public function fetchAssetsCallback($context_id) {
 

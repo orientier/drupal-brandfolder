@@ -12,3 +12,11 @@ brandfolder.asset_fetch_callback:
     _controller: '\Drupal\brandfolder\Controller\AssetFetchController::fetchAssetsCallback'
   requirements:
     _permission: 'read brandfolder assets'
+
+brandfolder.webhook_listener:
+  path: '/brandfolder-webhook-listener'
+  defaults:
+    _controller: '\Drupal\brandfolder\Controller\IncomingWebhookController::webhookListener'
+  # @see https://www.drupal.org/project/drupal/issues/2786941
+  requirements:
+    _brandfolder_webhook_access_check: 'TRUE'
