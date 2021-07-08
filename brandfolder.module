@@ -117,17 +117,18 @@ function template_preprocess_brandfolder_browser_widget(&$variables) {
 }
 
 /**
- * Given a Brandfolder asset ID, return a Drupal file ID.
+ * Given a Brandfolder attachment, return a Drupal file ID.
  *
- * If no managed file yet exists in Drupal for the given asset, attempt to
+ * If no managed file yet exists in Drupal for the given attachment, attempt to
  * create one.
  *
- * @param string|object $asset
- *   Unique Brandfolder asset ID, or an object representing a Brandfolder asset.
- *   Objects must include the asset ID and CDN URL.
+ * @param string|object $attachment
+ *   Unique Brandfolder attachment ID, or an object representing a Brandfolder
+ *   attachment. Objects must include the attachment ID, CDN URL, and parent
+ *   asset ID.
  * @param bool $create_new_file
- *   If TRUE, and no Drupal file exists for the given asset, create a new Drupal
- *   file entity and link it to the asset.
+ *   If TRUE, and no Drupal file exists for the given attachment, create a new
+ *   Drupal file entity and link it to the attachment.
  *
  * @return bool|int
  *   The file ID on success; FALSE on failure.
@@ -136,17 +137,17 @@ function template_preprocess_brandfolder_browser_widget(&$variables) {
  *
  * @todo Move to class.
  */
-function brandfolder_map_asset_to_file($asset, $create_new_file = TRUE) {
+function brandfolder_map_attachment_to_file($attachment, $create_new_file = TRUE) {
   $fid = FALSE;
 
   $logger = \Drupal::logger('brandfolder');
 
-  $asset_id = is_string($asset) ? $asset : $asset->id;
+  $attachment_id = is_string($attachment) ? $attachment : $attachment->id;
 
   $db = \Drupal::database();
   $query = $db->select('brandfolder_file', 'bf')
     ->fields('bf', ['fid'])
-    ->condition('bf_asset_id', $asset_id);
+    ->condition('bf_attachment_id', $attachment_id);
   if ($query->countQuery()->execute()->fetchField()) {
     $result = $query->execute();
     $fid = $result->fetch()->fid;
@@ -155,14 +156,22 @@ function brandfolder_map_asset_to_file($asset, $create_new_file = TRUE) {
     $bf = brandfolder_api();
     $params = [
       'fields' => 'cdn_url',
-      'include' => 'attachments',
+      'include' => 'asset',
     ];
-    if (is_string($asset)) {
-      if ($asset = $bf->fetchAsset($asset_id, $params)) {
-        $asset = $asset->data;
+    if (is_string($attachment)) {
+      if ($attachment = $bf->fetchAttachment($attachment_id, $params)) {
+        $attachment = $attachment->data;
       }
     }
-    if ($asset) {
+    if ($attachment) {
+      if (!empty($attachment->asset)) {
+        $asset_id = $attachment->asset->id;
+      }
+      else {
+        $logger->error('Could not determine the asset for the attachment with ID !attachment_id', ['!attachment_id' => $attachment_id]);
+
+        return FALSE;
+      }
       $file_data = [
         // Note: Start with 0 (temporary) file status, which will be changed to
         // 1 (permanent) by the File module if/when the host entity is saved.
@@ -172,51 +181,43 @@ function brandfolder_map_asset_to_file($asset, $create_new_file = TRUE) {
         'uid' => \Drupal::currentUser()->id(),
       ];
       $bf_file_data = [
+        'bf_attachment_id' => $attachment_id,
         'bf_asset_id' => $asset_id,
         'timestamp' => \Drupal::time()->getRequestTime(),
       ];
-      $cdn_url = $asset->attributes->cdn_url;
+      $cdn_url = $attachment->attributes->cdn_url;
       $info = brandfolder_parse_cdn_url($cdn_url);
-      // @todo: Store CDN ID with each file/asset record or store once globally and assume it will not change? Or store once but update periodically?
       $bf_file_data['cdn_id'] = $info['cdn_id'];
 
-
-      if (isset($asset->attachments)) {
-        // Pull critical file data from the asset's first attachment.
-        $primary_attachment = reset($asset->attachments);
-        $filename = $primary_attachment->filename;
-        $mime_type = $primary_attachment->mimetype;
-        if (empty($mime_type)) {
-          if (!$mime_type = brandfolder_get_mimetype_from_filename($filename)) {
-            $logger->error('Attempting to map an asset to a Drupal file but this asset appears not to have a mimetype (asset ID !asset_id).', ['!asset_id' => $asset_id]);
-
-            return FALSE;
-          }
-        }
-        $file_data['filemime'] = $bf_file_data['mime_type'] = $mime_type;
-
-        // Consider scenarios where this metadata is (temporarily) unavailable
-        // due to delays in processing files for a recently created/updated
-        // asset.
-        if (is_null($primary_attachment->size) || is_null($primary_attachment->width) || is_null($primary_attachment->height)) {
-          $logger->error('Attempting to map an asset to a Drupal file but this asset appears not to have the necessary file size data (asset ID !asset_id).', ['!asset_id' => $asset_id]);
+      $filename = $attachment->attributes->filename;
+      $mime_type = $attachment->attributes->mimetype;
+      if (empty($mime_type)) {
+        if (!$mime_type = brandfolder_get_mimetype_from_filename($filename)) {
+          $logger->error('Attempting to map an attachment to a Drupal file but this attachment appears not to have a mimetype (attachment ID !attachment_id).', ['!attachment_id' => $attachment_id]);
 
           return FALSE;
         }
-        $bf_file_data['filesize'] = $primary_attachment->size;
-        $bf_file_data['width'] = $primary_attachment->width;
-        $bf_file_data['height'] = $primary_attachment->height;
       }
-      else {
-        $logger->error('Attempting to map an asset to a Drupal file but this asset appears not to have any attachments (asset ID !asset_id).', ['!asset_id' => $asset_id]);
+      $file_data['filemime'] = $bf_file_data['mime_type'] = $mime_type;
+
+      // Consider scenarios where this metadata is (temporarily) unavailable
+      // due to delays in processing files for a recently created/updated
+      // attachment.
+      if (is_null($attachment->attributes->size) || is_null($attachment->attributes->width) || is_null($attachment->attributes->height)) {
+        $logger->error('Attempting to map an attachment to a Drupal file but this attachment appears not to have the necessary file size data (attachment ID !attachment_id).', ['!attachment_id' => $attachment_id]);
 
         return FALSE;
       }
+      $bf_file_data['filesize'] = $attachment->attributes->size;
+      $bf_file_data['width'] = $attachment->attributes->width;
+      $bf_file_data['height'] = $attachment->attributes->height;
+
       // The file extension in the CDN URL does not necessarily correspond to
       // the original file type. Use the latter in the URI so we can reliably
       // look up assets/Drupal files later based on URI.
+      // @todo: More testing with CDN v2.1 and various image formats, extensionless files, etc.
       $uri = $info['uri'];
-      if ($extension = brandfolder_image_mimetype_extension_mapping($primary_attachment->mimetype)) {
+      if ($extension = brandfolder_image_mimetype_extension_mapping($mime_type)) {
         $uri = preg_replace('/\.(\w+)$/', ".$extension", $uri);
         // If the attachment has a mime type but its filename has no extension,
         // add an appropriate extension to the Drupal file entity's filename.
@@ -243,24 +244,25 @@ function brandfolder_map_asset_to_file($asset, $create_new_file = TRUE) {
         $result = $db->merge('brandfolder_file')
           ->key([
             'uri'         => $uri,
+            'bf_attachment_id' => $attachment_id,
             'bf_asset_id' => $asset_id,
           ])
           ->fields(['fid' => $fid])
           ->execute();
         if ($result != Database\Query\Merge::STATUS_UPDATE) {
-          $logger->error('Could not find an existing record in the brandfolder_file table for asset ID !asset_id and file ID !fid.', [
+          $logger->error('Could not find an existing record in the brandfolder_file table for attachment ID !attachment_id and file ID !fid.', [
             '!fid'      => $fid,
-            '!asset_id' => $asset_id
+            '!attachment_id' => $attachment_id
           ]);
         }
 
         \Drupal::moduleHandler()->invokeAll('brandfolder_file_insert', [
           $file,
-          $asset_id
+          $attachment_id
         ]);
       }
       catch (\Drupal\Core\Entity\EntityStorageException $e) {
-        $logger->error('There was an error saving a new file for Brandfolder asset !asset_id.', ['!asset_id' => $asset_id]);
+        $logger->error('There was an error saving a new file for Brandfolder attachment !attachment_id.', ['!attachment_id' => $attachment_id]);
       }
     }
   }
@@ -408,10 +410,10 @@ function brandfolder_media_presave(MediaInterface $media) {
   if (empty($media->get('bf_image')->getValue())) {
     $source = $media->getSource();
     if ($source instanceof BrandfolderImage) {
-      $bf_asset_id = $source->getSourceFieldValue($media);
-      if (!empty($bf_asset_id)) {
+      $bf_attachment_id = $source->getSourceFieldValue($media);
+      if (!empty($bf_attachment_id)) {
         // @todo: If changed. Dupe reconciliation, etc.
-        if ($fid = brandfolder_map_asset_to_file($bf_asset_id)) {
+        if ($fid = brandfolder_map_attachment_to_file($bf_attachment_id)) {
           $file = File::load($fid);
           $image_file_data = [
             'target_id' => $fid,
@@ -421,13 +423,16 @@ function brandfolder_media_presave(MediaInterface $media) {
             $image_file_data['width'] = $image->getWidth();
             $image_file_data['height'] = $image->getHeight();
           }
-          $bf = brandfolder_api();
-          $params = [
-            'include' => 'custom_fields',
-          ];
-          if ($asset = $bf->fetchAsset($bf_asset_id, $params)) {
-            if (!empty($asset->data->custom_field_values['alt-text'])) {
-              $image_file_data['alt'] = $asset->data->custom_field_values['alt-text'];
+          // @todo: Update per new SDK.
+          if ($bf_asset_id = brandfolder_get_asset_from_attachment($bf_attachment_id)) {
+            $bf = brandfolder_api();
+            $params = [
+              'include' => 'custom_fields',
+            ];
+            if ($asset = $bf->fetchAsset($bf_asset_id, $params)) {
+              if (!empty($asset->data->custom_field_values['alt-text'])) {
+                $image_file_data['alt'] = $asset->data->custom_field_values['alt-text'];
+              }
             }
           }
           $media->set('bf_image', $image_file_data);

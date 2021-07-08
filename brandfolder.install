@@ -27,6 +27,13 @@ function brandfolder_schema() {
         'not null' => FALSE,
         'default' => '',
       ],
+      'bf_attachment_id' => [
+        'description' => 'The Brandfolder attachment ID.',
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+        'default' => '',
+      ],
       'bf_asset_id' => [
         'description' => 'The Brandfolder asset ID.',
         'type' => 'varchar',
