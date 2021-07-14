@@ -180,6 +180,7 @@ class BrandfolderImage extends MediaSourceBase {
     return [
       'source_field' => 'field_brandfolder_attachment_id',
       'source_field_label' => 'Brandfolder Attachment ID',
+      'allowed_collections' => '',
     ];
   }
 
@@ -306,6 +307,8 @@ class BrandfolderImage extends MediaSourceBase {
         $this->messenger()
           ->addError($this->t('Something went wrong with the Brandfolder connection. Please contact the site administrator.'));
       }
+
+      return FALSE;
     }
 
     $form = parent::buildConfigurationForm($form, $form_state);
@@ -317,7 +320,22 @@ class BrandfolderImage extends MediaSourceBase {
       // @todo: Update field description accordingly, disable field, etc.
     }
 
-    // @todo: config such as allowed collections, etc.
+    // @todo: Additional config such as allowed sub-collections, sections, etc. More elegant structure for config handling and associated filtering.
+    $bf_config = $this->configFactory->get('brandfolder.settings');
+    $default_brandfolder = $bf_config->get('default_brandfolder');
+    if ($default_brandfolder) {
+      $collections_list = $this->brandfolderClient->getCollectionsInBrandfolder();
+      $collections_list['none'] = $this->t('< None >');
+      // @todo: Reset existing config on "none" selection.
+      $form['allowed_collections'] = [
+        '#type'          => 'select',
+        '#title'         => $this->t('Allowed Collections'),
+        '#options'       => $collections_list,
+        '#multiple'       => TRUE,
+        '#default_value' => !empty($this->configuration['allowed_collections']) ? $this->configuration['allowed_collections'] : 'none',
+        '#description'   => $this->t('The collections from which assets/attachments for this media type can be selected.'),
+      ];
+    }
 
     return $form;
   }
