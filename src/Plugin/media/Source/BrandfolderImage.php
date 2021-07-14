@@ -20,14 +20,14 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\file\Entity\File;
 
 /**
- * Allows Brandfolder image assets to be used by Drupal's Media system.
+ * Allows Brandfolder image attachments to be used by Drupal's Media system.
  *
- * @todo: generic BrandfolderAsset class and various default type-based classes (image, video, etc.)
+ * @todo: generic BrandfolderAsset or BrandfolderAttachment class and various default type-based classes (image, video, etc.)
  *
  * @MediaSource(
  *   id = "brandfolder_image",
  *   label = @Translation("Brandfolder Image"),
- *   description = @Translation("Allows Brandfolder assets to be used by Drupal's Media system."),
+ *   description = @Translation("Allows Brandfolder attachments to be used by Drupal's Media system."),
  *   allowed_field_types = {"string", "image"}
  * )
  */
@@ -56,7 +56,7 @@ class BrandfolderImage extends MediaSourceBase {
   protected $urlGenerator;
 
   /**
-   * Statically cached metadata information for the given assets.
+   * Statically cached metadata information for the given attachments.
    *
    * @var array
    */
@@ -157,7 +157,7 @@ class BrandfolderImage extends MediaSourceBase {
    */
   public function getMetadataAttributes() {
     $fields = [
-      'asset_id' => $this->t('Asset ID'),
+      'bf_attachment_id' => $this->t('Attachment ID'),
       'name' => $this->t('Name'),
       'description' => $this->t('Description'),
       'type' => $this->t('Type'),
@@ -178,7 +178,7 @@ class BrandfolderImage extends MediaSourceBase {
    */
   public function defaultConfiguration() {
     return [
-      'source_field' => 'field_brandfolder_asset_id',
+      'source_field' => 'field_brandfolder_attachment_id',
     ];
   }
 
@@ -186,20 +186,20 @@ class BrandfolderImage extends MediaSourceBase {
    * {@inheritdoc}
    */
   public function getMetadata(MediaInterface $media, $name) {
-    $bf_asset_id = $this->getSourceFieldValue($media);
-    if ($name == 'bf_asset_id') {
-      return $bf_asset_id;
+    $bf_attachment_id = $this->getSourceFieldValue($media);
+    if ($name == 'bf_attachment_id') {
+      return $bf_attachment_id;
     }
 
     switch ($name) {
       case 'thumbnail_uri':
         // @todo: Use specified thumb from Brandfolder. Store in local metadata cache/store. Look into "sig" (signature) URL param lifespan and expiry param, etc.
-//          $thumbnail_url = "https://thumbs.bfldr.com/as/$bf_asset_id?expiry=1624467346&fit=bounds&height=162&sig=ZTY3ZDA5MTFjMWQxMmQ1Yjk5ZjJjYTg3OTczZGYxZDgzODYwZWQ3Yw%3D%3D&width=262";
+//          $thumbnail_url = "https://thumbs.bfldr.com/as/$bf_attachment_id?expiry=1624467346&fit=bounds&height=162&sig=ZTY3ZDA5MTFjMWQxMmQ1Yjk5ZjJjYTg3OTczZGYxZDgzODYwZWQ3Yw%3D%3D&width=262";
 
         $thumb_uri = NULL;
 
         // Alt.
-        if ($fid = brandfolder_map_asset_to_file($bf_asset_id)) {
+        if ($fid = brandfolder_map_attachment_to_file($bf_attachment_id)) {
           $file = File::load($fid);
           $thumb_uri = $file->getFileUri();
         }
@@ -207,18 +207,18 @@ class BrandfolderImage extends MediaSourceBase {
         return $thumb_uri;
 
 //        case 'created':
-//          return isset($this->metadata[$bf_asset_id]['dateCreated']) ? $this->metadata[$bf_asset_id]['dateCreated'] : FALSE;
+//          return isset($this->metadata[$bf_attachment_id]['dateCreated']) ? $this->metadata[$bf_attachment_id]['dateCreated'] : FALSE;
 //
 //        case 'modified':
-//          return isset($this->metadata[$bf_asset_id]['dateModified']) ? $this->metadata[$bf_asset_id]['dateModified'] : FALSE;
+//          return isset($this->metadata[$bf_attachment_id]['dateModified']) ? $this->metadata[$bf_attachment_id]['dateModified'] : FALSE;
 
       case 'default_name':
-//          return isset($this->metadata[$bf_asset_id]['name']) ? $this->metadata[$bf_asset_id]['name'] : parent::getMetadata($media, 'default_name');
+//          return isset($this->metadata[$bf_attachment_id]['name']) ? $this->metadata[$bf_attachment_id]['name'] : parent::getMetadata($media, 'default_name');
         // @todo
-        return "Brandfolder Asset $bf_asset_id";
+        return "Brandfolder Attachment $bf_attachment_id";
 
 //        default:
-//          return isset($this->metadata[$bf_asset_id][$name]) ? $this->metadata[$bf_asset_id][$name] : FALSE;
+//          return isset($this->metadata[$bf_attachment_id][$name]) ? $this->metadata[$bf_attachment_id][$name] : FALSE;
     }
 
     return FALSE;

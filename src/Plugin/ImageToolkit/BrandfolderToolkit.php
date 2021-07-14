@@ -250,11 +250,11 @@ class BrandfolderToolkit extends ImageToolkitBase {
    */
   public function parseFile() {
     $uri = $this->getSource();
-    if (preg_match('/^bf:\/\/[^\/]+\/as\/([^\/]+)\/([^\.]*\.([^\?]+))?/', $uri, $matches)) {
-      $bf_asset_id = $matches[1];
+    if (preg_match('/^bf:\/\/[^\/]+\/at\/([^\/]+)\/([^\.]*\.([^\?]+))?/', $uri, $matches)) {
+      $bf_attachment_id = $matches[1];
       $query = $this->db->select('brandfolder_file', 'bf')
-        ->fields('bf', ['filesize', 'width', 'height', 'mime_type', 'bf_asset_id'])
-        ->condition('bf_asset_id', $bf_asset_id);
+        ->fields('bf', ['filesize', 'width', 'height', 'mime_type', 'bf_attachment_id'])
+        ->condition('bf_attachment_id', $bf_attachment_id);
       if ($query->countQuery()->execute()->fetchField() > 0) {
         $result = $query->execute();
         $this->file_data = $result->fetchAssoc();
@@ -265,7 +265,7 @@ class BrandfolderToolkit extends ImageToolkitBase {
         return TRUE;
       }
     }
-    // @todo: Consider trying to (re)load the asset from Brandfolder if no local record is found, and/or log, and/or perform cleanup operations.
+    // @todo: Consider trying to (re)load the attachment from Brandfolder if no local record is found, and/or log, and/or perform cleanup operations.
 
     return FALSE;
   }

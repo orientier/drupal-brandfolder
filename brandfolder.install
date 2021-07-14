@@ -22,8 +22,8 @@ function brandfolder_schema() {
         'type' => 'varchar',
         'length' => 32,
         // This is an important piece of data, but will not be present when
-        // we initially add a record to this table during the asset/file mapping
-        // process.
+        // we initially add a record to this table during the attachment/file
+        // mapping process.
         'not null' => FALSE,
         'default' => '',
       ],
@@ -42,7 +42,7 @@ function brandfolder_schema() {
         'default' => '',
       ],
       'cdn_id' => [
-        'description' => 'The non-asset-specific identifier from the Smart CDN URL for an asset.',
+        'description' => 'An Organizational or Brandfolder-level identifier used in CDN URLs.',
         'type' => 'varchar',
         'length' => 32,
         'not null' => TRUE,
@@ -93,7 +93,7 @@ function brandfolder_schema() {
         'default' => 0,
       ],
     ],
-    'primary key' => ['bf_asset_id'],
+    'primary key' => ['bf_attachment_id'],
     'indexes' => [
       'fid' => [
         'fid',

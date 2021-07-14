@@ -62,7 +62,7 @@ function brandfolder_help($route_name, RouteMatchInterface $route_match) {
     case 'help.page.brandfolder':
       $output = '';
       $output .= '<h3>' . t('About') . '</h3>';
-      $output .= '<p>' . t('Allows Drupal developers to easily integrate with a Brandfolder account.') . '</p>';
+      $output .= '<p>' . t('Allows Brandfolder assets to be used by Drupal\'s Media/image/file systems.') . '</p>';
 
       return $output;
   }
@@ -214,7 +214,7 @@ function brandfolder_map_attachment_to_file($attachment, $create_new_file = TRUE
 
       // The file extension in the CDN URL does not necessarily correspond to
       // the original file type. Use the latter in the URI so we can reliably
-      // look up assets/Drupal files later based on URI.
+      // look up attachments/Drupal files later based on URI.
       // @todo: More testing with CDN v2.1 and various image formats, extensionless files, etc.
       $uri = $info['uri'];
       if ($extension = brandfolder_image_mimetype_extension_mapping($mime_type)) {
@@ -274,7 +274,7 @@ function brandfolder_map_attachment_to_file($attachment, $create_new_file = TRUE
  * Helper function to parse a CDN URL and return useful derived data.
  *
  * @param string $cdn_url
- *   A full URL via which a Brandfolder asset is served on the Brandfolder CDN.
+ *   A full URL via which a Brandfolder attachment is served on the Brandfolder CDN.
  *
  * @return array
  *   Array containing the following keys:
@@ -304,29 +304,29 @@ function brandfolder_parse_cdn_url($cdn_url) {
 }
 
 /**
- * Given a Drupal file ID, return a corresponding Brandfolder asset ID.
+ * Given a Drupal file ID, return a corresponding Brandfolder attachment ID.
  *
- * If the file does not correspond to a Brandfolder asset, return FALSE.
+ * If the file does not correspond to a Brandfolder attachment, return FALSE.
  *
  * @param int $fid
  *   Drupal managed file ID.
  *
  * @return bool|string
- *   The asset ID on success; FALSE on failure.
+ *   The attachment ID on success; FALSE on failure.
  */
-function brandfolder_map_file_id_to_asset($fid) {
-  $asset_id = FALSE;
+function brandfolder_map_file_id_to_attachment($fid) {
+  $attachment_id = FALSE;
 
   $db = \Drupal::database();
   $query = $db->select('brandfolder_file', 'bf')
-    ->fields('bf', ['bf_asset_id'])
+    ->fields('bf', ['bf_attachment_id'])
     ->condition('fid', $fid);
   if ($query->countQuery()->execute()->fetchField()) {
     $result = $query->execute();
-    $asset_id = $result->fetch()->bf_asset_id;
+    $attachment_id = $result->fetch()->bf_attachment_id;
   }
 
-  return $asset_id;
+  return $attachment_id;
 }
 
 /**
@@ -384,6 +384,7 @@ function brandfolder_get_mimetype_from_filename($filename) {
  */
 function brandfolder_media_type_insert(MediaTypeInterface $media_type) {
   // Do not alter configuration during config sync.
+  // @todo
   if ($media_type->isSyncing()) {
     return;
   }

@@ -109,7 +109,7 @@ class BrandfolderStreamWrapper implements StreamWrapperInterface {
    * {@inheritdoc}
    */
   public function getDescription(): string {
-    return $this->t('Stream wrapper that supports interacting with assets stored and managed in Brandfolder as though they were something akin to native files');
+    return $this->t('Stream wrapper that supports interacting with attachments stored and managed in Brandfolder as though they were something akin to native files');
   }
 
   /**
@@ -310,15 +310,13 @@ class BrandfolderStreamWrapper implements StreamWrapperInterface {
     // The current approach is to store most of the URL information right in the
     // URI, so we do not need to perform any additional lookups against the
     // BF API or Drupal DB. Thus, a typical URI looks something like
-    // "bf://SH123456/as/abc123-echvmo-7qf0za/my_image.jpg."
+    // "bf://SH123456/at/abc123-echvmo-7qf0za/my_image.jpg."
     // This is not quite as slick or readable as
     // "bf://abc123-echvmo-7qf0za/my_image.jpg"
     // or "bf://abc123-echvmo-7qf0za," but it should be more
-    // performant and allow for straightforward management of (a) assets from
-    // multiple Brandfolders and/or (b) files corresponding to different
-    // attachments on the same BF asset if we choose to support that in the
-    // future.
-    // The effective limit on BF asset filenames (including extension) is
+    // performant and allow for straightforward management of (a) attachments from
+    // multiple Brandfolders if we choose to support that in the future.
+    // The effective limit on BF attachment filenames (including extension) is
     // therefore 217 characters.
     $url_options = [
       'absolute' => TRUE,
@@ -679,7 +677,7 @@ class BrandfolderStreamWrapper implements StreamWrapperInterface {
    */
   public function stream_metadata($path, $option, $value): bool {
     // Allow chown, etc even though we don't let these operations have any
-    // effect on the underlying Brandfolder assets.
+    // effect on the underlying Brandfolder attachments.
 
     return TRUE;
   }
