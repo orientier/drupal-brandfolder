@@ -179,7 +179,60 @@ class BrandfolderImage extends MediaSourceBase {
   public function defaultConfiguration() {
     return [
       'source_field' => 'field_brandfolder_attachment_id',
+      'source_field_label' => 'Brandfolder Attachment ID',
     ];
+  }
+
+  /**
+   * Limit the source field options to our preferred field (if it already
+   * exists).
+   *
+   * @return string[]
+   *   A list of source field options for the media type form.
+   */
+  protected function getSourceFieldOptions() {
+    // If the field already exists, populate the options list with it.
+    // @todo: Efficiency, etc.
+    $options = [];
+    foreach ($this->entityFieldManager->getFieldStorageDefinitions('media') as $field_name => $field) {
+      $allowed_type = in_array($field->getType(), $this->pluginDefinition['allowed_field_types'], TRUE);
+      if ($field_name == $this->configuration['source_field'] && $allowed_type && !$field->isBaseField()) {
+        $options[$field_name] = $field->getLabel();
+        break;
+      }
+    }
+
+    return $options;
+  }
+
+  /**
+   * Determine the name of the source field.
+   *
+   * @return string
+   *   The source field name. Always use our explicit field machine name.
+   *
+   * @todo: Collision testing.
+   */
+  protected function getSourceFieldName() {
+
+    return $this->configuration['source_field'];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function createSourceField(MediaTypeInterface $type) {
+    // @todo Review field locking.
+    $storage = $this->getSourceFieldStorage() ?: $this->createSourceFieldStorage();
+    return $this->entityTypeManager
+      ->getStorage('field_config')
+      ->create([
+        'field_storage' => $storage,
+        'bundle' => $type->id(),
+        'label' => $this->configuration['source_field_label'],
+        'locked' => TRUE,
+        'required' => TRUE,
+      ]);
   }
 
   /**
@@ -228,23 +281,45 @@ class BrandfolderImage extends MediaSourceBase {
    * {@inheritdoc}
    */
   public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
-    try {
-      $this->brandfolderClient->listAssets();
+    $bf_connection_error = FALSE;
+    if ($this->brandfolderClient) {
+      try {
+        $this->brandfolderClient->listAssets();
+      }
+      catch (\Exception $exception) {
+        $bf_connection_error = TRUE;
+      }
     }
-    catch (\Exception $exception) {
+    else {
+      $bf_connection_error = TRUE;
+    }
+
+    if ($bf_connection_error) {
       if ($this->accountProxy->hasPermission('administer brandfolder settings')) {
-        $this->messenger()->addError($this->t('Could not connect to Brandfolder. Make sure the connection is <a href=":url">configured</a> properly.', [
-          ':url' => $this->urlGenerator->generateFromRoute('brandfolder.brandfolder_settings_form'),
-        ]));
+        // @todo: Cause this to appear on AJAX media type config form update.
+        $this->messenger()
+          ->addError($this->t('Could not connect to Brandfolder. Make sure the connection is <a href=":url">configured</a> properly.', [
+            ':url' => $this->urlGenerator->generateFromRoute('brandfolder.brandfolder_settings_form'),
+          ]));
       }
       else {
-        $this->messenger()->addError($this->t('Something went wrong with the Brandfolder connection. Please contact the site administrator.'));
+        $this->messenger()
+          ->addError($this->t('Something went wrong with the Brandfolder connection. Please contact the site administrator.'));
       }
+    }
+
+    $form = parent::buildConfigurationForm($form, $form_state);
+
+    // If our preferred source field already exists, do not allow users to
+    // request the creation of a new source field.
+    if (count($form['source_field']['#options']) > 0) {
+      unset($form['source_field']['#empty_option']);
+      // @todo: Update field description accordingly, disable field, etc.
     }
 
     // @todo: config such as allowed collections, etc.
 
-    return parent::buildConfigurationForm($form, $form_state);
+    return $form;
   }
 
   /**

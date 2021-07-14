@@ -164,8 +164,8 @@ function brandfolder_map_attachment_to_file($attachment, $create_new_file = TRUE
       }
     }
     if ($attachment) {
-      if (!empty($attachment->asset)) {
-        $asset_id = $attachment->asset->id;
+      if (!empty($attachment->relationships->asset)) {
+        $asset_id = $attachment->relationships->asset->data->id;
       }
       else {
         $logger->error('Could not determine the asset for the attachment with ID !attachment_id', ['!attachment_id' => $attachment_id]);
@@ -268,6 +268,29 @@ function brandfolder_map_attachment_to_file($attachment, $create_new_file = TRUE
   }
 
   return $fid;
+}
+
+/**
+ * Helper function to map an attachment ID to an asset ID, prioritizing our
+ * local registry (which is updated on asset.update webhook events).
+ *
+ * @param string $attachment_id
+ *
+ * @return string|bool
+ */
+function brandfolder_get_asset_from_attachment(string $attachment_id) {
+  $asset_id = FALSE;
+
+  $db = \Drupal::database();
+  $query = $db->select('brandfolder_file', 'bf')
+    ->fields('bf', ['bf_asset_id'])
+    ->condition('bf_attachment_id', $attachment_id);
+  if ($query->countQuery()->execute()->fetchField()) {
+    $result = $query->execute();
+    $asset_id = $result->fetch()->bf_asset_id;
+  }
+
+  return $asset_id;
 }
 
 /**
@@ -432,6 +455,7 @@ function brandfolder_media_presave(MediaInterface $media) {
             ];
             if ($asset = $bf->fetchAsset($bf_asset_id, $params)) {
               if (!empty($asset->data->custom_field_values['alt-text'])) {
+                // @todo: asset.update webhook action to update this value if it is populated in BF in the future and the Drupal field remains empty.
                 $image_file_data['alt'] = $asset->data->custom_field_values['alt-text'];
               }
             }

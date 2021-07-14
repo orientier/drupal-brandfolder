@@ -172,6 +172,7 @@ function brandfolder_install() {
  */
 //function brandfolder_uninstall() {
 //  // @todo: Delete or flag all files using the bf:// file scheme.
+//  // @todo: Delete or flag all media entities that have a Brandfolder media source.
 //  // @todo: Update all fields using the BF scheme and/or the Brandfolder Browser widget, attempting to reconfigure them to use reasonable alternatives.
 //  // @todo: Ensure 'bf' is removed from the list of public file schemas.
 //}
