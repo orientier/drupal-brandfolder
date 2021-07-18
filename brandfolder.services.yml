@@ -17,3 +17,7 @@ services:
     class: Drupal\brandfolder\EventSubscriber\WebhookEventSubscriber
     tags:
       - { name: event_subscriber }
+
+  Drupal\brandfolder\Service\BrandfolderGatekeeper:
+    class: Drupal\brandfolder\Service\BrandfolderGatekeeper
+    arguments: [ '@string_translation', '@logger.factory', '@config.factory' ]

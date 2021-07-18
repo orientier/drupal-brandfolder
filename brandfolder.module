@@ -5,6 +5,7 @@
  * Contains brandfolder.module.
  */
 
+use Drupal\brandfolder\Service\BrandfolderGatekeeper;
 use Drupal\brandfolder\Plugin\media\Source\BrandfolderImage;
 use Drupal\Core\Routing\RouteMatchInterface;
 use Brandfolder\Brandfolder;
@@ -14,9 +15,11 @@ use Drupal\file\Entity\File;
 use Drupal\Core\Database;
 use Drupal\media\MediaInterface;
 use Drupal\media\MediaTypeInterface;
+use Drupal\Core\Entity\EntityMalformedException;
 
 /**
- * Brandfolder helper function.
+ * Brandfolder helper function. For use in procedural code. De-emphasize this
+ * in favor of services, etc.
  *
  * Helper function to get a Brandfolder object that can be used to interact with
  * the Brandfolder API.
@@ -427,14 +430,24 @@ function brandfolder_media_type_insert(MediaTypeInterface $media_type) {
 
 /**
  * Implements hook_ENTITY_TYPE_presave().
+ *
+ * @throws EntityMalformedException
  */
 function brandfolder_media_presave(MediaInterface $media) {
-  // Create an image field on BrandfolderImage-sourced media types if one does
-  // not already exist.
-  if (empty($media->get('bf_image')->getValue())) {
-    $source = $media->getSource();
-    if ($source instanceof BrandfolderImage) {
-      $bf_attachment_id = $source->getSourceFieldValue($media);
+  $source = $media->getSource();
+  if ($source instanceof BrandfolderImage) {
+    $logger = \Drupal::logger('brandfolder');
+    $bf_attachment_id = $source->getSourceFieldValue($media);
+    $bf_asset_id = brandfolder_get_asset_from_attachment($bf_attachment_id);
+    if (!$bf_asset_id) {
+      $msg = 'Could not map attachment ID !attachment_id to an asset.';
+      $msg_vars = ['!attachment_id' => $bf_attachment_id];
+      $logger->error($msg, $msg_vars);
+      throw new EntityMalformedException(t($msg, $msg_vars));
+    }
+    // Create an image field on BrandfolderImage-sourced media types if one does
+    // not already exist.
+    if (empty($media->get('bf_image')->getValue())) {
       if (!empty($bf_attachment_id)) {
         // @todo: If changed. Dupe reconciliation, etc.
         if ($fid = brandfolder_map_attachment_to_file($bf_attachment_id)) {
@@ -463,6 +476,21 @@ function brandfolder_media_presave(MediaInterface $media) {
           $media->set('bf_image', $image_file_data);
         }
       }
+    }
+
+    // Enforce Brandfolder configuration defined at the media type level.
+    // Any violations will typically be caught elsewhere in a more user-friendly
+    // fashion (e.g. on media entity create/edit form), but we check here to
+    // ensure nothing falls through the cracks during programmatic entity
+    // updates, etc.
+    $gatekeeper = \Drupal::getContainer()
+      ->get(BrandfolderGatekeeper::class);
+    $gatekeeper->loadFromMediaSource($source);
+    $valid = $gatekeeper->validateBrandfolderEntities(['attachments' => [$bf_attachment_id]]);
+    if (!$valid) {
+      $msg = $gatekeeper->getMessage();
+      $logger->error($msg);
+      throw new EntityMalformedException($msg);
     }
   }
 }

@@ -2,6 +2,7 @@
 
 namespace Drupal\brandfolder\Plugin\media\Source;
 
+use Drupal\brandfolder\Service\BrandfolderGatekeeper;
 use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
@@ -180,7 +181,9 @@ class BrandfolderImage extends MediaSourceBase {
     return [
       'source_field' => 'field_brandfolder_attachment_id',
       'source_field_label' => 'Brandfolder Attachment ID',
-      'allowed_collections' => '',
+      'brandfolder' => [
+        'bf_entity_criteria' => [],
+      ],
     ];
   }
 
@@ -320,22 +323,10 @@ class BrandfolderImage extends MediaSourceBase {
       // @todo: Update field description accordingly, disable field, etc.
     }
 
-    // @todo: Additional config such as allowed sub-collections, sections, etc. More elegant structure for config handling and associated filtering.
-    $bf_config = $this->configFactory->get('brandfolder.settings');
-    $default_brandfolder = $bf_config->get('default_brandfolder');
-    if ($default_brandfolder) {
-      $collections_list = $this->brandfolderClient->getCollectionsInBrandfolder();
-      $collections_list['none'] = $this->t('< None >');
-      // @todo: Reset existing config on "none" selection.
-      $form['allowed_collections'] = [
-        '#type'          => 'select',
-        '#title'         => $this->t('Allowed Collections'),
-        '#options'       => $collections_list,
-        '#multiple'       => TRUE,
-        '#default_value' => !empty($this->configuration['allowed_collections']) ? $this->configuration['allowed_collections'] : 'none',
-        '#description'   => $this->t('The collections from which assets/attachments for this media type can be selected.'),
-      ];
-    }
+    $gatekeeper = \Drupal::getContainer()
+      ->get(BrandfolderGatekeeper::class);
+    $gatekeeper->loadFromMediaSource($this);
+    $gatekeeper->buildConfigForm($form);
 
     return $form;
   }
