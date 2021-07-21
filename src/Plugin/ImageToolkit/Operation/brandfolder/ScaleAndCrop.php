@@ -46,7 +46,9 @@ class ScaleAndCrop extends BrandfolderImageToolkitOperationBase {
     $actualWidth = $this->getToolkit()->getWidth();
     $actualHeight = $this->getToolkit()->getHeight();
 
-    $scaleFactor = max($arguments['width'] / $actualWidth, $arguments['height'] / $actualHeight);
+    $widthScaleFactor = $arguments['width'] / $actualWidth;
+    $heightScaleFactor = $arguments['height'] / $actualHeight;
+    $scaleFactor = max($widthScaleFactor, $heightScaleFactor);
 
     $arguments['x'] = isset($arguments['x']) ?
       (int) round($arguments['x']) :
@@ -54,10 +56,30 @@ class ScaleAndCrop extends BrandfolderImageToolkitOperationBase {
     $arguments['y'] = isset($arguments['y']) ?
       (int) round($arguments['y']) :
       (int) round(($actualHeight * $scaleFactor - $arguments['height']) / 2);
+
+    // @todo: Determine desired behavior of post-crop scaling wrt user input. Drupal's default explanation for the "Scale and Crop" image effect indicates that there will be no post-crop scaling at all.
     $arguments['resize'] = [
-      'width' => (int) round($actualWidth * $scaleFactor),
-      'height' => (int) round($actualHeight * $scaleFactor),
+      'width' => (int) $arguments['width'],
+      'height' => (int) $arguments['height'],
     ];
+    // @todo: Determine whether we are supporting upscaling.
+    if ($scaleFactor < 1) {
+      // We want to preserve the aspect ratio of the cropped region. Only scale
+      // down until one of the two dimensions matches the desired output
+      // dimension. In other words, use the scale factor that is closer to 1.0.
+//      if ($widthScaleFactor >= $heightScaleFactor) {
+//        $arguments['resize'] = [
+//          'width' => (int) round($actualWidth * $scaleFactor),
+//          'height' => (int) round($actualHeight * $scaleFactor),
+//        ];
+//      }
+//      else {
+//        $arguments['resize'] = [
+//          'width' => (int) round($actualWidth * $scaleFactor),
+//          'height' => (int) round($actualHeight * $scaleFactor),
+//        ];
+//      }
+    }
 
     // Fail when width or height are 0 or negative.
     if ($arguments['width'] <= 0) {
