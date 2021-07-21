@@ -16,6 +16,7 @@ use Drupal\Core\Database;
 use Drupal\media\MediaInterface;
 use Drupal\media\MediaTypeInterface;
 use Drupal\Core\Entity\EntityMalformedException;
+use Drupal\views\ViewExecutable;
 
 /**
  * Brandfolder helper function. For use in procedural code. De-emphasize this
@@ -86,6 +87,114 @@ function brandfolder_form_field_config_edit_form_alter(&$form, \Drupal\Core\Form
       }
     }
   }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function brandfolder_form_views_exposed_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id) {
+  // If this is a Views exposed filters form for a Media Library view pertaining
+  // to a Brandfolder-sourced media type, disable it in favor of our own
+  // browsing experience.
+  // @todo: Review.
+  $storage = $form_state->getStorage();
+  if (isset($storage['view'])) {
+    $view = $storage['view'];
+    if ($view->storage->id() == 'media_library') {
+      if (isset($view->args[0])) {
+        $media_type_id = $view->args[0];
+        $media_type = \Drupal::entityTypeManager()->getStorage('media_type')->load($media_type_id);
+        if ($media_type && $media_type->getSource() instanceof BrandfolderImage) {
+          $form = [];
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_form_alter().
+ */
+function brandfolder_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id) {
+  // If this is a form comprising the main media entity listing in a Media
+  // Library context, for a Brandfolder-sourced media type, replace the
+  // user-facing form elements with our own browsing experience.
+  if (preg_match('/^views_form_media_library_widget_(.+)$/', $form_id, $matches)) {
+    $media_type_id = $matches[1];
+    $media_type = \Drupal::entityTypeManager()->getStorage('media_type')->load($media_type_id);
+    if ($media_type && $media_type->getSource() instanceof BrandfolderImage) {
+      brandfolder_browser_media_library_form_manipulator($form, $form_state, $media_type);
+    }
+  }
+}
+
+/**
+ * Implements hook_views_pre_render().
+ */
+function brandfolder_views_pre_render(ViewExecutable $view) {
+  // If this is a Media Library view pertaining to a Brandfolder-sourced media
+  // type, remove view header and footer, as they are not part of our custom
+  // browsing experience.
+  if ($view->storage->id() == 'media_library') {
+    if (isset($view->args[0])) {
+      $media_type_id = $view->args[0];
+      $media_type = \Drupal::entityTypeManager()
+        ->getStorage('media_type')
+        ->load($media_type_id);
+      if ($media_type && $media_type->getSource() instanceof BrandfolderImage) {
+        $view->header = $view->footer = [];
+      }
+    }
+  }
+}
+
+/**
+ * Procedural method to construct basic BF browser in a Media Library context.
+ *
+ * @param $form
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ * @param \Drupal\media\Entity\MediaType $media_type
+ *
+ * @todo: Replace with more elegant and feature-rich browser construct.
+ */
+function brandfolder_browser_media_library_form_manipulator(&$form, \Drupal\Core\Form\FormStateInterface $form_state, \Drupal\media\Entity\MediaType $media_type) {
+
+  $media_source = $media_type->getSource();
+  $gatekeeper = \Drupal::getContainer()
+    ->get(BrandfolderGatekeeper::class);
+  $gatekeeper->loadFromMediaSource($media_source);
+
+  $bf_asset_list_string = t('No Brandfolder assets found.');
+  $query_params = [
+    'include' => 'attachments'
+  ];
+  $assets = $gatekeeper->fetchAssets($query_params);
+  if ($assets && !empty($assets->data)) {
+    // @todo: Theme pattern.
+    $bf_asset_list = array_map(function ($asset) {
+      $output =   "<li class=\"brandfolder-asset\" data-bf-asset-id=\"{$asset->id}\">"
+        .     "<figure>"
+        .       "<img src=\"{$asset->attributes->thumbnail_url}\" />"
+        .       "<figcaption>"
+        .         "<div class=\"bf-asset-metadata\"><strong>Name:</strong> {$asset->attributes->name}</div>"
+        .         "<div class=\"bf-asset-metadata\"><strong>Asset ID:</strong> {$asset->id}</div>"
+        .       "</figcaption>"
+        .     "</figure>"
+        .   "</li>";
+
+      return $output;
+    }, $assets->data);
+    $bf_asset_list_string = implode(' ', $bf_asset_list);
+  }
+
+  // Replace standard ML output entirely.
+  $form['output'] = [
+    'bf_asset_list' => [
+      '#markup' => "<div class=\"brandfolder-browser\"><div class=\"brandfolder-assets\"><ul class=\"brandfolder-asset-list\">$bf_asset_list_string</ul></div></div>",
+    ],
+  ];
+
+  $form['#attached']['library'][] = 'brandfolder/brandfolder-browser';
 }
 
 /**

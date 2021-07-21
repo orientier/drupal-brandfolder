@@ -50,6 +50,7 @@ class ScaleAndCrop extends BrandfolderImageToolkitOperationBase {
     $heightScaleFactor = $arguments['height'] / $actualHeight;
     $scaleFactor = max($widthScaleFactor, $heightScaleFactor);
 
+    // @todo: Consult with focal point config.
     $arguments['x'] = isset($arguments['x']) ?
       (int) round($arguments['x']) :
       (int) round(($actualWidth * $scaleFactor - $arguments['width']) / 2);

@@ -255,6 +255,37 @@ class BrandfolderGatekeeper {
     return $bf_entities_are_valid;
   }
 
+  public function fetchAssets($query_params = []) {
+    $search_components = !empty($query_params['search']) ? [$query_params['search']] : [];
+
+    // @todo: Brandfolder may only be supporting section and collection searches by human-readable name, rather than key/ID.
+    foreach ($this->criteria['allowed'] as $criteria_family => $criteria) {
+      if (!empty($criteria)) {
+        array_walk($criteria, function(&$criterion) {
+          $criterion = "%22$criterion%22";
+        });
+        $search_components[] = "$criteria_family:(" . implode(' ', $criteria) . ')';
+      }
+    }
+    foreach ($this->criteria['disallowed'] as $criteria_family => $criteria) {
+      if (!empty($criteria)) {
+        array_walk($criteria, function(&$criterion) {
+          $criterion = "%22$criterion%22";
+        });
+        $search_components[] = "NOT $criteria_family:(" . implode(' ', $criteria) . ')';
+      }
+    }
+
+    array_walk($search_components, function(&$component) {
+      $component = "($component)";
+    });
+    $query_params['search'] = implode(' AND ', $search_components);
+
+    $assets = $this->bf_client->listAssets($query_params, 'all');
+
+    return $assets;
+  }
+
   /**
    * Retrieve the most recent human-readable message pertaining to validation,
    * etc.
