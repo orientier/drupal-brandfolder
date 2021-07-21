@@ -74,7 +74,7 @@ class Crop extends BrandfolderImageToolkitOperationBase {
    */
   protected function execute(array $arguments) {
     $params = [
-      'precrop' => "{$arguments['width']},{$arguments['height']},x{$arguments['x']},y{$arguments['y']}",
+      'precrop' => "{$arguments['width']},{$arguments['height']},x{$arguments['x']},y{$arguments['y']},safe",
     ];
     $this->getToolkit()->setCdnUrlParams($params);
 
