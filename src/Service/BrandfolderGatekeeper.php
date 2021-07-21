@@ -272,10 +272,9 @@ class BrandfolderGatekeeper {
    * @param array $form
    */
   public function buildConfigForm(&$form) {
-    // @todo: Additional config such as allowed sub-collections, sections, etc. More elegant structure for config handling and associated filtering.
+    // @todo: Additional config such as allowed labels, sub-collection differentiation, etc.
     $collections_list = $this->bf_client->getCollectionsInBrandfolder();
-    $collections_list['none'] = $this->t('< None >');
-    // @todo: Reset existing config on "none" selection.
+    $sections_list = $this->bf_client->listSectionsInBrandfolder(NULL, [], TRUE);
     $form['brandfolder'] = [
       '#type'  => 'fieldset',
       '#title' => 'Brandfolder',
@@ -297,6 +296,13 @@ class BrandfolderGatekeeper {
       '#multiple'      => TRUE,
       '#default_value' => $this->criteria['allowed']['collections'] ?? [],
     ];
+    $form['brandfolder']['bf_entity_criteria']['allowed']['sections'] = [
+      '#type'          => 'select',
+      '#title'         => $this->t('Sections'),
+      '#options'       => $sections_list,
+      '#multiple'      => TRUE,
+      '#default_value' => $this->criteria['allowed']['sections'] ?? [],
+    ];
     $form['brandfolder']['bf_entity_criteria']['disallowed'] = [
       '#type'        => 'fieldset',
       '#title'       => $this->t('Disallowed'),
@@ -309,14 +315,21 @@ class BrandfolderGatekeeper {
       '#multiple'      => TRUE,
       '#default_value' => $this->criteria['disallowed']['collections'] ?? [],
     ];
+    $form['brandfolder']['bf_entity_criteria']['disallowed']['sections'] = [
+      '#type'          => 'select',
+      '#title'         => $this->t('Sections'),
+      '#options'       => $sections_list,
+      '#multiple'      => TRUE,
+      '#default_value' => $this->criteria['disallowed']['sections'] ?? [],
+    ];
   }
 
-  public function configFormValidate() {
+//  public function configFormValidate() {
+//
+//  }
 
-  }
-
-  public function configFormSubmit() {
-
-  }
+//  public function configFormSubmit() {
+//
+//  }
 
 }
