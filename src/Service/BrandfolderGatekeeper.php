@@ -27,19 +27,19 @@ class BrandfolderGatekeeper {
    * @code
    *  [
    *    'allowed' => [
-   *      'collections' => [
+   *      'collection' => [
    *        'abc123def456',
    *        'abc123def457',
    *      ],
-   *      'labels' => [
+   *      'label' => [
    *        'lmn123lmn987',
    *      ],
    *    ],
    *    'disallowed' => [
-   *      'collections' => [
+   *      'collection' => [
    *        'abc123def458',
    *      ],
-   *      'sections' => [
+   *      'section' => [
    *        'xyz123abc100',
    *      ],
    *    ],
@@ -198,9 +198,9 @@ class BrandfolderGatekeeper {
         foreach ($bf_entities[$bf_entity_type] as $bf_entity_id) {
           if ($bf_entity = $this->bf_client->{$fetch_method}($bf_entity_id, $api_params)) {
             $bf_entity_data_for_validation = [
-              'collections' => $bf_entity->included['collections'] ? array_keys($bf_entity->included['collections']) : [],
-              'sections' => $bf_entity->included['sections'] ? array_keys($bf_entity->included['sections']) : [],
-              'labels' => $bf_entity->included['labels'] ? array_keys($bf_entity->included['labels']) : [],
+              'collection' => $bf_entity->included['collections'] ? array_keys($bf_entity->included['collections']) : [],
+              'section' => $bf_entity->included['sections'] ? array_keys($bf_entity->included['sections']) : [],
+              'label' => $bf_entity->included['labels'] ? array_keys($bf_entity->included['labels']) : [],
             ];
             $processing_queue[$bf_entity_type][$bf_entity_id] = $bf_entity_data_for_validation;
           }
@@ -258,9 +258,21 @@ class BrandfolderGatekeeper {
   public function fetchAssets($query_params = []) {
     $search_components = !empty($query_params['search']) ? [$query_params['search']] : [];
 
-    // @todo: Brandfolder may only be supporting section and collection searches by human-readable name, rather than key/ID.
+    // Brandfolder may only be supporting section and collection searches by
+    // human-readable name, rather than key/ID. Therefore, map the ID/key-based
+    // criteria to the corresponding names.
+    // @todo: Update if/when Brandfolder confirms support for key-based search.
+    $collection_ids_and_names = $this->bf_client->getCollectionsInBrandfolder( NUll, [], TRUE);
+    $section_ids_and_names = $this->bf_client->listSectionsInBrandfolder( NUll, [], TRUE);
+    $map = [
+      'collection' => $collection_ids_and_names,
+      'section' => $section_ids_and_names,
+    ];
     foreach ($this->criteria['allowed'] as $criteria_family => $criteria) {
       if (!empty($criteria)) {
+        if (isset($map[$criteria_family])) {
+          $criteria = array_intersect_key($map[$criteria_family], $criteria);
+        }
         array_walk($criteria, function(&$criterion) {
           $criterion = "%22$criterion%22";
         });
@@ -269,6 +281,9 @@ class BrandfolderGatekeeper {
     }
     foreach ($this->criteria['disallowed'] as $criteria_family => $criteria) {
       if (!empty($criteria)) {
+        if (isset($map[$criteria_family])) {
+          $criteria = array_intersect_key($map[$criteria_family], $criteria);
+        }
         array_walk($criteria, function(&$criterion) {
           $criterion = "%22$criterion%22";
         });
@@ -320,47 +335,46 @@ class BrandfolderGatekeeper {
       '#title'       => $this->t('Allowed'),
       '#description' => $this->t('Only allow @brandfolder entities that meet *all* of the following criteria.', ['@brandfolder' => 'Brandfolder']),
     ];
-    $form['brandfolder']['bf_entity_criteria']['allowed']['collections'] = [
+    $form['brandfolder']['bf_entity_criteria']['allowed']['collection'] = [
       '#type'          => 'select',
       '#title'         => $this->t('Collections'),
       '#options'       => $collections_list,
       '#multiple'      => TRUE,
-      '#default_value' => $this->criteria['allowed']['collections'] ?? [],
+      '#default_value' => $this->criteria['allowed']['collection'] ?? [],
     ];
-    $form['brandfolder']['bf_entity_criteria']['allowed']['sections'] = [
+    $form['brandfolder']['bf_entity_criteria']['allowed']['section'] = [
       '#type'          => 'select',
       '#title'         => $this->t('Sections'),
       '#options'       => $sections_list,
       '#multiple'      => TRUE,
-      '#default_value' => $this->criteria['allowed']['sections'] ?? [],
+      '#default_value' => $this->criteria['allowed']['section'] ?? [],
     ];
     $form['brandfolder']['bf_entity_criteria']['disallowed'] = [
       '#type'        => 'fieldset',
       '#title'       => $this->t('Disallowed'),
       '#description' => $this->t('Do not allow @brandfolder entities that meet *any* of the following criteria.', ['@brandfolder' => 'Brandfolder']),
     ];
-    $form['brandfolder']['bf_entity_criteria']['disallowed']['collections'] = [
+    $form['brandfolder']['bf_entity_criteria']['disallowed']['collection'] = [
       '#type'          => 'select',
       '#title'         => $this->t('Collections'),
       '#options'       => $collections_list,
       '#multiple'      => TRUE,
-      '#default_value' => $this->criteria['disallowed']['collections'] ?? [],
+      '#default_value' => $this->criteria['disallowed']['collection'] ?? [],
     ];
-    $form['brandfolder']['bf_entity_criteria']['disallowed']['sections'] = [
+    $form['brandfolder']['bf_entity_criteria']['disallowed']['section'] = [
       '#type'          => 'select',
       '#title'         => $this->t('Sections'),
       '#options'       => $sections_list,
       '#multiple'      => TRUE,
-      '#default_value' => $this->criteria['disallowed']['sections'] ?? [],
+      '#default_value' => $this->criteria['disallowed']['section'] ?? [],
     ];
   }
 
-//  public function configFormValidate() {
+//  public function configFormValidate(array $form, \Drupal\Core\Form\FormStateInterface $form_state) {
 //
 //  }
 
-//  public function configFormSubmit() {
-//
+//  public function configFormSubmit(array $form, \Drupal\Core\Form\FormStateInterface $form_state) {
 //  }
 
 }

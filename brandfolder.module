@@ -13,6 +13,7 @@ use Drupal\Core\Render\Element;
 use Drupal\field\Entity\FieldStorageConfig;
 use Drupal\file\Entity\File;
 use Drupal\Core\Database;
+use Drupal\media\Entity\Media;
 use Drupal\media\MediaInterface;
 use Drupal\media\MediaTypeInterface;
 use Drupal\Core\Entity\EntityMalformedException;
@@ -172,7 +173,13 @@ function brandfolder_browser_media_library_form_manipulator(&$form, \Drupal\Core
   if ($assets && !empty($assets->data)) {
     // @todo: Theme pattern.
     $bf_asset_list = array_map(function ($asset) {
-      $output =   "<li class=\"brandfolder-asset\" data-bf-asset-id=\"{$asset->id}\">"
+      // Temp: use the first attachment for each asset.
+      $attachment_id = '';
+      if (!empty($asset->attachments)) {
+        $attachment_ids = array_keys($asset->attachments);
+        $attachment_id = reset($attachment_ids);
+      }
+      $output = "<li class=\"brandfolder-asset\" data-bf-asset-id=\"{$asset->id}\" data-bf-attachment-id=\"{$attachment_id}\">"
         .     "<figure>"
         .       "<img src=\"{$asset->attributes->thumbnail_url}\" />"
         .       "<figcaption>"
@@ -190,11 +197,53 @@ function brandfolder_browser_media_library_form_manipulator(&$form, \Drupal\Core
   // Replace standard ML output entirely.
   $form['output'] = [
     'bf_asset_list' => [
-      '#markup' => "<div class=\"brandfolder-browser\"><div class=\"brandfolder-assets\"><ul class=\"brandfolder-asset-list\">$bf_asset_list_string</ul></div></div>",
+      '#markup' => "<div class=\"brandfolder-browser\">
+                      <div class=\"brandfolder-assets\">
+                        <ul class=\"brandfolder-asset-list\">$bf_asset_list_string</ul>
+                      </div>
+                    </input>",
     ],
   ];
 
+  // @todo: Populate existing selection.
+  $form['selected_bf_attachment_ids'] = [
+    '#type' => 'hidden',
+    '#attributes' => [
+      'class' => 'selected-bf-attachment-ids',
+    ],
+    '#default_value' => '',
+  ];
+
   $form['#attached']['library'][] = 'brandfolder/brandfolder-browser';
+  $validation_handlers = !empty($form['#validate']) ? $form['#validate'] : [];
+  array_unshift($validation_handlers, 'brandfolder_selection_converter');
+  $form['#validate'] = $validation_handlers;
+}
+
+/**
+ * Helper function to translate Brandfolder browser selections to Drupal form
+ * values. To be used as a form validation handler.
+ *
+ * @param array $form
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ *
+ * @throws \GuzzleHttp\Exception\GuzzleException
+ */
+function brandfolder_selection_converter(array &$form, \Drupal\Core\Form\FormStateInterface &$form_state) {
+  $selected_attachment_list = $form_state->getValue('selected_bf_attachment_ids');
+  if (!empty($selected_attachment_list)) {
+    $selected_attachments = explode(',', $selected_attachment_list);
+    // Media Library context.
+    if (preg_match('/^views_form_media_library_widget_(.+)$/', $form['#form_id'], $matches)) {
+      $media_type_id = $matches[1];
+      $selected_media_entities = array_map(function ($attachment_id) use($media_type_id) {
+        return brandfolder_map_attachment_to_media_entity($attachment_id, $media_type_id);
+      }, $selected_attachments);
+      $selected_media_entities_list = implode(',', $selected_media_entities);
+      $form_state->setValue('media_library_select_form_selection', $selected_media_entities_list);
+    }
+    // @todo: Other contexts.
+  }
 }
 
 /**
@@ -380,6 +429,72 @@ function brandfolder_map_attachment_to_file($attachment, $create_new_file = TRUE
   }
 
   return $fid;
+}
+
+/**
+ * Given a Brandfolder attachment, return a Drupal media entity ID.
+ *
+ * If no media entity yet exists for the given attachment, attempt to
+ * create one.
+ *
+ * @param string|object $attachment
+ *    Unique Brandfolder attachment ID, or an object representing a Brandfolder
+ *    attachment.
+ * @param bool $create_new_entity
+ *    If TRUE, and no Drupal media entity exists for the given attachment,
+ *    create a new media entity and link it to the attachment.
+ *
+ * @return bool|int
+ *   The media entity ID on success; FALSE on failure.
+ *
+ * @throws \GuzzleHttp\Exception\GuzzleException
+ *
+ */
+function brandfolder_map_attachment_to_media_entity($attachment, $media_type_id, $create_new_entity = TRUE) {
+  $entity_id = FALSE;
+
+  $logger = \Drupal::logger('brandfolder');
+
+  $attachment_id = is_string($attachment) ? $attachment : $attachment->id;
+  // @todo: Global constant, config, etc.?
+  $bf_media_source_field_name = 'field_brandfolder_attachment_id';
+
+  // Check to see if a media entity of the given type already exists for this
+  // BF attachment.
+  $results = \Drupal::entityQuery('media')
+    ->condition('bundle', $media_type_id)
+    ->condition($bf_media_source_field_name, $attachment_id)
+    ->range(0, 1)
+    ->execute();
+
+  if (!empty($results)) {
+    $entity_id = reset($results);
+  }
+  elseif ($create_new_entity) {
+//    if (is_string($attachment)) {
+//      $bf = brandfolder_api();
+//      // @todo: Generate decent name for media item using, e.g., asset name plus attachment filename. Then improve that by allowing admins to configure patterns for auto-created entity names.
+//      if ($attachment = $bf->fetchAttachment($attachment_id)) {
+//        $attachment = $attachment->data;
+//      }
+//    }
+    if ($attachment_id) {
+      try {
+        $media = Media::create([
+          'name' => "Auto-Created Entity for BF Attachment $attachment_id",
+          'bundle' => $media_type_id,
+          $bf_media_source_field_name => $attachment_id,
+        ]);
+        $media->save();
+        $entity_id = $media->id();
+      }
+      catch (\Drupal\Core\Entity\EntityStorageException $e) {
+        $logger->error('There was an error saving a new media entity for Brandfolder attachment !attachment_id.', ['!attachment_id' => $attachment_id]);
+      }
+    }
+  }
+
+  return $entity_id;
 }
 
 /**
