@@ -1,25 +1,121 @@
 (function ($, Drupal) {
   Drupal.behaviors.BrandfolderBrowser = {
     attach: function attach(context) {
-      let $browser_container = $('.brandfolder-browser', context);
-      let $parent_form = $browser_container.closest('form');
+      console.error('Debug');
+      const asset_active_class = 'brandfolder-asset--active';
+      const asset_close_button_class = 'brandfolder-asset__close_button';
+      const attachment_selected_class = 'brandfolder-attachment--selected';
+      const list_delimiter = ',';
+      const $browser_container = $('.brandfolder-browser', context);
+      if ($browser_container.length == 0) {
+
+        return;
+      }
+      let selection_limit = $browser_container.data('selection-limit');
+      if (selection_limit < 1) {
+        selection_limit = false;
+      }
+      const $parent_form = $browser_container.closest('form');
+      if ($parent_form.length == 0) {
+
+        return;
+      }
+      const $selected_attachment_ids_element = $parent_form.find('.selected-bf-attachment-ids');
+      if ($selected_attachment_ids_element.length == 0) {
+
+        return;
+      }
+      let selected_attachments_list = $selected_attachment_ids_element.val();
+      let all_selected_attachments = selected_attachments_list.length > 0 ? $selected_attachment_ids_element.val().split(list_delimiter) : [];
+      if (selection_limit && all_selected_attachments.length >= selection_limit) {
+        $browser_container.addClass('selection-limit-reached');
+      }
       let $bf_browser_assets = $browser_container.find('.brandfolder-asset');
-      let all_selected_attachments = [];
+      let $bf_browser_attachments = $browser_container.find('.brandfolder-attachment');
       $bf_browser_assets.once('brandfolder-browser').on('click', function (event) {
         event.preventDefault();
-        let $selected_asset = $(event.currentTarget);
-        const selected_class = 'brandfolder-asset--selected';
-        $bf_browser_assets.removeClass(selected_class);
-        $selected_asset.addClass(selected_class);
-
-        // @todo: Multi-step process of drilling into assets to choose one attachment, if the asset has multiple attachments and Drupal admins have configured things to allow users to select specific attachments. For now, we'll use the first attachment for each asset.
-        let selected_attachment_id = $selected_asset.data('bf-attachment-id');
-        // @todo: Support selection of multiple attachments from one or more assets.
-        all_selected_attachments = [selected_attachment_id];
-        let $selected_attachment_ids_element = $parent_form.find('.selected-bf-attachment-ids');
-        if ($selected_attachment_ids_element.length > 0 && selected_attachment_id.length > 0) {
-          $selected_attachment_ids_element.val(all_selected_attachments.join());
+        let $targeted_asset = $(event.currentTarget);
+        let asset_is_active = $targeted_asset.hasClass(asset_active_class);
+        let $target = $(event.target);
+        if (!asset_is_active && !$target.hasClass(asset_close_button_class)) {
+          $bf_browser_assets.removeClass(asset_active_class);
+          $targeted_asset.addClass(asset_active_class);
+          // Load attachment images if not already present.
+          $targeted_asset.find('.brandfolder-attachment').each(function(index, attachment_el) {
+            let $attachment_img = $(attachment_el).find('.brandfolder-attachment__image');
+            if ($attachment_img.length > 0 && $attachment_img.attr('src').length < 1) {
+              let img_url = $attachment_img.data('img-src');
+              if (img_url.length > 0) {
+                $attachment_img.attr('src', img_url);
+              }
+            }
+          })
         }
+      });
+      $bf_browser_attachments.once('brandfolder-browser').on('click', function (event) {
+        event.preventDefault();
+        let $targeted_attachment = $(event.currentTarget);
+        let previously_selected = $targeted_attachment.hasClass(attachment_selected_class);
+        let targeted_attachment_id = $targeted_attachment.data('bf-attachment-id');
+        if (targeted_attachment_id.length == 0) {
+          console.error('The selected attachment is missing an ID.');
+
+          return;
+        }
+        if (previously_selected) {
+          // @todo: Abstract.
+          $targeted_attachment.removeClass(attachment_selected_class);
+          let selected_index = all_selected_attachments.indexOf(targeted_attachment_id);
+          if (selected_index >= 0) {
+            all_selected_attachments.splice(selected_index, 1);
+            $selected_attachment_ids_element.val(all_selected_attachments.join(list_delimiter));
+          }
+        }
+        else {
+          // If the maximum number of attachments has already been selected, do
+          // nothing (until the user deselects some attachments or resets
+          // selection).
+          if (selection_limit && all_selected_attachments.length >= selection_limit) {
+
+            return;
+          }
+          // If only one selection is allowed, unset any existing selection and
+          // replace with this new one.
+          if (selection_limit === 1) {
+            $bf_browser_attachments.removeClass(attachment_selected_class);
+            all_selected_attachments = [];
+          }
+          $targeted_attachment.addClass(attachment_selected_class);
+          all_selected_attachments.push(targeted_attachment_id);
+          $selected_attachment_ids_element.val(all_selected_attachments.join(list_delimiter));
+        }
+
+        $browser_container.removeClass('selection-limit-reached');
+        let num_selections = all_selected_attachments.length;
+        if (selection_limit && num_selections >= selection_limit) {
+          $browser_container.addClass('selection-limit-reached');
+        }
+
+        // If in a Media Library context, update the selection count text.
+        let $ml_selected_count = $('.js-media-library-selected-count');
+        let num_selections_remaining = selection_limit ? (selection_limit - num_selections) : -1;
+        if ($ml_selected_count.length > 0) {
+          // Use the same terminology as the Media Library, intuitive or not.
+          let ml_selected_items_text = num_selections_remaining < 0 ? Drupal.formatPlural(num_selections, '1 item selected', '@count items selected') : Drupal.formatPlural(num_selections_remaining, '@selected of @count item selected', '@selected of @count items selected', {
+            '@selected': num_selections
+          });
+          // let ml_selected_items_text = selection_limit === 1 ? (num_selections + ' of 1 item selected') : (num_selections + 'of ' + selection_limit + ' items selected');
+          $ml_selected_count.html(ml_selected_items_text);
+        }
+      });
+
+      // Basic "close"/"back" handling for active assets.
+      let $asset_close_buttons = $browser_container.find('.' + asset_close_button_class);
+      $asset_close_buttons.once('brandfolder-browser').on('click', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        let $button = $(event.currentTarget);
+        $button.closest('.brandfolder-asset').removeClass(asset_active_class);
       });
     }
   };

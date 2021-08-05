@@ -17,6 +17,7 @@ use Drupal\media\Entity\Media;
 use Drupal\media\MediaInterface;
 use Drupal\media\MediaTypeInterface;
 use Drupal\Core\Entity\EntityMalformedException;
+use Drupal\media_library\MediaLibraryState;
 use Drupal\views\ViewExecutable;
 
 /**
@@ -159,59 +160,124 @@ function brandfolder_views_pre_render(ViewExecutable $view) {
  * @todo: Replace with more elegant and feature-rich browser construct.
  */
 function brandfolder_browser_media_library_form_manipulator(&$form, \Drupal\Core\Form\FormStateInterface $form_state, \Drupal\media\Entity\MediaType $media_type) {
-
   $media_source = $media_type->getSource();
   $gatekeeper = \Drupal::getContainer()
     ->get(BrandfolderGatekeeper::class);
   $gatekeeper->loadFromMediaSource($media_source);
 
+  $selected_media_entity_ids = [];
+  $selection_limit = -1;
+  $build_info = $form_state->getBuildInfo();
+  if ($build_info['base_form_id'] == 'views_form_media_library_widget' && isset($build_info['args'][0]) && $build_info['args'][0] instanceof \Drupal\views\ViewExecutable) {
+    $view = $build_info['args'][0];
+    if (strpos($view->current_display, 'widget') === 0) {
+      try {
+        $state = MediaLibraryState::fromRequest($view->getRequest());
+//        $selections_remaining = $state->getAvailableSlots();
+        $ml_opener_params = $state->getOpenerParameters();
+
+        $field_manager = \Drupal::service('entity_field.manager');
+        (array) $bundle_fields = $field_manager->getFieldDefinitions($ml_opener_params['entity_type_id'], $ml_opener_params['bundle']);
+        $field_name = $ml_opener_params['field_name'];
+        if (isset($bundle_fields[$field_name])) {
+          $selection_limit = $bundle_fields[$field_name]->getFieldStorageDefinition()->getCardinality();
+        }
+
+        $user_input = $form_state->getUserInput();
+        if (!empty($user_input[$field_name]['selection'])) {
+          $selected_media_entity_ids = array_map(function($input) {
+            return $input['target_id'];
+          }, $user_input[$field_name]['selection']);
+        }
+
+      } catch (Exception $e) {}
+    }
+  }
+
+  $selected_bf_attachment_ids = array_map('brandfolder_map_media_entity_to_attachment', $selected_media_entity_ids);
+  $selected_bf_attachment_ids = array_filter($selected_bf_attachment_ids);
+
+  brandfolder_browser($form, $gatekeeper, $selected_bf_attachment_ids, $selection_limit);
+
+  // Relocate the BF browser element, using it to replace the standard Media
+  // Library output entirely.
+  $main_bf_browser_element = $form['brandfolder_browser_main'];
+  unset($form['brandfolder_browser_main']);
+  $form['output'] = [
+    'brandfolder_browser_main' => $main_bf_browser_element
+  ];
+}
+
+/**
+ * Basic, agnostic function to embellish a form with elements needed for the
+ * core BF browsing experience.
+ *
+ * @todo: Relocate and make pluggable.
+ * @todo: Accept existing selections as param here.
+ */
+function brandfolder_browser(&$form, BrandfolderGatekeeper $gatekeeper, $selected_attachment_ids = [], $selection_limit = -1) {
   $bf_asset_list_string = t('No Brandfolder assets found.');
   $query_params = [
     'include' => 'attachments'
   ];
   $assets = $gatekeeper->fetchAssets($query_params);
   if ($assets && !empty($assets->data)) {
-    // @todo: Theme pattern.
-    $bf_asset_list = array_map(function ($asset) {
-      // Temp: use the first attachment for each asset.
-      $attachment_id = '';
+    // @todo: Theme pattern, tpl, etc.
+    $bf_asset_list = array_map(function ($asset) use ($selected_attachment_ids) {
+      $output = '';
       if (!empty($asset->attachments)) {
-        $attachment_ids = array_keys($asset->attachments);
-        $attachment_id = reset($attachment_ids);
+        $output = "<li class=\"brandfolder-asset\" data-bf-asset-id=\"{$asset->id}\">"
+          .         "<span class=\"brandfolder-asset__close_button\">&#8592;</span>"
+          .         "<div class=\"brandfolder-asset__overview\">"
+        .             "<h2 class=\"brandfolder-asset__heading\">{$asset->attributes->name}</h2>"
+          .           "<figure>"
+          .             "<img class=\"brandfolder-asset__thumb\" src=\"{$asset->attributes->thumbnail_url}\" />"
+          .             "<figcaption class=\"brandfolder-asset__info\">"
+          .               "<div class=\"bf-asset-metadata bf-asset-metadata--name\">{$asset->attributes->name}</div>"
+          .               "<div class=\"bf-asset-metadata bf-asset-metadata--description\">{$asset->attributes->description}</div>"
+          .             "</figcaption>"
+          .           "</figure>"
+          .          "</div>"
+          .         "<div class=\"brandfolder-asset__attachments\">"
+          .           "<h3 class=\"brandfolder-asset__attachment-list-heading\">" . t('Attachments') . "</h3>"
+          .           "<ul class=\"brandfolder-asset__attachment-list\">";
+        foreach ($asset->attachments as $attachment_id => $attachment) {
+          $selected = in_array($attachment_id, $selected_attachment_ids) ? 'selected' : '';
+          $output .= "<li class=\"brandfolder-attachment $selected\" data-bf-attachment-id=\"{$attachment_id}\">"
+                  .     "<figure>"
+                  .       "<img class=\"brandfolder-attachment__image\" src=\"\" data-img-src=\"{$attachment->thumbnail_url}\" />"
+                  .       "<figcaption>"
+                  .         "<div class=\"bf-attachment-metadata\"><strong>" . t('Filename') . ":</strong> {$attachment->filename}</div>"
+                  .         "<div class=\"bf-attachment-metadata\"><strong>" . t('File Size') . ":</strong> " . format_size($attachment->size) . "</div>"
+                  .         "<div class=\"bf-attachment-metadata\"><strong>" . t('Dimensions') . ":</strong> {$attachment->width}x{$attachment->height}</div>"
+                  .       "</figcaption>"
+                  .     "</figure>"
+                  .   "</li>";
+        }
+        $output .= "</ul>"
+          .     "</div>"
+          .   "</li>";
       }
-      $output = "<li class=\"brandfolder-asset\" data-bf-asset-id=\"{$asset->id}\" data-bf-attachment-id=\"{$attachment_id}\">"
-        .     "<figure>"
-        .       "<img src=\"{$asset->attributes->thumbnail_url}\" />"
-        .       "<figcaption>"
-        .         "<div class=\"bf-asset-metadata\"><strong>Name:</strong> {$asset->attributes->name}</div>"
-        .         "<div class=\"bf-asset-metadata\"><strong>Asset ID:</strong> {$asset->id}</div>"
-        .       "</figcaption>"
-        .     "</figure>"
-        .   "</li>";
 
       return $output;
     }, $assets->data);
     $bf_asset_list_string = implode(' ', $bf_asset_list);
   }
 
-  // Replace standard ML output entirely.
-  $form['output'] = [
-    'bf_asset_list' => [
-      '#markup' => "<div class=\"brandfolder-browser\">
+  $form['brandfolder_browser_main'] = [
+    '#markup' => "<div class=\"brandfolder-browser\" data-selection-limit=\"{$selection_limit}\">
                       <div class=\"brandfolder-assets\">
                         <ul class=\"brandfolder-asset-list\">$bf_asset_list_string</ul>
                       </div>
-                    </input>",
-    ],
+                    </div>",
   ];
 
-  // @todo: Populate existing selection.
   $form['selected_bf_attachment_ids'] = [
     '#type' => 'hidden',
     '#attributes' => [
       'class' => 'selected-bf-attachment-ids',
     ],
-    '#default_value' => '',
+    '#default_value' => implode(',', $selected_attachment_ids),
   ];
 
   $form['#attached']['library'][] = 'brandfolder/brandfolder-browser';
@@ -230,6 +296,8 @@ function brandfolder_browser_media_library_form_manipulator(&$form, \Drupal\Core
  * @throws \GuzzleHttp\Exception\GuzzleException
  */
 function brandfolder_selection_converter(array &$form, \Drupal\Core\Form\FormStateInterface &$form_state) {
+  $selected_media_entities = [];
+  $selected_media_entities_list = '';
   $selected_attachment_list = $form_state->getValue('selected_bf_attachment_ids');
   if (!empty($selected_attachment_list)) {
     $selected_attachments = explode(',', $selected_attachment_list);
@@ -240,10 +308,12 @@ function brandfolder_selection_converter(array &$form, \Drupal\Core\Form\FormSta
         return brandfolder_map_attachment_to_media_entity($attachment_id, $media_type_id);
       }, $selected_attachments);
       $selected_media_entities_list = implode(',', $selected_media_entities);
-      $form_state->setValue('media_library_select_form_selection', $selected_media_entities_list);
     }
     // @todo: Other contexts.
   }
+  $media_select_form_values = array_combine($selected_media_entities, $selected_media_entities);
+  $form_state->setValue('media_library_select_form', $media_select_form_values);
+  $form_state->setValue('media_library_select_form_selection', $selected_media_entities_list);
 }
 
 /**
@@ -495,6 +565,33 @@ function brandfolder_map_attachment_to_media_entity($attachment, $media_type_id,
   }
 
   return $entity_id;
+}
+
+/**
+ * Given a Drupal media entity ID, return a Brandfolder attachment ID.
+ *
+ * @param int $media_entity_id
+ *
+ * @return bool|string
+ *   The attachment ID on success; FALSE on failure.
+ */
+function brandfolder_map_media_entity_to_attachment(int $media_entity_id) {
+  $attachment_id = FALSE;
+  if ($media = \Drupal::entityTypeManager()->getStorage('media')->load($media_entity_id)) {
+    // @todo: Global constant, config, etc.?
+    $bf_media_source_field_name = 'field_brandfolder_attachment_id';
+    $field_item_list = $media->get($bf_media_source_field_name);
+    if ($field_item_list->count() > 0) {
+      $attachment_id = $field_item_list->first()->getValue()['value'];
+    }
+  }
+
+  if (!$attachment_id) {
+    $logger = \Drupal::logger('brandfolder');
+    $logger->error('Could not determine a Brandfolder attachment ID for media entity ID !media_entity_id', ['!media_entity_id' => $media_entity_id]);
+  }
+
+  return $attachment_id;
 }
 
 /**

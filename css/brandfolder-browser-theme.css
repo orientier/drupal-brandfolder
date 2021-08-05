@@ -1,17 +1,13 @@
-.brandfolder-browser .brandfolder-asset img {
+.brandfolder-browser .brandfolder-asset .brandfolder-asset__thumb {
   max-width: 100%;
   object-fit: scale-down;
 }
 
-.brandfolder-browser .brandfolder-asset figcaption {
+.brandfolder-browser .brandfolder-asset .brandfolder-asset__info {
   display: none;
   background: rgba(0,0,0,0.5);
   color: #ffffff;
   overflow-wrap: break-word;
-}
-
-.brandfolder-browser .brandfolder-asset--selected {
-  border: 2px solid green;
 }
 
 .brandfolder-browser .brandfolder-asset:hover {
@@ -19,9 +15,46 @@
   /*transform: scale(1.05);*/
 }
 
-/*.brandfolder-browser .brandfolder-asset:hover img {*/
-/*}*/
-
 .brandfolder-browser .brandfolder-asset:hover figcaption {
   display: block;
+}
+
+.brandfolder-browser .brandfolder-asset.brandfolder-asset--active {
+  background: #fff;
+}
+
+.brandfolder-browser .brandfolder-asset.brandfolder-asset--active:hover {
+  cursor: auto;
+}
+
+.brandfolder-browser .brandfolder-asset.brandfolder-asset--active .brandfolder-asset__info,
+.brandfolder-browser .brandfolder-asset.brandfolder-asset--active:hover .brandfolder-asset__info {
+  background: transparent;
+  color: #000;
+}
+
+.brandfolder-browser .brandfolder-asset.brandfolder-asset--active .brandfolder-asset__close_button:hover {
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.brandfolder-browser .brandfolder-asset.brandfolder-asset--active .bf-asset-metadata--description {
+  font-style: italic;
+}
+
+.brandfolder-browser .brandfolder-attachment {
+  border: 2px solid transparent;
+}
+.brandfolder-browser .brandfolder-attachment:hover,
+.brandfolder-browser .brandfolder-attachment--selected {
+  background: #efefef;
+}
+.brandfolder-browser .brandfolder-attachment--selected {
+  border-left-color: #a9a9a9;
+}
+.brandfolder-browser .brandfolder-attachment:hover {
+  cursor: pointer;
+}
+.brandfolder-browser .brandfolder-attachment--selected:hover {
+  background: #dedede;
 }

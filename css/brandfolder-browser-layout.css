@@ -1,3 +1,7 @@
+.brandfolder-browser {
+  position: relative;
+}
+
 .brandfolder-browser .brandfolder-asset-list {
   list-style-type: none;
   display: flex;
@@ -13,7 +17,18 @@
   max-width: 175px;
   position: relative;
 }
-.brandfolder-browser .brandfolder-asset figure {
+
+.brandfolder-browser figure {
+  margin: 0;
+}
+
+.brandfolder-browser .brandfolder-asset .brandfolder-asset__close_button,
+.brandfolder-browser .brandfolder-asset .brandfolder-asset__heading,
+.brandfolder-browser .brandfolder-asset__attachments {
+  display: none;
+}
+
+.brandfolder-browser .brandfolder-asset .brandfolder-asset__overview {
   width: 100%;
   height: 100%;
   margin: 0;
@@ -22,12 +37,100 @@
   display: flex;
 }
 
-.brandfolder-browser .brandfolder-asset figcaption {
+.brandfolder-browser .brandfolder-asset .brandfolder-asset__info {
   position: absolute;
   top: 0;
   left: 0;
   z-index: 1;
   width: calc(100% - 1rem);
   height: calc(100% - 1rem);
+  padding: 0.5rem;
+}
+
+.brandfolder-browser .brandfolder-asset .bf-asset-metadata--description {
+  display: none;
+}
+
+
+.brandfolder-browser .brandfolder-asset.brandfolder-asset--active {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: 100%;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  z-index: 1;
+  display: flex;
+  padding: 1rem 1rem 1rem 3rem;
+}
+
+.brandfolder-browser .brandfolder-asset.brandfolder-asset--active .brandfolder-asset__close_button,
+.brandfolder-browser .brandfolder-asset.brandfolder-asset--active .brandfolder-asset__heading,
+.brandfolder-browser .brandfolder-asset.brandfolder-asset--active .brandfolder-asset__attachments {
+  display: block;
+}
+
+.brandfolder-browser .brandfolder-asset.brandfolder-asset--active .brandfolder-asset__close_button {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  left: 0;
+  width: 2rem;
+  font-size: 2rem;
+  padding-right: 0.5em;
+}
+
+.brandfolder-browser .brandfolder-asset.brandfolder-asset--active .brandfolder-asset__overview,
+.brandfolder-browser .brandfolder-asset.brandfolder-asset--active .brandfolder-asset__attachments {
+  min-width: 150px;
+}
+
+.brandfolder-browser .brandfolder-asset.brandfolder-asset--active .bf-asset-metadata--name {
+  display: none;
+}
+
+.brandfolder-browser .brandfolder-asset.brandfolder-asset--active .bf-asset-metadata--description {
+  display: inline-block;
+}
+
+.brandfolder-browser .brandfolder-asset.brandfolder-asset--active .brandfolder-asset__overview {
+  flex: 0 1 30%;
+  display: block;
+  width: auto;
+  height: auto;
+  position: static;
+  margin-right: 3rem;
+}
+
+.brandfolder-browser .brandfolder-asset.brandfolder-asset--active .brandfolder-asset__overview figure {
+  margin-top: 1.5rem;
+}
+
+.brandfolder-browser .brandfolder-asset.brandfolder-asset--active .brandfolder-asset__info,
+.brandfolder-browser .brandfolder-asset.brandfolder-asset--active:hover .brandfolder-asset__info {
+  display: block;
+  position: static;
+  top: auto;
+  left: auto;
+  z-index: 0;
+  width: auto;
+  height: auto;
+  padding: 0.5rem;
+}
+
+.brandfolder-browser .brandfolder-asset.brandfolder-asset--active .brandfolder-asset__attachments {
+  flex: 1 1 auto;
+}
+
+.brandfolder-browser .brandfolder-asset__attachment-list {
+  display: block;
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+}
+
+.brandfolder-browser .brandfolder-asset__attachment-list .brandfolder-attachment {
+  margin: 0 0 1rem;
   padding: 0.5rem;
 }
