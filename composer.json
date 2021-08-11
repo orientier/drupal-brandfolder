@@ -25,6 +25,6 @@
     ],
     "minimum-stability": "dev",
     "require": {
-      "brandfolder/brandfolder-sdk-php": "dev-feature/2.x-dev"
+      "brandfolder/brandfolder-sdk-php": "dev-master"
     }
 }
