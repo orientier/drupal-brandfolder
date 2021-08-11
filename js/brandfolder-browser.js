@@ -4,6 +4,7 @@
       console.error('Debug');
       const asset_active_class = 'brandfolder-asset--active';
       const asset_close_button_class = 'brandfolder-asset__close_button';
+      const attachment_disabled_class = 'brandfolder-attachment--disabled';
       const attachment_selected_class = 'brandfolder-attachment--selected';
       const list_delimiter = ',';
       const $browser_container = $('.brandfolder-browser', context);
@@ -62,6 +63,11 @@
 
           return;
         }
+        if ($targeted_attachment.hasClass(attachment_disabled_class)) {
+          // This attachment is disabled. No further action needed.
+
+          return false;
+        }
         if (previously_selected) {
           // @todo: Abstract.
           $targeted_attachment.removeClass(attachment_selected_class);
@@ -98,13 +104,11 @@
 
         // If in a Media Library context, update the selection count text.
         let $ml_selected_count = $('.js-media-library-selected-count');
-        let num_selections_remaining = selection_limit ? (selection_limit - num_selections) : -1;
         if ($ml_selected_count.length > 0) {
           // Use the same terminology as the Media Library, intuitive or not.
-          let ml_selected_items_text = num_selections_remaining < 0 ? Drupal.formatPlural(num_selections, '1 item selected', '@count items selected') : Drupal.formatPlural(num_selections_remaining, '@selected of @count item selected', '@selected of @count items selected', {
+          let ml_selected_items_text = selection_limit === false ? Drupal.formatPlural(num_selections, '1 item selected', '@count items selected') : Drupal.formatPlural(selection_limit, '@selected of @count item selected', '@selected of @count items selected', {
             '@selected': num_selections
           });
-          // let ml_selected_items_text = selection_limit === 1 ? (num_selections + ' of 1 item selected') : (num_selections + 'of ' + selection_limit + ' items selected');
           $ml_selected_count.html(ml_selected_items_text);
         }
       });

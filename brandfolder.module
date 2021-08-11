@@ -194,10 +194,18 @@ function brandfolder_browser_media_library_form_manipulator(&$form, \Drupal\Core
     }
   }
 
+  // Reduce selection limit by the number of already-selected entities, if
+  // applicable.
+  if ($selection_limit > 0) {
+    $selection_limit -= count($selected_media_entity_ids);
+    // Ensure we don't inadvertently push the limit below zero.
+    $selection_limit = max($selection_limit, 0);
+  }
+
   $selected_bf_attachment_ids = array_map('brandfolder_map_media_entity_to_attachment', $selected_media_entity_ids);
   $selected_bf_attachment_ids = array_filter($selected_bf_attachment_ids);
 
-  brandfolder_browser($form, $gatekeeper, $selected_bf_attachment_ids, $selection_limit);
+  brandfolder_browser($form, $gatekeeper, $selected_bf_attachment_ids, [], $selection_limit);
 
   // Relocate the BF browser element, using it to replace the standard Media
   // Library output entirely.
@@ -215,7 +223,14 @@ function brandfolder_browser_media_library_form_manipulator(&$form, \Drupal\Core
  * @todo: Relocate and make pluggable.
  * @todo: Accept existing selections as param here.
  */
-function brandfolder_browser(&$form, BrandfolderGatekeeper $gatekeeper, $selected_attachment_ids = [], $selection_limit = -1) {
+/**
+ * @param $form
+ * @param \Drupal\brandfolder\Service\BrandfolderGatekeeper $gatekeeper
+ * @param array $previously_selected_attachment_ids
+ * @param int $selection_limit
+ *  This should be -1 if there is no limit.
+ */
+function brandfolder_browser(&$form, BrandfolderGatekeeper $gatekeeper, $disabled_attachment_ids = [], $selected_attachment_ids = [], int $selection_limit = -1) {
   $bf_asset_list_string = t('No Brandfolder assets found.');
   $query_params = [
     'include' => 'attachments'
@@ -223,7 +238,7 @@ function brandfolder_browser(&$form, BrandfolderGatekeeper $gatekeeper, $selecte
   $assets = $gatekeeper->fetchAssets($query_params);
   if ($assets && !empty($assets->data)) {
     // @todo: Theme pattern, tpl, etc.
-    $bf_asset_list = array_map(function ($asset) use ($selected_attachment_ids) {
+    $bf_asset_list = array_map(function ($asset) use ($disabled_attachment_ids, $selected_attachment_ids) {
       $output = '';
       if (!empty($asset->attachments)) {
         $output = "<li class=\"brandfolder-asset\" data-bf-asset-id=\"{$asset->id}\">"
@@ -242,8 +257,15 @@ function brandfolder_browser(&$form, BrandfolderGatekeeper $gatekeeper, $selecte
           .           "<h3 class=\"brandfolder-asset__attachment-list-heading\">" . t('Attachments') . "</h3>"
           .           "<ul class=\"brandfolder-asset__attachment-list\">";
         foreach ($asset->attachments as $attachment_id => $attachment) {
-          $selected = in_array($attachment_id, $selected_attachment_ids) ? 'selected' : '';
-          $output .= "<li class=\"brandfolder-attachment $selected\" data-bf-attachment-id=\"{$attachment_id}\">"
+          $attachment_classes_array = ['brandfolder-attachment'];
+          if (in_array($attachment_id, $disabled_attachment_ids)) {
+            $attachment_classes_array[] = 'brandfolder-attachment--disabled';
+          }
+          if (in_array($attachment_id, $selected_attachment_ids)) {
+            $attachment_classes_array[] = 'brandfolder-attachment--selected';
+          }
+          $attachment_classes = implode(' ', $attachment_classes_array);
+          $output .= "<li class=\"$attachment_classes\" data-bf-attachment-id=\"{$attachment_id}\">"
                   .     "<figure>"
                   .       "<img class=\"brandfolder-attachment__image\" src=\"\" data-img-src=\"{$attachment->thumbnail_url}\" />"
                   .       "<figcaption>"

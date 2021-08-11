@@ -58,3 +58,15 @@
 .brandfolder-browser .brandfolder-attachment--selected:hover {
   background: #dedede;
 }
+.brandfolder-browser .brandfolder-attachment--disabled,
+.brandfolder-browser .brandfolder-attachment--disabled:hover,
+.brandfolder-browser.selection-limit-reached .brandfolder-attachment:not(.brandfolder-attachment--selected),
+.brandfolder-browser.selection-limit-reached .brandfolder-attachment:not(.brandfolder-attachment--selected):hover {
+  cursor: not-allowed;
+  background: #efefef;
+}
+.brandfolder-browser .brandfolder-attachment--disabled img,
+.brandfolder-browser .brandfolder-attachment--disabled:hover img,
+.brandfolder-browser.selection-limit-reached .brandfolder-attachment:not(.brandfolder-attachment--selected) img {
+  filter: saturate(0);
+}
