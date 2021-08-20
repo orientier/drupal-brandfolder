@@ -274,7 +274,7 @@ class BrandfolderGatekeeper {
           $criteria = array_intersect_key($map[$criteria_family], $criteria);
         }
         array_walk($criteria, function(&$criterion) {
-          $criterion = "%22$criterion%22";
+          $criterion = "\"$criterion\"";
         });
         $search_components[] = "$criteria_family:(" . implode(' ', $criteria) . ')';
       }
@@ -309,6 +309,24 @@ class BrandfolderGatekeeper {
    */
   public function getMessage() {
     return $this->message ?? '';
+  }
+
+  /**
+   * Get all specified criteria.
+   *
+   * @return array
+   */
+  public function getCriteria(): array {
+    return $this->criteria ?? [];
+  }
+
+  /**
+   * Set criteria.
+   *
+   * @param array $criteria
+   */
+  public function setCriteria(array $criteria) {
+    $this->criteria = $criteria;
   }
 
   /**

@@ -2,17 +2,39 @@
 
 namespace Drupal\brandfolder\Controller;
 
+use Drupal\brandfolder\Service\BrandfolderGatekeeper;
 use Drupal\Core\Ajax\AjaxResponse;
 //use Drupal\Core\Ajax\AppendCommand;
 use Drupal\Core\Controller\ControllerBase;
+use Drupal\Core\Form\FormStateInterface;
+
 //use Drupal\Core\Url;
 //use Drupal\examples\Utility\DescriptionTemplateTrait;
 //use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Controller routines for AJAX example routes.
+ * Controller for Brandfolder browser asset fetching.
  */
 class AssetFetchController extends ControllerBase {
+
+  public function assetFetchFormAjaxCallback(array &$form, FormStateInterface $form_state): string|\Drupal\Core\StringTranslation\TranslatableMarkup {
+    $search_query = $form_state->getValue('brandfolder_controls_search') ?? '';
+    $gatekeeper = \Drupal::getContainer()
+      ->get(BrandfolderGatekeeper::class);
+    if ($gatekeeper_criteria = $form_state->getValue('bf_gatekeeper_criteria')) {
+      $gatekeeper->setCriteria(json_decode($gatekeeper_criteria));
+    }
+    $query_params = [
+      'search' => $search_query,
+    ];
+    $output = t('No assets found');
+    if ($assets = $gatekeeper->fetchAssets($query_params)) {
+      $output = brandfolder_format_asset_list($assets);
+    }
+
+    // Return asset list.
+    return $output;
+  }
 
   /**
    * Fetch assets applicable to the current context.

@@ -7,9 +7,12 @@
 
 use Drupal\brandfolder\Service\BrandfolderGatekeeper;
 use Drupal\brandfolder\Plugin\media\Source\BrandfolderImage;
+use Drupal\Component\Utility\Html;
+use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Routing\RouteMatchInterface;
 use Brandfolder\Brandfolder;
 use Drupal\Core\Render\Element;
+use Drupal\Core\Url;
 use Drupal\field\Entity\FieldStorageConfig;
 use Drupal\file\Entity\File;
 use Drupal\Core\Database;
@@ -19,6 +22,7 @@ use Drupal\media\MediaTypeInterface;
 use Drupal\Core\Entity\EntityMalformedException;
 use Drupal\media_library\MediaLibraryState;
 use Drupal\views\ViewExecutable;
+use Drupal\Core\Form\FormBuilderInterface;
 
 /**
  * Brandfolder helper function. For use in procedural code. De-emphasize this
@@ -128,6 +132,27 @@ function brandfolder_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $fo
       brandfolder_browser_media_library_form_manipulator($form, $form_state, $media_type);
     }
   }
+
+  // Testing.
+  if ($form_id == 'node_recipe_edit_form') {
+    $asset_container_id = Html::getUniqueId('brandfolder-assets');
+    $form['brandfolder_controls_search'] = [
+      '#type'   => 'textfield',
+      '#length' => 120,
+      '#title'  => t('Search'),
+      '#ajax'   => [
+        //      'callback' => 'Drupal\brandfolder\Controller\AssetFetchController::assetFetchFormAjaxCallback',
+        'callback' => 'brandfolder_asset_fetch_form_ajax_callback',
+        'event'    => 'keyup',
+        'wrapper'  => $asset_container_id,
+        'progress' => [
+          'type'    => 'throbber',
+          'message' => t('Searching...'),
+        ],
+      ],
+      '#suffix' => "<div id=\"$asset_container_id\"></div>"
+    ];
+  }
 }
 
 /**
@@ -205,14 +230,14 @@ function brandfolder_browser_media_library_form_manipulator(&$form, \Drupal\Core
   $selected_bf_attachment_ids = array_map('brandfolder_map_media_entity_to_attachment', $selected_media_entity_ids);
   $selected_bf_attachment_ids = array_filter($selected_bf_attachment_ids);
 
-  brandfolder_browser($form, $gatekeeper, $selected_bf_attachment_ids, [], $selection_limit);
+  brandfolder_browser($form, $gatekeeper, $selected_bf_attachment_ids, [], $selection_limit, $form_state);
 
   // Relocate the BF browser element, using it to replace the standard Media
   // Library output entirely.
-  $main_bf_browser_element = $form['brandfolder_browser_main'];
-  unset($form['brandfolder_browser_main']);
+  $main_bf_browser_element = $form['brandfolder_browser'];
+  unset($form['brandfolder_browser']);
   $form['output'] = [
-    'brandfolder_browser_main' => $main_bf_browser_element
+    'brandfolder_browser' => $main_bf_browser_element
   ];
 }
 
@@ -220,78 +245,54 @@ function brandfolder_browser_media_library_form_manipulator(&$form, \Drupal\Core
  * Basic, agnostic function to embellish a form with elements needed for the
  * core BF browsing experience.
  *
- * @todo: Relocate and make pluggable.
- * @todo: Accept existing selections as param here.
- */
-/**
  * @param $form
  * @param \Drupal\brandfolder\Service\BrandfolderGatekeeper $gatekeeper
- * @param array $previously_selected_attachment_ids
+ * @param array $disabled_attachment_ids
+ * @param array $selected_attachment_ids
  * @param int $selection_limit
  *  This should be -1 if there is no limit.
+ * @param \Drupal\Core\Form\FormStateInterface|null $form_state
+ *
+ * @todo: Relocate and make pluggable.
  */
-function brandfolder_browser(&$form, BrandfolderGatekeeper $gatekeeper, $disabled_attachment_ids = [], $selected_attachment_ids = [], int $selection_limit = -1) {
-  $bf_asset_list_string = t('No Brandfolder assets found.');
+function brandfolder_browser(&$form, BrandfolderGatekeeper $gatekeeper, $disabled_attachment_ids = [], $selected_attachment_ids = [], int $selection_limit = -1, $form_state = NULL) {
+  $bf_asset_list = t('No Brandfolder assets found.');
   $query_params = [
     'include' => 'attachments'
   ];
+  // @todo: Pagination.
   $assets = $gatekeeper->fetchAssets($query_params);
   if ($assets && !empty($assets->data)) {
-    // @todo: Theme pattern, tpl, etc.
-    $bf_asset_list = array_map(function ($asset) use ($disabled_attachment_ids, $selected_attachment_ids) {
-      $output = '';
-      if (!empty($asset->attachments)) {
-        $output = "<li class=\"brandfolder-asset\" data-bf-asset-id=\"{$asset->id}\">"
-          .         "<span class=\"brandfolder-asset__close_button\">&#8592;</span>"
-          .         "<div class=\"brandfolder-asset__overview\">"
-        .             "<h2 class=\"brandfolder-asset__heading\">{$asset->attributes->name}</h2>"
-          .           "<figure>"
-          .             "<img class=\"brandfolder-asset__thumb\" src=\"{$asset->attributes->thumbnail_url}\" />"
-          .             "<figcaption class=\"brandfolder-asset__info\">"
-          .               "<div class=\"bf-asset-metadata bf-asset-metadata--name\">{$asset->attributes->name}</div>"
-          .               "<div class=\"bf-asset-metadata bf-asset-metadata--description\">{$asset->attributes->description}</div>"
-          .             "</figcaption>"
-          .           "</figure>"
-          .          "</div>"
-          .         "<div class=\"brandfolder-asset__attachments\">"
-          .           "<h3 class=\"brandfolder-asset__attachment-list-heading\">" . t('Attachments') . "</h3>"
-          .           "<ul class=\"brandfolder-asset__attachment-list\">";
-        foreach ($asset->attachments as $attachment_id => $attachment) {
-          $attachment_classes_array = ['brandfolder-attachment'];
-          if (in_array($attachment_id, $disabled_attachment_ids)) {
-            $attachment_classes_array[] = 'brandfolder-attachment--disabled';
-          }
-          if (in_array($attachment_id, $selected_attachment_ids)) {
-            $attachment_classes_array[] = 'brandfolder-attachment--selected';
-          }
-          $attachment_classes = implode(' ', $attachment_classes_array);
-          $output .= "<li class=\"$attachment_classes\" data-bf-attachment-id=\"{$attachment_id}\">"
-                  .     "<figure>"
-                  .       "<img class=\"brandfolder-attachment__image\" src=\"\" data-img-src=\"{$attachment->thumbnail_url}\" />"
-                  .       "<figcaption>"
-                  .         "<div class=\"bf-attachment-metadata\"><strong>" . t('Filename') . ":</strong> {$attachment->filename}</div>"
-                  .         "<div class=\"bf-attachment-metadata\"><strong>" . t('File Size') . ":</strong> " . format_size($attachment->size) . "</div>"
-                  .         "<div class=\"bf-attachment-metadata\"><strong>" . t('Dimensions') . ":</strong> {$attachment->width}x{$attachment->height}</div>"
-                  .       "</figcaption>"
-                  .     "</figure>"
-                  .   "</li>";
-        }
-        $output .= "</ul>"
-          .     "</div>"
-          .   "</li>";
-      }
-
-      return $output;
-    }, $assets->data);
-    $bf_asset_list_string = implode(' ', $bf_asset_list);
+    $bf_asset_list = brandfolder_format_asset_list($assets, $disabled_attachment_ids, $selected_attachment_ids);
   }
 
-  $form['brandfolder_browser_main'] = [
-    '#markup' => "<div class=\"brandfolder-browser\" data-selection-limit=\"{$selection_limit}\">
-                      <div class=\"brandfolder-assets\">
-                        <ul class=\"brandfolder-asset-list\">$bf_asset_list_string</ul>
-                      </div>
-                    </div>",
+  $browser_id = Html::getUniqueId('brandfolder-browser');
+  $asset_container_id = brandfolder_browser_get_asset_list_container_id($form);
+
+  $form['brandfolder_browser'] = [
+    '#type' => 'fieldset',
+    '#collabsible' => FALSE,
+    '#prefix' => "<div id=\"$browser_id\" class=\"brandfolder-browser\" data-selection-limit=\"{$selection_limit}\">",
+    '#suffix' => "</div>",
+  ];
+  $form['brandfolder_browser']['brandfolder_browser_controls'] = [
+    '#type' => 'fieldset',
+    '#collabsible' => FALSE,
+    '#prefix' => "<div class=\"brandfolder-browser-controls\">",
+    '#suffix' => "</div>",
+  ];
+  $controls = brandfolder_browser_controls($gatekeeper, $asset_container_id, $form['#form_id']);
+  $form['brandfolder_browser']['brandfolder_browser_controls'] += $controls;
+
+  $form['brandfolder_browser']['brandfolder_browser_assets'] = [
+    '#markup' => "<div id=\"$asset_container_id\" class=\"brandfolder-assets\">
+                    $bf_asset_list
+                  </div>",
+  ];
+
+  $form['brandfolder_browser']['bf_gatekeeper_criteria'] = [
+    '#type' => 'hidden',
+    '#value' => json_encode($gatekeeper->getCriteria()),
   ];
 
   $form['selected_bf_attachment_ids'] = [
@@ -306,6 +307,168 @@ function brandfolder_browser(&$form, BrandfolderGatekeeper $gatekeeper, $disable
   $validation_handlers = !empty($form['#validate']) ? $form['#validate'] : [];
   array_unshift($validation_handlers, 'brandfolder_selection_converter');
   $form['#validate'] = $validation_handlers;
+}
+
+/**
+ * Helper function to get an ID for the asset list container element in a
+ * Brandfolder browser.
+ *
+ * @param \Drupal\Core\Form\FormInterface $form
+ *
+ * @return string
+ */
+function brandfolder_browser_get_asset_list_container_id(\Drupal\Core\Form\FormInterface $form) {
+//  $asset_container_id_base = 'brandfolder-assets';
+//
+//  // If we're in an AJAX context where the async request was triggered by the
+//  // Brandfolder browser with the intent to update an asset list, make sure to
+//  // preserve the existing ID for the asset list container.
+//  if (!is_null($form_state) && \Drupal::request()->isXmlHttpRequest()) {
+//    if ($triggering_element = $form_state->getTriggeringElement()) {
+//      if (isset($triggering_element['#ajax']['wrapper'])) {
+//        $target_el_id = $triggering_element['#ajax']['wrapper'];
+//        if (strpos($target_el_id, $asset_container_id_base) === 0) {
+//          $asset_container_id = $target_el_id;
+//        }
+//      }
+//    }
+//  }
+//  // Otherwise, generate a new unique element ID for the asset list container.
+//  if (!isset($asset_container_id)) {
+//    $asset_container_id = Html::getUniqueId($asset_container_id_base);
+//  }
+
+  $asset_container_id = $form['#form_id'] . '__brandfolder-browser-assets';
+
+  return $asset_container_id;
+}
+
+/**
+ * Helper function to convert an array of assets provided by the Brandfolder
+ * API/SDK into an HTML list.
+ *
+ * @param object $assets
+ * @param array $disabled_attachment_ids
+ * @param array $selected_attachment_ids
+ *
+ * @return string
+ *
+ * @todo: Theme pattern, tpl, etc.
+ */
+function brandfolder_format_asset_list(object $assets, array $disabled_attachment_ids = [], array $selected_attachment_ids = []): string {
+  $bf_asset_list_items = array_map(function ($asset) use ($disabled_attachment_ids, $selected_attachment_ids) {
+    $output = '';
+    if (!empty($asset->attachments)) {
+      $output = "<li class=\"brandfolder-asset\" data-bf-asset-id=\"{$asset->id}\">"
+        .         "<span class=\"brandfolder-asset__close_button\">&#8592;</span>"
+        .         "<div class=\"brandfolder-asset__overview\">"
+        .           "<h2 class=\"brandfolder-asset__heading\">{$asset->attributes->name}</h2>"
+        .           "<figure>"
+        .             "<img class=\"brandfolder-asset__thumb\" src=\"{$asset->attributes->thumbnail_url}\" />"
+        .             "<figcaption class=\"brandfolder-asset__info\">"
+        .               "<div class=\"bf-asset-metadata bf-asset-metadata--name\">{$asset->attributes->name}</div>"
+        .               "<div class=\"bf-asset-metadata bf-asset-metadata--description\">{$asset->attributes->description}</div>"
+        .             "</figcaption>"
+        .           "</figure>"
+        .          "</div>"
+        .         "<div class=\"brandfolder-asset__attachments\">"
+        .           "<h3 class=\"brandfolder-asset__attachment-list-heading\">" . t('Attachments') . "</h3>"
+        .           "<ul class=\"brandfolder-asset__attachment-list\">";
+      foreach ($asset->attachments as $attachment_id => $attachment) {
+        $attachment_classes_array = ['brandfolder-attachment'];
+        if (in_array($attachment_id, $disabled_attachment_ids)) {
+          $attachment_classes_array[] = 'brandfolder-attachment--disabled';
+        }
+        if (in_array($attachment_id, $selected_attachment_ids)) {
+          $attachment_classes_array[] = 'brandfolder-attachment--selected';
+        }
+        $attachment_classes = implode(' ', $attachment_classes_array);
+        $output .= "<li class=\"$attachment_classes\" data-bf-attachment-id=\"{$attachment_id}\">"
+          .     "<figure>"
+          .       "<img class=\"brandfolder-attachment__image\" src=\"\" data-img-src=\"{$attachment->thumbnail_url}\" />"
+          .       "<figcaption>"
+          .         "<div class=\"bf-attachment-metadata\"><strong>" . t('Filename') . ":</strong> {$attachment->filename}</div>"
+          .         "<div class=\"bf-attachment-metadata\"><strong>" . t('File Size') . ":</strong> " . format_size($attachment->size) . "</div>"
+          .         "<div class=\"bf-attachment-metadata\"><strong>" . t('Dimensions') . ":</strong> {$attachment->width}x{$attachment->height}</div>"
+          .       "</figcaption>"
+          .     "</figure>"
+          .   "</li>";
+      }
+      $output .= "</ul>"
+        .     "</div>"
+        .   "</li>";
+    }
+
+    return $output;
+  }, $assets->data);
+
+  $bf_asset_list = '<ul class="brandfolder-asset-list">' . implode(' ', $bf_asset_list_items) . '</ul>';
+
+  return $bf_asset_list;
+}
+
+/**
+ * Helper function to generate form elements to allow users to search for,
+ * filter, sort, etc. assets in a Brandfolder browser context.
+ *
+ * @param \Drupal\brandfolder\Service\BrandfolderGatekeeper $gatekeeper
+ *
+ * @return array
+ */
+function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string $asset_container_id, $form_id): array {
+  $controls = [];
+
+  // Explicitly set an AJAX URL to avoid problems when the host form itself was
+  // generated via AJAX. Any valid URL will work.
+  // @todo: Use our own stub route for this.
+  $url = Url::fromUri('entity:node/1')->setOption('query', [FormBuilderInterface::AJAX_FORM_REQUEST => 1, 'form_id' => $form_id])->toString();
+
+  $controls['brandfolder_controls_search'] = [
+    '#type' => 'textfield',
+    '#length' => 120,
+    '#title' => t('Search'),
+    '#ajax' => [
+      // @todo
+//      'callback' => 'Drupal\brandfolder\Controller\AssetFetchController::assetFetchFormAjaxCallback',
+      'callback' => 'brandfolder_asset_fetch_form_ajax_callback',
+      'event' => 'keyup',
+      'wrapper' => $asset_container_id,
+      'progress' => [
+        'type' => 'throbber',
+        'message' => t('Searching...'),
+      ],
+      'url' => $url,
+    ],
+  ];
+
+  return $controls;
+}
+
+// @todo: move to AssetFetchController.
+function brandfolder_asset_fetch_form_ajax_callback(array &$form, FormStateInterface $form_state) {
+  $search_query = $form_state->getValue('brandfolder_controls_search') ?? '';
+  $gatekeeper = \Drupal::getContainer()
+    ->get(BrandfolderGatekeeper::class);
+  if ($gatekeeper_criteria = $form_state->getValue('bf_gatekeeper_criteria')) {
+    $gatekeeper->setCriteria(json_decode($gatekeeper_criteria, TRUE));
+  }
+  $query_params = [
+    'include' => 'attachments',
+  ];
+  if (!empty($search_query)) {
+    $query_params['search'] = $search_query;
+  }
+  $output = t('No assets found');
+  $assets = $gatekeeper->fetchAssets($query_params);
+  if (!empty($assets->data)) {
+    $output = brandfolder_format_asset_list($assets);
+  }
+
+  $asset_container_id = brandfolder_browser_get_asset_list_container_id($form);
+  $output = "<div id=\"$asset_container_id\">$output</div>";
+
+  // Return asset list.
+  return ['#markup' => $output];
 }
 
 /**

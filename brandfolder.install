@@ -5,6 +5,7 @@
  * Install, update and uninstall functions for the Brandfolder module.
  */
 
+use Drupal\Core\Utility\UpdateException;
 use Drupal\field\Entity\FieldStorageConfig;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\brandfolder\Plugin\media\Source\BrandfolderImage;
@@ -119,6 +120,8 @@ function brandfolder_schema() {
 
 /**
  * Implements hook_install().
+ *
+ * @throws \Drupal\Core\Utility\UpdateException
  */
 function brandfolder_install() {
   // @todo: Ensure 'bf://' scheme is fully accessible/usable upon module installation.

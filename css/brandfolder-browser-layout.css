@@ -2,6 +2,27 @@
   position: relative;
 }
 
+.brandfolder-browser fieldset,
+.brandfolder-browser fieldset:not(.fieldgroup) {
+  position: static;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background-color: transparent;
+}
+
+.brandfolder-browser .brandfolder-browser-controls {
+  background: #efefef;
+  padding: 1rem;
+  margin: 0 0 1rem;
+}
+
+.brandfolder-browser .brandfolder-browser-controls .form-item-search label {
+  display: inline-block;
+  margin: 0 0.25rem 0 0;
+}
+
 .brandfolder-browser .brandfolder-asset-list {
   list-style-type: none;
   display: flex;
