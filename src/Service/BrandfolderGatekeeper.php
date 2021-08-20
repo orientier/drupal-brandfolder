@@ -3,7 +3,7 @@
 namespace Drupal\brandfolder\Service;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
-use Drupal\Core\Logger\LoggerChannelFactory;
+use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\StringTranslation\TranslationInterface;
@@ -107,12 +107,12 @@ class BrandfolderGatekeeper {
    * BrandfolderGatekeeper constructor.
    *
    * @param \Drupal\Core\StringTranslation\TranslationInterface $string_translation
-   * @param \Drupal\Core\Logger\LoggerChannelFactory $logger_factory
+   * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $logger_factory
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *
    * @throws \Exception
    */
-  public function __construct(TranslationInterface $string_translation, LoggerChannelFactory $logger_factory, ConfigFactoryInterface $config_factory) {
+  public function __construct(TranslationInterface $string_translation, LoggerChannelFactoryInterface $logger_factory, ConfigFactoryInterface $config_factory) {
     $this->criteria = [];
     $this->stringTranslation = $string_translation;
     $this->logger = $logger_factory->get('brandfolder');
@@ -137,7 +137,7 @@ class BrandfolderGatekeeper {
    * Instance creator.
    *
    * @param \Drupal\Core\StringTranslation\TranslationInterface $string_translation
-   * @param \Drupal\Core\Logger\LoggerChannelFactory $logger_factory
+   * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $logger_factory
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *
    * @return static
@@ -145,7 +145,7 @@ class BrandfolderGatekeeper {
    *
    * @throws \Exception
    */
-  public function create(TranslationInterface $string_translation, LoggerChannelFactory $logger_factory, ConfigFactoryInterface $config_factory) {
+  public function create(TranslationInterface $string_translation, LoggerChannelFactoryInterface $logger_factory, ConfigFactoryInterface $config_factory) {
     return new static(
       $string_translation,
       $logger_factory,
