@@ -1,5 +1,6 @@
 .brandfolder-browser {
   position: relative;
+  width: 100%;
 }
 
 .brandfolder-browser fieldset,
@@ -12,15 +13,39 @@
   background-color: transparent;
 }
 
-.brandfolder-browser .brandfolder-browser-controls {
+.brandfolder-browser fieldset > legend,
+.brandfolder-browser fieldset:not(.fieldgroup) > legend {
+  position: static;
+  top: 0;
+  letter-spacing: inherit;
+  text-transform: none;
+  /*font-size: 1em;*/
+  font-weight: bold;
+}
+
+.brandfolder-browser fieldset.brandfolder-browser-controls {
   background: #efefef;
   padding: 1rem;
   margin: 0 0 1rem;
 }
 
-.brandfolder-browser .brandfolder-browser-controls .form-item-search label {
+.brandfolder-browser fieldset.brandfolder-browser-controls > .fieldset-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.brandfolder-browser .brandfolder-browser-controls .brandfolder-browser-control-group {
+  flex: 1 1 auto;
+  margin: 0 1rem 0 0;
+}
+
+.brandfolder-browser .brandfolder-browser-controls .brandfolder-browser-control-group--search {
+  flex-basis: 100%;
+  margin: 0 0 1rem;
+}
+
+.brandfolder-browser .brandfolder-browser-controls .form-item-brandfolder-controls-search-text {
   display: inline-block;
-  margin: 0 0.25rem 0 0;
 }
 
 .brandfolder-browser .brandfolder-asset-list {
@@ -72,7 +97,6 @@
   display: none;
 }
 
-
 .brandfolder-browser .brandfolder-asset.brandfolder-asset--active {
   position: absolute;
   top: 0;
@@ -84,6 +108,7 @@
   z-index: 1;
   display: flex;
   padding: 1rem 1rem 1rem 3rem;
+  margin: 0;
 }
 
 .brandfolder-browser .brandfolder-asset.brandfolder-asset--active .brandfolder-asset__close_button,

@@ -132,27 +132,6 @@ function brandfolder_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $fo
       brandfolder_browser_media_library_form_manipulator($form, $form_state, $media_type);
     }
   }
-
-  // Testing.
-  if ($form_id == 'node_recipe_edit_form') {
-    $asset_container_id = Html::getUniqueId('brandfolder-assets');
-    $form['brandfolder_controls_search'] = [
-      '#type'   => 'textfield',
-      '#length' => 120,
-      '#title'  => t('Search'),
-      '#ajax'   => [
-        //      'callback' => 'Drupal\brandfolder\Controller\AssetFetchController::assetFetchFormAjaxCallback',
-        'callback' => 'brandfolder_asset_fetch_form_ajax_callback',
-        'event'    => 'keyup',
-        'wrapper'  => $asset_container_id,
-        'progress' => [
-          'type'    => 'throbber',
-          'message' => t('Searching...'),
-        ],
-      ],
-      '#suffix' => "<div id=\"$asset_container_id\"></div>"
-    ];
-  }
 }
 
 /**
@@ -277,8 +256,11 @@ function brandfolder_browser(&$form, BrandfolderGatekeeper $gatekeeper, array $d
   $form['brandfolder_browser']['brandfolder_browser_controls'] = [
     '#type' => 'fieldset',
     '#collabsible' => FALSE,
-    '#prefix' => "<div class=\"brandfolder-browser-controls\">",
-    '#suffix' => "</div>",
+    '#attributes' => [
+      'class' => [
+        'brandfolder-browser-controls',
+      ],
+    ],
   ];
   $controls = brandfolder_browser_controls($gatekeeper, $asset_container_id, $form['#form_id']);
   $form['brandfolder_browser']['brandfolder_browser_controls'] += $controls;
@@ -304,7 +286,8 @@ function brandfolder_browser(&$form, BrandfolderGatekeeper $gatekeeper, array $d
 
   $form['#attached']['library'][] = 'brandfolder/brandfolder-browser';
   $validation_handlers = !empty($form['#validate']) ? $form['#validate'] : [];
-  array_unshift($validation_handlers, 'brandfolder_selection_converter');
+  array_unshift($validation_handlers, 'brandfolder_browser_selection_converter');
+  $validation_handlers[] = 'brandfolder_browser_host_form_validator';
   $form['#validate'] = $validation_handlers;
 }
 
@@ -425,23 +408,123 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
   // @todo Revisit depending on outcome of this core issue and related discussion: https://www.drupal.org/project/drupal/issues/2504115.
   $url = Url::fromRoute('brandfolder.asset_fetch_stub_route')->setOption('query', [FormBuilderInterface::AJAX_FORM_REQUEST => 1, 'form_id' => $form_id])->toString();
 
-  $controls['brandfolder_controls_search'] = [
-    '#type' => 'textfield',
-    '#length' => 120,
-    '#title' => t('Search'),
-    '#ajax' => [
-      'callback' => 'Drupal\brandfolder\Controller\AssetFetchController::assetFetchFormAjaxCallback',
-      'event' => 'keyup',
-      'wrapper' => $asset_container_id,
-      'progress' => [
-        'type' => 'throbber',
-        'message' => t('Searching...'),
+  $ajax_defaults = [
+    'callback' => 'Drupal\brandfolder\Controller\AssetFetchController::assetFetchFormAjaxCallback',
+    'wrapper' => $asset_container_id,
+    'progress' => [
+      'type' => 'throbber',
+      'message' => t('Searching...'),
+    ],
+    'url' => $url,
+  ];
+
+  $attribute_defaults = [
+    'class' => [
+      'brandfolder-browser-control'
+    ]
+  ];
+
+  $controls['search'] = [
+    '#type' => 'fieldset',
+    '#collapsible' => FALSE,
+    '#attributes' => [
+      'class' => [
+        'brandfolder-browser-control-group',
+        'brandfolder-browser-control-group--search',
       ],
-      'url' => $url,
     ],
   ];
 
+  $controls['search']['brandfolder_controls_search_text'] = [
+    '#type' => 'search',
+    '#length' => 120,
+    '#ajax' => $ajax_defaults,
+    '#attributes' => $attribute_defaults,
+  ];
+
+  $controls['search']['brandfolder_controls_search_submit'] = [
+    '#type' => 'button',
+    '#value' => t('Search'),
+    '#ajax' => $ajax_defaults,
+    '#attributes' => $attribute_defaults,
+    '#limit_validation_errors' => [],
+  ];
+
+  // Get all possible collections. If there are more than one, allow users to
+  // filter by collection.
+  $allowed_collections = $gatekeeper->getCollections();
+  if (count($allowed_collections) > 1) {
+    $controls['collections'] = [
+      '#type' => 'fieldset',
+      '#title' => t('Collections'),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+      '#attributes' => [
+        'class' => [
+          'brandfolder-browser-control-group',
+          'brandfolder-browser-control-group--collections',
+        ],
+      ],
+    ];
+    foreach ($allowed_collections as $collection_id => $collection_name) {
+      $controls['collections']["brandfolder_controls_collection_$collection_id"] = [
+        '#type'       => 'checkbox',
+        '#title'      => $collection_name,
+        '#ajax'       => $ajax_defaults,
+        '#attributes' => $attribute_defaults,
+      ];
+    }
+  }
+
+  // Get all possible sections. If there are more than one, allow users to
+  // filter by section.
+  $allowed_sections = $gatekeeper->getSections();
+  if (count($allowed_sections) > 1) {
+    $controls['sections'] = [
+      '#type' => 'fieldset',
+      '#title' => t('Sections'),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+      '#attributes' => [
+        'class' => [
+          'brandfolder-browser-control-group',
+          'brandfolder-browser-control-group--sections',
+        ],
+      ],
+    ];
+    foreach ($allowed_sections as $section_id => $section_name) {
+      $controls['sections']["brandfolder_controls_section_$section_id"] = [
+        '#type'       => 'checkbox',
+        '#title'      => $section_name,
+        '#ajax'       => $ajax_defaults,
+        '#attributes' => $attribute_defaults,
+      ];
+    }
+  }
+
   return $controls;
+}
+
+/**
+ * Form validation handler to be applied to forms containing a Brandfolder 
+ * Browser, after other validation handlers have executed.
+ *
+ * @param array $form
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ *
+ * @throws \GuzzleHttp\Exception\GuzzleException
+ */
+function brandfolder_browser_host_form_validator(array &$form, \Drupal\Core\Form\FormStateInterface &$form_state) {
+  $triggering_element = $form_state->getTriggeringElement();
+  // If the submission was triggered by one of our browser controls, the only
+  // outcome should be to update the browser contents. We do not care about
+  // other validation logic/errors.
+  if (isset($triggering_element['#attributes']['class'])) {
+    $classes = $triggering_element['#attributes']['class'];
+    if (is_array($classes) && in_array('brandfolder-browser-control', $classes)) {
+      $form_state->clearErrors();
+    }
+  }
 }
 
 /**
@@ -453,7 +536,18 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
  *
  * @throws \GuzzleHttp\Exception\GuzzleException
  */
-function brandfolder_selection_converter(array &$form, \Drupal\Core\Form\FormStateInterface &$form_state) {
+function brandfolder_browser_selection_converter(array &$form, \Drupal\Core\Form\FormStateInterface &$form_state) {
+  $triggering_element = $form_state->getTriggeringElement();
+  // We don't need or want to perform validation when the submission is
+  // triggered by one of our browser controls.
+  if (isset($triggering_element['#attributes']['class'])) {
+    $classes = $triggering_element['#attributes']['class'];
+    if (is_array($classes) && in_array('brandfolder-browser-control', $classes)) {
+
+      return;
+    }
+  }
+
   $selected_media_entities = [];
   $selected_media_entities_list = '';
   $selected_attachment_list = $form_state->getValue('selected_bf_attachment_ids');
@@ -462,7 +556,7 @@ function brandfolder_selection_converter(array &$form, \Drupal\Core\Form\FormSta
     // Media Library context.
     if (preg_match('/^views_form_media_library_widget_(.+)$/', $form['#form_id'], $matches)) {
       $media_type_id = $matches[1];
-      $selected_media_entities = array_map(function ($attachment_id) use($media_type_id) {
+      $selected_media_entities = array_map(function ($attachment_id) use ($media_type_id) {
         return brandfolder_map_attachment_to_media_entity($attachment_id, $media_type_id);
       }, $selected_attachments);
       $selected_media_entities_list = implode(',', $selected_media_entities);

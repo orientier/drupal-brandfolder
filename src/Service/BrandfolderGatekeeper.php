@@ -9,6 +9,7 @@ use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\StringTranslation\TranslationInterface;
 use Drupal\media\MediaSourceInterface;
 use Brandfolder\Brandfolder;
+use GuzzleHttp\Exception\GuzzleException;
 
 /**
  * Helps determine which Brandfolder entities should be available in a given
@@ -28,19 +29,19 @@ class BrandfolderGatekeeper {
    *  [
    *    'allowed' => [
    *      'collection' => [
-   *        'abc123def456',
-   *        'abc123def457',
+   *        'abc123def456' => 'abc123def456',
+   *        'abc123def457' => 'abc123def457',
    *      ],
    *      'label' => [
-   *        'lmn123lmn987',
+   *        'lmn123lmn987' => 'lmn123lmn987',
    *      ],
    *    ],
    *    'disallowed' => [
    *      'collection' => [
-   *        'abc123def458',
+   *        'abc123def458' => 'abc123def458',
    *      ],
    *      'section' => [
-   *        'xyz123abc100',
+   *        'xyz123abc100' => 'xyz123abc100',
    *      ],
    *    ],
    * ]
@@ -255,7 +256,15 @@ class BrandfolderGatekeeper {
     return $bf_entities_are_valid;
   }
 
-  public function fetchAssets($query_params = []) {
+  /**
+   * Fetch assets from Brandfolder that comply with this gatekeeper's criteria.
+   *
+   * @param array $query_params
+   *
+   * @return mixed
+   * @throws \GuzzleHttp\Exception\GuzzleException
+   */
+  public function fetchAssets(array $query_params = []) {
     $search_components = !empty($query_params['search']) ? [$query_params['search']] : [];
 
     // Brandfolder may only be supporting section and collection searches by
@@ -299,6 +308,68 @@ class BrandfolderGatekeeper {
     $assets = $this->bf_client->listAssets($query_params, 'all');
 
     return $assets;
+  }
+
+  /**
+   * Get a list of all valid collections.
+   *
+   * @return array
+   *   An array keyed by collection ID whose values are collection names.
+   */
+  public function getCollections(): array {
+    try {
+      // Start with all collections in the Brandfolder.
+      $collections = $this->bf_client->getCollectionsInBrandfolder();
+      // Return empty array if no collections exist or some error has occurred.
+      if (empty($collections)) {
+
+        return [];
+      }
+      // Reduce the list per allowed/disallowed collection criteria, as
+      // applicable.
+      if (!empty($this->criteria['allowed']['collection'])) {
+        $collections = array_intersect_key($collections, $this->criteria['allowed']['collection']);
+      }
+      if (!empty($this->criteria['disallowed']['collection'])) {
+        $collections = array_diff_key($collections, $this->criteria['disallowed']['collection']);
+      }
+    }
+    catch (GuzzleException $e) {
+      $collections = [];
+    }
+
+    return $collections;
+  }
+
+  /**
+   * Get a list of all valid sections.
+   *
+   * @return array
+   *   An array keyed by section ID whose values are section names.
+   */
+  public function getSections(): array {
+    try {
+      // Start with all sections in the Brandfolder.
+      $sections = $this->bf_client->listSectionsInBrandfolder(NULL, [], TRUE);
+      // Return empty array if no sections exist or some error has occurred.
+      if (empty($sections)) {
+
+        return [];
+      }
+      // Reduce the list per allowed/disallowed section criteria, as
+      // applicable.
+      if (!empty($this->criteria['allowed']['section'])) {
+        $sections = array_intersect_key($sections, $this->criteria['allowed']['section']);
+      }
+      if (!empty($this->criteria['disallowed']['section'])) {
+        $sections = array_diff_key($sections, $this->criteria['disallowed']['section']);
+      }
+    }
+    catch (GuzzleException $e) {
+      $sections = [];
+    }
+
+    return $sections;
   }
 
   /**

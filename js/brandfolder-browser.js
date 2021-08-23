@@ -31,9 +31,23 @@
       if (selection_limit && all_selected_attachments.length >= selection_limit) {
         $browser_container.addClass('selection-limit-reached');
       }
+      // Allow users to submit search text by hitting the "Enter" key.
+      $browser_container.find('.brandfolder-browser-control-group--search input[type="search"]').on('keypress', function(event) {
+        if (event.which === 13) {
+          event.preventDefault();
+          event.stopPropagation();
+          const $container = $(this).closest('.brandfolder-browser-control-group--search');
+          if ($container.length > 0) {
+            const $submit_button = $container.find('input[type="submit"]');
+            if ($submit_button.length > 0) {
+              $submit_button.trigger('mousedown');
+            }
+          }
+        }
+      });
       let $bf_browser_assets = $browser_container.find('.brandfolder-asset');
       let $bf_browser_attachments = $browser_container.find('.brandfolder-attachment');
-      $bf_browser_assets.once('brandfolder-browser').on('click', function (event) {
+      $bf_browser_assets.once('brandfolder-browser').on('click', function(event) {
         event.preventDefault();
         let $targeted_asset = $(event.currentTarget);
         let asset_is_active = $targeted_asset.hasClass(asset_active_class);

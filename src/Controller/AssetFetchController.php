@@ -3,12 +3,10 @@
 namespace Drupal\brandfolder\Controller;
 
 use Drupal\brandfolder\Service\BrandfolderGatekeeper;
-use Drupal\Core\Ajax\AjaxResponse;
-//use Drupal\Core\Ajax\AppendCommand;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Form\FormStateInterface;
-use http\Client\Response;
 
+//use Drupal\Core\Ajax\AppendCommand;
 //use Drupal\Core\Url;
 //use Drupal\examples\Utility\DescriptionTemplateTrait;
 //use Symfony\Component\HttpFoundation\Response;
@@ -41,18 +39,50 @@ class AssetFetchController extends ControllerBase {
    * @return array
    */
   public function assetFetchFormAjaxCallback(array &$form, FormStateInterface $form_state): array {
-    $search_query = $form_state->getValue('brandfolder_controls_search') ?? '';
+    $all_input = $form_state->getValues();
+    $user_criteria = [
+      'collection' => [],
+      'section' => [],
+      // @todo: Tag and label support.
+//      'tag' => [],
+//      'label' => [],
+    ];
+    $valid_criterion_types = implode('|', array_keys($user_criteria));
+    foreach ($all_input as $input_key => $input_value) {
+      if ($input_value) {
+        if (preg_match("/^brandfolder_controls_($valid_criterion_types)_(.+)$/", $input_key, $matches)) {
+          $criterion_type = $matches[1];
+          $criterion = $matches[2];
+          $user_criteria[$criterion_type][] = $criterion;
+        }
+      }
+    }
+    $search_query_components = [];
+    $user_search_query = $form_state->getValue('brandfolder_controls_search_text') ?? '';
+    if (!empty($user_search_query)) {
+      $search_query_components[] = $user_search_query;
+    }
+    foreach ($user_criteria as $key => $allowed_values) {
+      if (count($allowed_values) > 0) {
+        array_walk($allowed_values, function(&$value) {
+          $value = "\"$value\"";
+        });
+        $search_query_components[] = "{$key}_key:(" . implode(' ', $allowed_values) . ')';
+      }
+    }
+    if (!empty($search_query_components)) {
+      array_walk($search_query_components, function(&$subquery) {
+        $subquery = "($subquery)";
+      });
+      $query_params['search'] = implode(' AND ', $search_query_components);
+    }
     $gatekeeper = \Drupal::getContainer()
       ->get(BrandfolderGatekeeper::class);
     if ($gatekeeper_criteria = $form_state->getValue('bf_gatekeeper_criteria')) {
       $gatekeeper->setCriteria(json_decode($gatekeeper_criteria, TRUE));
     }
-    $query_params = [
-      'include' => 'attachments',
-    ];
-    if (!empty($search_query)) {
-      $query_params['search'] = $search_query;
-    }
+    $query_params['include'] = 'attachments';
+
     $output = '<p class="brandfolder-browser__no-results-message">' . t('No assets found') . '</p>';
     $assets = $gatekeeper->fetchAssets($query_params);
     if (!empty($assets->data)) {
