@@ -40,6 +40,8 @@ class AssetFetchController extends ControllerBase {
    */
   public function assetFetchFormAjaxCallback(array &$form, FormStateInterface $form_state): array {
     $all_input = $form_state->getValues();
+
+    // Process user search text and all filters.
     $user_criteria = [
       'collection' => [],
       'section' => [],
@@ -76,6 +78,11 @@ class AssetFetchController extends ControllerBase {
       });
       $query_params['search'] = implode(' AND ', $search_query_components);
     }
+
+    // Sorting.
+    $query_params['sort_by'] = $all_input['brandfolder_controls_sort_criterion'] ?? 'created_at';
+    $query_params['order'] = $all_input['brandfolder_controls_sort_order'] ?? 'desc';
+
     $gatekeeper = \Drupal::getContainer()
       ->get(BrandfolderGatekeeper::class);
     if ($gatekeeper_criteria = $form_state->getValue('bf_gatekeeper_criteria')) {

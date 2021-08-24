@@ -48,6 +48,11 @@
   display: inline-block;
 }
 
+.brandfolder-browser .brandfolder-browser-control-group--sort .form-item {
+  float: left;
+  margin: 0 1rem 1rem 0;
+}
+
 .brandfolder-browser .brandfolder-asset-list {
   list-style-type: none;
   display: flex;

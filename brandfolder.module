@@ -502,6 +502,44 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
     }
   }
 
+  $controls['sort'] = [
+    '#type'        => 'fieldset',
+    //    '#title' => t('Sort'),
+    '#collapsible' => TRUE,
+    '#collapsed'   => TRUE,
+    '#attributes'  => [
+      'class' => [
+        'brandfolder-browser-control-group',
+        'brandfolder-browser-control-group--sort',
+      ],
+    ],
+  ];
+  $controls['sort']['brandfolder_controls_sort_criterion'] = [
+    '#title'         => t('Sort by'),
+    '#type'          => 'select',
+    '#options'       => [
+      'name'       => t('Name'),
+      'score'      => t('Score'),
+      'position'   => t('Position'),
+      'updated_at' => t('Updated'),
+      'created_at' => t('Upload Date'),
+    ],
+    '#default_value' => 'created_at',
+    '#ajax'          => $ajax_defaults,
+    '#attributes'    => $attribute_defaults,
+  ];
+  $controls['sort']['brandfolder_controls_sort_order'] = [
+    '#title'         => t('Sort Order'),
+    '#type'          => 'select',
+    '#options'       => [
+      'asc'  => t('Ascending'),
+      'desc' => t('Descending'),
+    ],
+    '#default_value' => 'desc',
+    '#ajax'          => $ajax_defaults,
+    '#attributes'    => $attribute_defaults,
+  ];
+
   return $controls;
 }
 
