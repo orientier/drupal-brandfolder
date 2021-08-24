@@ -1,7 +1,7 @@
 (function ($, Drupal) {
   Drupal.behaviors.BrandfolderBrowser = {
     attach: function attach(context) {
-      console.error('Debug');
+      // console.error('Debug');
       const asset_active_class = 'brandfolder-asset--active';
       const asset_close_button_class = 'brandfolder-asset__close_button';
       const attachment_disabled_class = 'brandfolder-attachment--disabled';

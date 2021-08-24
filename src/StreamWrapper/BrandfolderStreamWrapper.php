@@ -356,16 +356,6 @@ class BrandfolderStreamWrapper implements StreamWrapperInterface {
           }
           $bf_params = $image->getToolkit()->getCdnUrlParams();
           if (!empty($bf_params)) {
-            // Safeguard against illegal values for crop zone and final image
-            // size. These can occur when the image metadata is missing, etc.
-            // The assumption here is that it is better to fall back to a
-            // non-transformed image than to nothing.
-            if (empty($bf_params['crop_width']) || empty($bf_params['crop_height'])) {
-              unset($bf_params['crop_width'], $bf_params['crop_height']);
-            }
-            if (empty($bf_params['width']) || empty($bf_params['height'])) {
-              unset($bf_params['width'], $bf_params['height']);
-            }
             $query_params = array_merge($query_params, $bf_params);
           }
         }

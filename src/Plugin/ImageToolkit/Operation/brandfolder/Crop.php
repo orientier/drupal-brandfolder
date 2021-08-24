@@ -73,8 +73,10 @@ class Crop extends BrandfolderImageToolkitOperationBase {
    * {@inheritdoc}
    */
   protected function execute(array $arguments) {
+    // @todo: check context and figure out if we want precrop, regular crop (crop=123,123), etc.
+    // @todo: Make the "safe" crop mode configurable globally for Drupal-BF integration, at least.
     $params = [
-      'precrop' => "{$arguments['width']},{$arguments['height']},x{$arguments['x']},y{$arguments['y']},safe",
+      'crop' => "{$arguments['width']},{$arguments['height']},x{$arguments['x']},y{$arguments['y']},safe",
     ];
     $this->getToolkit()->setCdnUrlParams($params);
 

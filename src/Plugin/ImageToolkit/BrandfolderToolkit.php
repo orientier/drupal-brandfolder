@@ -127,7 +127,7 @@ class BrandfolderToolkit extends ImageToolkitBase {
   /**
    * {@inheritdoc}
    */
-  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition): BrandfolderToolkit {
     return new static(
       $configuration,
       $plugin_id,
@@ -170,18 +170,30 @@ class BrandfolderToolkit extends ImageToolkitBase {
 //    return $this->resource;
 //  }
 
+  /**
+   * Populate an array of Brandfolder CDN URL query parameters relevant to the
+   * current image operation.
+   *
+   * @param array $params
+   */
   public function setCdnUrlParams(array $params) {
     $this->brandfolder_cdn_url_params = array_merge($this->brandfolder_cdn_url_params, $params);
   }
 
-  public function getCdnUrlParams() {
+  /**
+   * Retrieve an array of Brandfolder CDN URL query parameters relevant to the
+   * current image operation.
+   *
+   * @return array
+   */
+  public function getCdnUrlParams(): array {
     return $this->brandfolder_cdn_url_params;
   }
 
   /**
    * {@inheritdoc}
    */
-  public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
+  public function buildConfigurationForm(array $form, FormStateInterface $form_state): array {
 
     return [];
   }
@@ -233,7 +245,7 @@ class BrandfolderToolkit extends ImageToolkitBase {
   /**
    * {@inheritdoc}
    */
-  public function isValid() {
+  public function isValid(): bool {
     // @todo
     return !empty($this->file_data);
   }
@@ -241,14 +253,14 @@ class BrandfolderToolkit extends ImageToolkitBase {
   /**
    * {@inheritdoc}
    */
-  public function save($destination) {
+  public function save($destination): bool {
     return TRUE;
   }
 
   /**
    * {@inheritdoc}
    */
-  public function parseFile() {
+  public function parseFile(): bool {
     $uri = $this->getSource();
     if (preg_match('/^bf:\/\/[^\/]+\/at\/([^\/]+)\/([^\.]*\.([^\?]+))?/', $uri, $matches)) {
       $bf_attachment_id = $matches[1];
@@ -305,7 +317,7 @@ class BrandfolderToolkit extends ImageToolkitBase {
   /**
    * {@inheritdoc}
    */
-  public static function isAvailable() {
+  public static function isAvailable() : bool {
     // @todo: Perhaps check to ensure BF credentials/API are available.
     return TRUE;
   }
@@ -350,7 +362,7 @@ class BrandfolderToolkit extends ImageToolkitBase {
    *   The image type represented by a PHP IMAGETYPE_* constant (e.g.
    *   IMAGETYPE_JPEG).
    */
-  public function getType() {
+  public function getType() : int {
     return $this->type;
   }
 
@@ -363,7 +375,7 @@ class BrandfolderToolkit extends ImageToolkitBase {
    *
    * @return $this
    */
-  public function setType($type) {
+  public function setType(int $type) : BrandfolderToolkit {
     if (in_array($type, static::supportedTypes())) {
       $this->type = $type;
     }
@@ -384,7 +396,7 @@ class BrandfolderToolkit extends ImageToolkitBase {
    *
    * @todo: is this necessary? We want to serve a CDN URL regardless of apparent file extension.
    */
-  public static function getSupportedExtensions() {
+  public static function getSupportedExtensions(): array {
     $extensions = [];
     foreach (static::supportedTypes() as $image_type) {
       // @todo Automatically fetch possible extensions for each mime type.
@@ -412,18 +424,18 @@ class BrandfolderToolkit extends ImageToolkitBase {
    *   for unsupported extensions.
    *
    * @see image_type_to_extension()
-   *
-   * @todo: is this ever called?
    */
-  public function extensionToImageType($extension) {
+  public function extensionToImageType(string $extension) {
     if (in_array($extension, ['jpe', 'jpg'])) {
       $extension = 'jpeg';
     }
     foreach ($this->supportedTypes() as $type) {
       if (image_type_to_extension($type, FALSE) === $extension) {
+
         return $type;
       }
     }
+
     return IMAGETYPE_UNKNOWN;
   }
 
@@ -434,7 +446,7 @@ class BrandfolderToolkit extends ImageToolkitBase {
    *   An array of available image types. An image type is represented by a PHP
    *   IMAGETYPE_* constant (e.g. IMAGETYPE_JPEG, IMAGETYPE_PNG, etc.).
    */
-  protected static function supportedTypes() {
+  protected static function supportedTypes(): array {
     return [
       IMAGETYPE_UNKNOWN,
       IMAGETYPE_GIF,

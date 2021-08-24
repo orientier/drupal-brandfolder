@@ -10,7 +10,7 @@ namespace Drupal\brandfolder\Plugin\ImageToolkit\Operation\brandfolder;
  *   toolkit = "brandfolder",
  *   operation = "scale_and_crop",
  *   label = @Translation("Scale and crop"),
- *   description = @Translation("Scales an image to the exact width and height given. This plugin achieves the target aspect ratio by cropping the original image equally on both sides, or equally on the top and bottom. This function is useful to create uniform sized avatars from larger images.")
+ *   description = @Translation("Scale and crop will maintain the aspect-ratio of the original image, then crop the larger dimension. This is most useful for creating perfectly square thumbnails without stretching the image.")
  * )
  */
 class ScaleAndCrop extends BrandfolderImageToolkitOperationBase {
@@ -43,45 +43,6 @@ class ScaleAndCrop extends BrandfolderImageToolkitOperationBase {
    * {@inheritdoc}
    */
   protected function validateArguments(array $arguments) {
-    $actualWidth = $this->getToolkit()->getWidth();
-    $actualHeight = $this->getToolkit()->getHeight();
-
-    $widthScaleFactor = $arguments['width'] / $actualWidth;
-    $heightScaleFactor = $arguments['height'] / $actualHeight;
-    $scaleFactor = max($widthScaleFactor, $heightScaleFactor);
-
-    // @todo: Consult with focal point config.
-    $arguments['x'] = isset($arguments['x']) ?
-      (int) round($arguments['x']) :
-      (int) round(($actualWidth * $scaleFactor - $arguments['width']) / 2);
-    $arguments['y'] = isset($arguments['y']) ?
-      (int) round($arguments['y']) :
-      (int) round(($actualHeight * $scaleFactor - $arguments['height']) / 2);
-
-    // @todo: Determine desired behavior of post-crop scaling wrt user input. Drupal's default explanation for the "Scale and Crop" image effect indicates that there will be no post-crop scaling at all.
-    $arguments['resize'] = [
-      'width' => (int) $arguments['width'],
-      'height' => (int) $arguments['height'],
-    ];
-    // @todo: Determine whether we are supporting upscaling.
-    if ($scaleFactor < 1) {
-      // We want to preserve the aspect ratio of the cropped region. Only scale
-      // down until one of the two dimensions matches the desired output
-      // dimension. In other words, use the scale factor that is closer to 1.0.
-//      if ($widthScaleFactor >= $heightScaleFactor) {
-//        $arguments['resize'] = [
-//          'width' => (int) round($actualWidth * $scaleFactor),
-//          'height' => (int) round($actualHeight * $scaleFactor),
-//        ];
-//      }
-//      else {
-//        $arguments['resize'] = [
-//          'width' => (int) round($actualWidth * $scaleFactor),
-//          'height' => (int) round($actualHeight * $scaleFactor),
-//        ];
-//      }
-    }
-
     // Fail when width or height are 0 or negative.
     if ($arguments['width'] <= 0) {
       throw new \InvalidArgumentException("Invalid width ('{$arguments['width']}') specified for the image 'scale_and_crop' operation");
@@ -90,6 +51,24 @@ class ScaleAndCrop extends BrandfolderImageToolkitOperationBase {
       throw new \InvalidArgumentException("Invalid height ('{$arguments['height']}') specified for the image 'scale_and_crop' operation");
     }
 
+    $actualWidth = $this->getToolkit()->getWidth();
+    $actualHeight = $this->getToolkit()->getHeight();
+
+    $widthScaleFactor = $arguments['width'] / $actualWidth;
+    $heightScaleFactor = $arguments['height'] / $actualHeight;
+    $scaleFactor = max($widthScaleFactor, $heightScaleFactor);
+
+    // @todo: Talk with Brandfolder about state of Fastly Image Optimizer API support. They do not currently seem to support upscaling, for instance (a la ?width=150p). See https://developer.fastly.com/reference/io.
+
+    // Translate from "scale, then crop" to "crop, then scale," since
+    // Brandfolder/Fastly seems to always apply crop before scale regardless of
+    // whether we use the `crop` or `precrop` params.
+    // @todo: Test with other crop input modes (focal point, etc.).
+    $arguments['crop_x'] = (int) round($arguments['x'] / $scaleFactor);
+    $arguments['crop_y'] = (int) round($arguments['y'] / $scaleFactor);
+    $arguments['crop_width'] = (int) round($arguments['width'] / $scaleFactor);
+    $arguments['crop_height'] = (int) round($arguments['height'] / $scaleFactor);
+
     return $arguments;
   }
 
@@ -97,8 +76,15 @@ class ScaleAndCrop extends BrandfolderImageToolkitOperationBase {
    * {@inheritdoc}
    */
   protected function execute(array $arguments = []) {
-    return $this->getToolkit()->apply('resize', $arguments['resize'])
-        && $this->getToolkit()->apply('crop', $arguments);
+    // @todo: Make the "safe" crop mode configurable globally for Drupal-BF integration, at least.
+    $params = [
+      'precrop' => "{$arguments['crop_width']},{$arguments['crop_height']},x{$arguments['crop_x']},y{$arguments['crop_y']},safe",
+      'width' => $arguments['width'],
+      'height' => $arguments['height'],
+    ];
+    $this->getToolkit()->setCdnUrlParams($params);
+
+    return TRUE;
   }
 
 }
