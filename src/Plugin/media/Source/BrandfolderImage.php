@@ -28,8 +28,8 @@ use Drupal\file\Entity\File;
  * @MediaSource(
  *   id = "brandfolder_image",
  *   label = @Translation("Brandfolder Image"),
- *   description = @Translation("Allows Brandfolder attachments to be used by Drupal's Media system."),
- *   allowed_field_types = {"string", "image"}
+ *   description = @Translation("Allows Brandfolder attachments to be used by Drupal's Media system. Automatically creates an image field linked to a Brandfolder attachment, such that the image will be updated whenever the attachment changes in Brandfolder."),
+ *   allowed_field_types = {"string"}
  * )
  */
 class BrandfolderImage extends MediaSourceBase {
@@ -158,17 +158,21 @@ class BrandfolderImage extends MediaSourceBase {
    */
   public function getMetadataAttributes() {
     $fields = [
-      'bf_attachment_id' => $this->t('Attachment ID'),
       'name' => $this->t('Name'),
-      'description' => $this->t('Description'),
-      'type' => $this->t('Type'),
+      'description' => $this->t('Asset description'),
+      'mime_type' => $this->t('MIME type'),
+      'filename' => $this->t('File name'),
+      'file_extension' => $this->t('File extension'),
       'thumbnail_url' => $this->t('Thumbnail url'),
+      'filesize' => $this->t('File size'),
       'width' => $this->t('Width'),
       'height' => $this->t('Height'),
-      'created' => $this->t('Date created'),
-      'updated' => $this->t('Date updated'),
+      'created' => $this->t('Asset upload date/time'),
+      'updated' => $this->t('Asset last updated date/time'),
+      'bf_position' => $this->t('Brandfolder attachment position'),
       'tags' => $this->t('Tags'),
-      // @todo: Custom BF fields, including semi-required fields such as alt-text.
+      'alt_text' => $this->t('Alt-Text'),
+      // @todo: Allow admins to specify BF custom fields other than alt-text?
     ];
 
     return $fields;
@@ -225,54 +229,147 @@ class BrandfolderImage extends MediaSourceBase {
   /**
    * {@inheritdoc}
    */
-  public function createSourceField(MediaTypeInterface $type) {
-    // @todo Review field locking.
-    $storage = $this->getSourceFieldStorage() ?: $this->createSourceFieldStorage();
+  protected function createSourceFieldStorage() {
+    // Note: we override this method to ensure that our source field is locked
+    // (we don't want users editing it directly). It should always be derived
+    // from a Brandfolder browser or sync/etc. operation.
     return $this->entityTypeManager
-      ->getStorage('field_config')
+      ->getStorage('field_storage_config')
       ->create([
-        'field_storage' => $storage,
-        'bundle' => $type->id(),
-        'label' => $this->configuration['source_field_label'],
+        'entity_type' => 'media',
+        'field_name' => $this->getSourceFieldName(),
+        'type' => 'string',
         'locked' => TRUE,
-        'required' => TRUE,
       ]);
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getMetadata(MediaInterface $media, $name) {
+  public function getMetadata(MediaInterface $media, $attribute_name) {
     $bf_attachment_id = $this->getSourceFieldValue($media);
-    if ($name == 'bf_attachment_id') {
-      return $bf_attachment_id;
+
+    // Do we want to support the attachment ID as metadata? It could be useful,
+    // but I can also see it leading to confusion with our (often hidden)
+    // source field.
+    // @see ::getMetadataAttributes()
+//    if ($attribute_name == 'bf_attachment_id') {
+//      return $bf_attachment_id;
+//    }
+
+    $api_params = [
+      'include' => 'asset',
+//      'fields' => 'metadata,thumbnail_url,view_thumbnail_retina,extension,version_count,tag_names'
+      'fields' => 'thumbnail_url,extension'
+    ];
+    $attachment = $this->brandfolderClient->fetchAttachment($bf_attachment_id, $api_params);
+    // In the edge case that we are unable to fetch the attachment from BF,
+    // we can return generic values for certain attributes, but are generally
+    // incapable of proceeding.
+    if (!$attachment) {
+      if (in_array($attribute_name, ['name', 'default_name'])) {
+
+        return "Brandfolder attachment $bf_attachment_id";
+      }
+      else {
+
+        return FALSE;
+      }
     }
 
-    switch ($name) {
+//    $all_fields = [
+//      'name' => $this->t('Name'),
+//      'description' => $this->t('Asset description'),
+//      'mime_type' => $this->t('MIME type'),
+//      'filename' => $this->t('File name'),
+//      'file_extension' => $this->t('File extension'),
+//      'thumbnail_url' => $this->t('Thumbnail url'),
+//      'filesize' => $this->t('File size'),
+//      'width' => $this->t('Width'),
+//      'height' => $this->t('Height'),
+//      'created' => $this->t('Asset upload date/time'),
+//      'updated' => $this->t('Asset last-updated date/time'),
+//      'bf_position' => $this->t('Brandfolder attachment position'),
+//      'tags' => $this->t('Tags'),
+//      'alt_text' => $this->t('Alt-Text (if available)'),
+//      // @todo: Allow admins to specify BF custom fields other than alt-text?
+//    ];
+
+    $asset_dependent_attributes = [
+      'name',
+      'description',
+      'created',
+      'updated',
+      'alt_text',
+//      'tags', ??
+    ];
+    $custom_field_attributes = [
+      'alt_text'
+    ];
+
+    if (in_array($attribute_name, $asset_dependent_attributes)) {
+      $api_params = in_array($attribute_name, $custom_field_attributes) ? ['include' => 'custom_fields'] : [];
+      $asset = $this->brandfolderClient->fetchAsset($attachment->asset->id, $api_params);
+      if (!$asset) {
+
+        return FALSE;
+      }
+    }
+
+    switch ($attribute_name) {
       case 'thumbnail_uri':
-        // @todo: Use specified thumb from Brandfolder. Store in local metadata cache/store. Look into "sig" (signature) URL param lifespan and expiry param, etc.
-//          $thumbnail_url = "https://thumbs.bfldr.com/as/$bf_attachment_id?expiry=1624467346&fit=bounds&height=162&sig=ZTY3ZDA5MTFjMWQxMmQ1Yjk5ZjJjYTg3OTczZGYxZDgzODYwZWQ3Yw%3D%3D&width=262";
-
-        $thumb_uri = NULL;
-
-        // Alt.
+//        return $attachment->data->attributes->thumbnail_url;
+        // Alternate approach. Media expects a Drupal file entity.
+        // @todo.
         if ($fid = brandfolder_map_attachment_to_file($bf_attachment_id)) {
-          $file = File::load($fid);
-          $thumb_uri = $file->getFileUri();
+          if ($file = File::load($fid)) {
+            $uri = $file->getFileUri();
+            if (!empty($uri)) {
+
+              return $uri;
+            }
+          }
         }
 
-        return $thumb_uri;
+      case 'name':
+        return "{$asset->data->attributes->name} - {$attachment->data->attributes->filename}";
 
-//        case 'created':
-//          return isset($this->metadata[$bf_attachment_id]['dateCreated']) ? $this->metadata[$bf_attachment_id]['dateCreated'] : FALSE;
-//
-//        case 'modified':
-//          return isset($this->metadata[$bf_attachment_id]['dateModified']) ? $this->metadata[$bf_attachment_id]['dateModified'] : FALSE;
+      case 'created':
+        return $asset->data->attributes->created;
+
+      case 'updated':
+        return $asset->data->attributes->updated;
+
+      case 'filesize':
+        return $attachment->data->attributes->size;
+
+      case 'width':
+        return $attachment->data->attributes->width;
+
+      case 'height':
+        return $attachment->data->attributes->height;
+
+      case 'filename':
+        return $attachment->data->attributes->filename;
+
+      case 'mime_type':
+        return $attachment->data->attributes->mimetype;
+
+      case 'file_extension':
+        return $attachment->data->attributes->extension;
+
+      case 'bf_position':
+        return $attachment->data->attributes->position;
+
+      case 'description':
+        return $asset->data->attributes->description;
 
       case 'default_name':
-//          return isset($this->metadata[$bf_attachment_id]['name']) ? $this->metadata[$bf_attachment_id]['name'] : parent::getMetadata($media, 'default_name');
-        // @todo
-        return "Brandfolder Attachment $bf_attachment_id";
+        return ($asset ? "{$asset->data->attributes->name} - {$attachment->data->attributes->filename}" : $attachment->data->attributes->filename);
+
+      case 'alt_text':
+        // @todo: Make this field name configurable, show messaging encouraging admins to create it, etc.
+        return $asset->data->custom_field_values['alt-text'] ?? FALSE;
 
 //        default:
 //          return isset($this->metadata[$bf_attachment_id][$name]) ? $this->metadata[$bf_attachment_id][$name] : FALSE;

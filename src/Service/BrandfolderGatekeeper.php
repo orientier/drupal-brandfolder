@@ -199,9 +199,9 @@ class BrandfolderGatekeeper {
         foreach ($bf_entities[$bf_entity_type] as $bf_entity_id) {
           if ($bf_entity = $this->bf_client->{$fetch_method}($bf_entity_id, $api_params)) {
             $bf_entity_data_for_validation = [
-              'collection' => $bf_entity->included['collections'] ? array_keys($bf_entity->included['collections']) : [],
-              'section' => $bf_entity->included['sections'] ? array_keys($bf_entity->included['sections']) : [],
-              'label' => $bf_entity->included['labels'] ? array_keys($bf_entity->included['labels']) : [],
+              'collection' => isset($bf_entity->included['collections']) ? array_keys($bf_entity->included['collections']) : [],
+              'section' => isset($bf_entity->included['sections']) ? array_keys($bf_entity->included['sections']) : [],
+              'label' => isset($bf_entity->included['labels']) ? array_keys($bf_entity->included['labels']) : [],
             ];
             $processing_queue[$bf_entity_type][$bf_entity_id] = $bf_entity_data_for_validation;
           }

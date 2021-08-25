@@ -132,6 +132,19 @@ function brandfolder_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $fo
       brandfolder_browser_media_library_form_manipulator($form, $form_state, $media_type);
     }
   }
+  // Media entity edit forms for Brandfolder-sourced media.
+  // @todo: Remove after confirming we'll stick with field locking approach.
+  if (preg_match('/^media_(.+)_edit_form$/', $form_id, $matches)) {
+    $media_type_id = $matches[1];
+    $media_type = \Drupal::entityTypeManager()->getStorage('media_type')->load($media_type_id);
+    if ($media_type && $media_type->getSource() instanceof BrandfolderImage) {
+      // Make the all-important source field (BF attachment ID text field)
+      // read-only.
+      if (isset($form['field_brandfolder_attachment_id'])) {
+        $form['field_brandfolder_attachment_id']['#disabled'] = TRUE;
+      }
+    }
+  }
 }
 
 /**
@@ -841,7 +854,7 @@ function brandfolder_map_attachment_to_media_entity($attachment, $media_type_id,
     if ($attachment_id) {
       try {
         $media = Media::create([
-          'name' => "Auto-Created Entity for BF Attachment $attachment_id",
+//          'name' => "Auto-Created Entity for BF Attachment $attachment_id",
           'bundle' => $media_type_id,
           $bf_media_source_field_name => $attachment_id,
         ]);
@@ -1051,8 +1064,8 @@ function brandfolder_media_presave(MediaInterface $media) {
     $bf_attachment_id = $source->getSourceFieldValue($media);
     $bf_asset_id = brandfolder_get_asset_from_attachment($bf_attachment_id);
     if (!$bf_asset_id) {
-      $msg = 'Could not map attachment ID !attachment_id to an asset.';
-      $msg_vars = ['!attachment_id' => $bf_attachment_id];
+      $msg = 'Could not map attachment ID @attachment_id to an asset.';
+      $msg_vars = ['@attachment_id' => $bf_attachment_id];
       $logger->error($msg, $msg_vars);
       throw new EntityMalformedException(t($msg, $msg_vars));
     }
