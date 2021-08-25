@@ -844,17 +844,22 @@ function brandfolder_map_attachment_to_media_entity($attachment, $media_type_id,
     $entity_id = reset($results);
   }
   elseif ($create_new_entity) {
-//    if (is_string($attachment)) {
-//      $bf = brandfolder_api();
-//      // @todo: Generate decent name for media item using, e.g., asset name plus attachment filename. Then improve that by allowing admins to configure patterns for auto-created entity names.
-//      if ($attachment = $bf->fetchAttachment($attachment_id)) {
-//        $attachment = $attachment->data;
-//      }
-//    }
     if ($attachment_id) {
       try {
+        // Generate a default name.
+        // @todo: Improve on this by allowing admins to configure patterns for auto-created entity names?
+        $default_name = "Auto-Created Entity for Brandfolder Attachment $attachment_id";
+        $asset = FALSE;
+        $bf_client = brandfolder_api();
+        if ($attachment = $bf_client->fetchAttachment($attachment_id, ['include' => 'asset'])) {
+          $asset_id = $attachment->data->relationships->asset->data->id ?? FALSE;
+          if ($asset_id) {
+            $asset = $bf_client->fetchAsset($asset_id);
+          }
+          $default_name = $asset ? "{$asset->data->attributes->name} - {$attachment->data->attributes->filename}" : $attachment->data->attributes->filename;
+        }
         $media = Media::create([
-//          'name' => "Auto-Created Entity for BF Attachment $attachment_id",
+          'name' => $default_name,
           'bundle' => $media_type_id,
           $bf_media_source_field_name => $attachment_id,
         ]);

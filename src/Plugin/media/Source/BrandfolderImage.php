@@ -301,15 +301,20 @@ class BrandfolderImage extends MediaSourceBase {
       'created',
       'updated',
       'alt_text',
+      'default_name',
 //      'tags', ??
     ];
     $custom_field_attributes = [
       'alt_text'
     ];
 
+    $asset = FALSE;
     if (in_array($attribute_name, $asset_dependent_attributes)) {
-      $api_params = in_array($attribute_name, $custom_field_attributes) ? ['include' => 'custom_fields'] : [];
-      $asset = $this->brandfolderClient->fetchAsset($attachment->asset->id, $api_params);
+      $asset_id = $attachment->data->relationships->asset->data->id ?? FALSE;
+      if ($asset_id) {
+        $api_params = in_array($attribute_name, $custom_field_attributes) ? ['include' => 'custom_fields'] : [];
+        $asset = $this->brandfolderClient->fetchAsset($asset_id, $api_params);
+      }
       if (!$asset) {
 
         return FALSE;
