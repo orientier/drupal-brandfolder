@@ -81,6 +81,8 @@ class BrandfolderImage extends MediaSourceBase {
    * The time service.
    *
    * @var \Drupal\Component\Datetime\TimeInterface
+   *
+   * @todo: Remove if unused.
    */
   protected $time;
 
@@ -88,6 +90,8 @@ class BrandfolderImage extends MediaSourceBase {
    * The module handler.
    *
    * @var \Drupal\Core\Extension\ModuleHandlerInterface
+   *
+   * @todo: Remove if unused.
    */
   protected $moduleHandler;
 
@@ -167,11 +171,17 @@ class BrandfolderImage extends MediaSourceBase {
       'filesize' => $this->t('File size'),
       'width' => $this->t('Width'),
       'height' => $this->t('Height'),
-      'created' => $this->t('Asset upload date/time'),
-      'updated' => $this->t('Asset last updated date/time'),
+      'asset_creation_date'=> 'Brandfolder asset upload date (format: "Y-m-d")',
+      'asset_creation_datetime_minutes'=> 'Brandfolder asset upload date/time with minutes (format: "Y-m-d\TH:i)',
+      'asset_creation_datetime_seconds'=> 'Brandfolder asset upload date/time with seconds (format: "Y-m-d\TH:i:s)',
+      'asset_creation_datetime_milliseconds'=> 'Brandfolder asset upload date/time with milliseconds (format: "Y-m-d\TH:i:s.v)',
+      'asset_updated_date'=> 'Brandfolder asset updated date (format: "Y-m-d)',
+      'asset_updated_datetime_minutes'=> 'Brandfolder asset updated date/time with minutes (Y-m-d\TH:i)',
+      'asset_updated_datetime_seconds'=> 'Brandfolder asset updated date/time with seconds (Y-m-d\TH:i:s)',
+      'asset_updated_datetime_milliseconds'=> 'Brandfolder asset updated date/time with milliseconds (Y-m-d\TH:i:s.v)',
       'bf_position' => $this->t('Brandfolder attachment position'),
-      'tags' => $this->t('Tags'),
-      'alt_text' => $this->t('Alt-Text'),
+      //      'tags' => $this->t('Tags'),
+      'alt_text' => $this->t('Alt-Text (from Brandfolder custom field)'),
       // @todo: Allow admins to specify BF custom fields other than alt-text?
     ];
 
@@ -184,7 +194,7 @@ class BrandfolderImage extends MediaSourceBase {
   public function defaultConfiguration() {
     return [
       'source_field' => 'field_brandfolder_attachment_id',
-      'source_field_label' => 'Brandfolder Attachment ID',
+      'source_field_label' => $this->t('Brandfolder Attachment ID'),
       'brandfolder' => [
         'bf_entity_criteria' => [],
       ],
@@ -222,7 +232,6 @@ class BrandfolderImage extends MediaSourceBase {
    * @todo: Collision testing.
    */
   protected function getSourceFieldName() {
-
     return $this->configuration['source_field'];
   }
 
@@ -245,21 +254,44 @@ class BrandfolderImage extends MediaSourceBase {
 
   /**
    * {@inheritdoc}
+   *
+   * Note: We override the parent method because we do not want to use the
+   * media source plugin name/label as the source field label.
+   */
+  public function createSourceField(MediaTypeInterface $type) {
+    $storage = $this->getSourceFieldStorage() ?: $this->createSourceFieldStorage();
+    return $this->entityTypeManager
+      ->getStorage('field_config')
+      ->create([
+        'field_storage' => $storage,
+        'bundle' => $type->id(),
+        'label' => $this->configuration['source_field_label'] ?? $this->pluginDefinition['label'],
+        'required' => TRUE,
+      ]);
+  }
+
+  /**
+   * {@inheritdoc}
    */
   public function getMetadata(MediaInterface $media, $attribute_name) {
     $bf_attachment_id = $this->getSourceFieldValue($media);
+
+    // @todo: Consider caching metadata and/or API response data.
+//    if (isset($this->metadata[$bf_attachment_id][$attribute_name])) {
+//      return $this->metadata[$bf_attachment_id][$attribute_name];
+//    }
 
     // Do we want to support the attachment ID as metadata? It could be useful,
     // but I can also see it leading to confusion with our (often hidden)
     // source field.
     // @see ::getMetadataAttributes()
-//    if ($attribute_name == 'bf_attachment_id') {
-//      return $bf_attachment_id;
-//    }
+    //    if ($attribute_name == 'bf_attachment_id') {
+    //      return $bf_attachment_id;
+    //    }
 
     $api_params = [
       'include' => 'asset',
-//      'fields' => 'metadata,thumbnail_url,view_thumbnail_retina,extension,version_count,tag_names'
+      //      'fields' => 'metadata,thumbnail_url,view_thumbnail_retina,extension,version_count,tag_names'
       'fields' => 'thumbnail_url,extension'
     ];
     $attachment = $this->brandfolderClient->fetchAttachment($bf_attachment_id, $api_params);
@@ -277,33 +309,27 @@ class BrandfolderImage extends MediaSourceBase {
       }
     }
 
-//    $all_fields = [
-//      'name' => $this->t('Name'),
-//      'description' => $this->t('Asset description'),
-//      'mime_type' => $this->t('MIME type'),
-//      'filename' => $this->t('File name'),
-//      'file_extension' => $this->t('File extension'),
-//      'thumbnail_url' => $this->t('Thumbnail url'),
-//      'filesize' => $this->t('File size'),
-//      'width' => $this->t('Width'),
-//      'height' => $this->t('Height'),
-//      'created' => $this->t('Asset upload date/time'),
-//      'updated' => $this->t('Asset last-updated date/time'),
-//      'bf_position' => $this->t('Brandfolder attachment position'),
-//      'tags' => $this->t('Tags'),
-//      'alt_text' => $this->t('Alt-Text (if available)'),
-//      // @todo: Allow admins to specify BF custom fields other than alt-text?
-//    ];
-
     $asset_dependent_attributes = [
       'name',
       'description',
-      'created',
-      'updated',
       'alt_text',
       'default_name',
-//      'tags', ??
+      //      'tags', ??
     ];
+
+    $datetime_attributes_and_formats = [
+      'asset_creation_date' => 'Y-m-d',
+      'asset_creation_datetime_minutes'=> 'Y-m-d\TH:i',
+      'asset_creation_datetime_seconds'=> 'Y-m-d\TH:i:s',
+      'asset_creation_datetime_milliseconds'=> 'Y-m-d\TH:i:s.v',
+      'asset_updated_date'=> 'Y-m-d',
+      'asset_updated_datetime_minutes'=> 'Y-m-d\TH:i',
+      'asset_updated_datetime_seconds'=> 'Y-m-d\TH:i:s',
+      'asset_updated_datetime_milliseconds'=> 'Y-m-d\TH:i:s.v',
+    ];
+    $datetime_attribute_names = array_keys($datetime_attributes_and_formats);
+    $asset_dependent_attributes = array_merge($asset_dependent_attributes, $datetime_attribute_names);
+
     $custom_field_attributes = [
       'alt_text'
     ];
@@ -312,7 +338,12 @@ class BrandfolderImage extends MediaSourceBase {
     if (in_array($attribute_name, $asset_dependent_attributes)) {
       $asset_id = $attachment->data->relationships->asset->data->id ?? FALSE;
       if ($asset_id) {
-        $api_params = in_array($attribute_name, $custom_field_attributes) ? ['include' => 'custom_fields'] : [];
+        $api_params = [
+          'fields' => 'created_at,updated_at',
+        ];
+        if (in_array($attribute_name, $custom_field_attributes)) {
+          $api_params['include'] = 'custom_fields';
+        }
         $asset = $this->brandfolderClient->fetchAsset($asset_id, $api_params);
       }
       if (!$asset) {
@@ -321,9 +352,24 @@ class BrandfolderImage extends MediaSourceBase {
       }
     }
 
+    // Consolidated handling for any date/time attributes.
+    if (isset($datetime_attributes_and_formats[$attribute_name])) {
+      try {
+        $format = $datetime_attributes_and_formats[$attribute_name];
+        $datetime_string = (strpos($attribute_name, 'asset_creation') === 0) ? $asset->data->attributes->created_at : $asset->data->attributes->updated_at;
+        $date = new \DateTime($datetime_string);
+        $formatted_output = $date->format($format);
+      }
+      catch (\Exception $e) {
+        $formatted_output = FALSE;
+      }
+
+      return $formatted_output;
+    }
+
     switch ($attribute_name) {
       case 'thumbnail_uri':
-//        return $attachment->data->attributes->thumbnail_url;
+        //        return $attachment->data->attributes->thumbnail_url;
         // Alternate approach. Media expects a Drupal file entity.
         // @todo.
         if ($fid = brandfolder_map_attachment_to_file($bf_attachment_id)) {
@@ -338,12 +384,6 @@ class BrandfolderImage extends MediaSourceBase {
 
       case 'name':
         return "{$asset->data->attributes->name} - {$attachment->data->attributes->filename}";
-
-      case 'created':
-        return $asset->data->attributes->created;
-
-      case 'updated':
-        return $asset->data->attributes->updated;
 
       case 'filesize':
         return $attachment->data->attributes->size;
@@ -376,8 +416,8 @@ class BrandfolderImage extends MediaSourceBase {
         // @todo: Make this field name configurable, show messaging encouraging admins to create it, etc.
         return $asset->data->custom_field_values['alt-text'] ?? FALSE;
 
-//        default:
-//          return isset($this->metadata[$bf_attachment_id][$name]) ? $this->metadata[$bf_attachment_id][$name] : FALSE;
+      //        default:
+      //          return isset($this->metadata[$bf_attachment_id][$name]) ? $this->metadata[$bf_attachment_id][$name] : FALSE;
     }
 
     return FALSE;
@@ -436,7 +476,7 @@ class BrandfolderImage extends MediaSourceBase {
   /**
    * Creates the image field storage definition.
    *
-   * @return \Drupal\field\FieldStorageConfigInterface
+   * @return \Drupal\Core\Entity\EntityInterface
    *   The unsaved field storage definition.
    */
   public function createImageFieldStorage() {
