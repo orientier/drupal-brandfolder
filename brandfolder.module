@@ -133,8 +133,7 @@ function brandfolder_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $fo
     }
   }
   // Media entity edit forms for Brandfolder-sourced media.
-  // @todo: Remove after confirming we'll stick with field locking approach.
-  if (preg_match('/^media_(.+)_edit_form$/', $form_id, $matches)) {
+  elseif (preg_match('/^media_(.+)_edit_form$/', $form_id, $matches)) {
     $media_type_id = $matches[1];
     $media_type = \Drupal::entityTypeManager()->getStorage('media_type')->load($media_type_id);
     if ($media_type && $media_type->getSource() instanceof BrandfolderImage) {
@@ -143,8 +142,22 @@ function brandfolder_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $fo
       if (isset($form['field_brandfolder_attachment_id'])) {
         $form['field_brandfolder_attachment_id']['#disabled'] = TRUE;
       }
+      // Disable the auto-managed BF Image field.
+      // @todo: Make this field only minimally editable
+      // (allow users to specify things like custom alt text but not
+      // replace/remove the image itself).
+      if (isset($form['bf_image'])) {
+        $form['bf_image']['#disabled'] = TRUE;
+      }
     }
   }
+//  elseif ($form_id == 'field_config_edit_form') {
+    // @todo: consider working around this core bug: https://www.drupal.org/project/drupal/issues/2833650.
+    // Simply remove the default value selection option until the entity
+    // reference field has been configured with allowed types.
+    // This is outside the scope of the Brandfolder module, however.
+//    unset($form['default_value']);
+//  }
 }
 
 /**

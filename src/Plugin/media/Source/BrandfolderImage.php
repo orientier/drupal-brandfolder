@@ -260,7 +260,7 @@ class BrandfolderImage extends MediaSourceBase {
    */
   public function createSourceField(MediaTypeInterface $type) {
     $storage = $this->getSourceFieldStorage() ?: $this->createSourceFieldStorage();
-    return $this->entityTypeManager
+    $field = $this->entityTypeManager
       ->getStorage('field_config')
       ->create([
         'field_storage' => $storage,
@@ -268,6 +268,21 @@ class BrandfolderImage extends MediaSourceBase {
         'label' => $this->configuration['source_field_label'] ?? $this->pluginDefinition['label'],
         'required' => TRUE,
       ]);
+
+    // @todo: Disable the field on the default form display. This can't be done here, because the field isn't saved yet.
+//    /** @var \Drupal\Core\Entity\EntityDisplayRepositoryInterface $display_repository */
+//    $display_repository = \Drupal::service('entity_display.repository');
+//
+//    try {
+//      $display_repository->getFormDisplay('media', $type->id())
+//        ->removeComponent($storage->getName())
+//        ->save();
+//    }
+//    catch (\Exception $e) {
+//      $this->logger->error('Error when disabling Brandfolder Attachment ID field on form display. @msg', ['@msg' => $e->getMessage()]);
+//    }
+
+    return $field;
   }
 
   /**
@@ -421,6 +436,25 @@ class BrandfolderImage extends MediaSourceBase {
     }
 
     return FALSE;
+  }
+
+  /**
+   * Keep track of explicit user-driven and/or Drupal-initiated changes to
+   * media entity fields where such changes overwrite data that had been pulled
+   * in from Brandfolder. We need to do this in order to know whether future
+   * Brandfolder data updates should be propagated to the relevant Drupal
+   * entity fields. If those fields have been modified on the Drupal side, we
+   * want to leave that data untouched. Otherwise, we want to update them using
+   * the latest BF data.
+   *
+   * @param \Drupal\media\MediaInterface $media
+   *
+   * @todo
+   */
+  public function trackMetadataOverrides(MediaInterface $media) {
+    $bf_attachment_id = $this->getSourceFieldValue($media);
+    $all_metadata = $this->getMetadataAttributes();
+    $metadata_attributes = array_keys($all_metadata);
   }
 
   /**
