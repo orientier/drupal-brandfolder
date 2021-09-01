@@ -45,9 +45,8 @@ class AssetFetchController extends ControllerBase {
     $user_criteria = [
       'collection' => [],
       'section' => [],
-      // @todo: Tag and label support.
+      // @todo: Tag support.
 //      'tag' => [],
-//      'label' => [],
     ];
     $valid_criterion_types = implode('|', array_keys($user_criteria));
     foreach ($all_input as $input_key => $input_value) {
@@ -71,6 +70,20 @@ class AssetFetchController extends ControllerBase {
         });
         $search_query_components[] = "{$key}_key:(" . implode(' ', $allowed_values) . ')';
       }
+    }
+    // Labels.
+    if (!empty($all_input['brandfolder_controls_labels'])) {
+      // Translate label IDs to their latest names (caching isn't good enough
+      // here), since Brandfolder doesn't seem to support searching for assets
+      // by label ID/key.
+      // @todo.
+      $bf = brandfolder_api();
+      $label_id_name_mapping = $bf->listLabelsInBrandfolder(NULL, TRUE);
+      $selected_label_names = array_intersect_key($label_id_name_mapping, $all_input['brandfolder_controls_labels']);
+      array_walk($selected_label_names, function(&$value) {
+        $value = "\"$value\"";
+      });
+      $search_query_components[] = "labels:(" . implode(' ', $selected_label_names) . ')';
     }
     if (!empty($search_query_components)) {
       array_walk($search_query_components, function(&$subquery) {

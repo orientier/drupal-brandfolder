@@ -373,6 +373,38 @@ class BrandfolderGatekeeper {
   }
 
   /**
+   * Get a list of all valid labels.
+   *
+   * @return array
+   *   An array keyed by label ID whose values are label names.
+   */
+  public function getLabels(): array {
+    try {
+      // Start with all labels in the Brandfolder.
+      $labels = $this->bf_client->listLabelsInBrandfolder(NULL, [], TRUE);
+      // Return empty array if no labels exist or some error has occurred.
+      if (empty($labels)) {
+
+        return [];
+      }
+      // Reduce the list per allowed/disallowed label criteria, as
+      // applicable.
+      // @todo: Update this to work with the fact that the labels array can be nested. If a label is allowed, its descendants should also be allowed unless explicitly disallowed, etc.
+      if (!empty($this->criteria['allowed']['label'])) {
+        $labels = array_intersect_key($labels, $this->criteria['allowed']['label']);
+      }
+      if (!empty($this->criteria['disallowed']['label'])) {
+        $labels = array_diff_key($labels, $this->criteria['disallowed']['label']);
+      }
+    }
+    catch (GuzzleException $e) {
+      $labels = [];
+    }
+
+    return $labels;
+  }
+
+  /**
    * Retrieve the most recent human-readable message pertaining to validation,
    * etc.
    *

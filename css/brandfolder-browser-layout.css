@@ -34,6 +34,10 @@
   flex-wrap: wrap;
 }
 
+.brandfolder-browser fieldset.brandfolder-browser-control-group > .fieldset-wrapper > .form-item:first-child {
+  margin-top: 0;
+}
+
 .brandfolder-browser .brandfolder-browser-controls .brandfolder-browser-control-group {
   flex: 1 1 auto;
   margin: 0 1rem 0 0;

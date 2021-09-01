@@ -527,6 +527,47 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
       ];
     }
   }
+  
+  // Get all possible labels. If there are more than one, allow users to
+  // filter by label.
+  $allowed_labels = $gatekeeper->getLabels();
+  if (isset($allowed_labels['children']) && count($allowed_labels['children']) > 1) {
+    $controls['labels'] = [
+      '#type'        => 'fieldset',
+      //    '#title' => t('Labels'),
+      '#collapsible' => TRUE,
+      '#collapsed'   => TRUE,
+      '#attributes'  => [
+        'class' => [
+          'brandfolder-browser-control-group',
+          'brandfolder-browser-control-group--sections',
+        ],
+      ],
+    ];
+    $label_options = [];
+    foreach ($allowed_labels['children'] as $label_id => $data) {
+      $label = $data['label'];
+      $label_options[$label_id] = $label->attributes->name;
+      // @todo: Recurse cleanly to any depth.
+      if (isset($data['children']) && count($data['children']) > 1) {
+        foreach ($data['children'] as $label_id => $data) {
+          $label = $data['label'];
+          $label_options[$label_id] = " -- {$label->attributes->name}";
+        }
+      }
+    }
+    $attributes = $attribute_defaults;
+    $attributes['size'] = min(count($label_options), 10);
+    $controls['labels']['brandfolder_controls_labels'] = [
+      '#type' => 'select',
+      '#title' => t('Labels'),
+      '#attributes' => $attributes,
+      '#ajax'       => $ajax_defaults,
+      '#options' => $label_options,
+      '#multiple' => TRUE,
+    ];
+
+  }
 
   $controls['sort'] = [
     '#type'        => 'fieldset',
@@ -568,6 +609,27 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
 
   return $controls;
 }
+
+/**
+ * Recursive function to generate nested select list from label tree.
+ *
+ * @param $labels
+ * @param $select_options
+ *
+ * @todo
+ */
+//function brandfolder_build_labels_select_list($labels, &$select_options) {
+//  foreach ($labels as $position => $data) {
+//    if (isset($data['children']) && is_array($data['children'])) {
+//
+//    }
+//    else {
+//      $select_options[$data->id] = $data->attributes->name;
+//    }
+//  }
+//
+//  return;
+//}
 
 /**
  * Form validation handler to be applied to forms containing a Brandfolder 
