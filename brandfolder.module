@@ -302,6 +302,14 @@ function brandfolder_browser(&$form, BrandfolderGatekeeper $gatekeeper, array $d
     '#value' => json_encode($gatekeeper->getCriteria()),
   ];
 
+  $form['disabled_bf_attachment_ids'] = [
+    '#type' => 'hidden',
+    '#attributes' => [
+      'class' => 'disabled-bf-attachment-ids',
+    ],
+    '#default_value' => implode(',', $disabled_attachment_ids),
+  ];
+
   $form['selected_bf_attachment_ids'] = [
     '#type' => 'hidden',
     '#attributes' => [

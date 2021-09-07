@@ -39,7 +39,7 @@ class AssetFetchController extends ControllerBase {
    * @return array
    */
   public function assetFetchFormAjaxCallback(array &$form, FormStateInterface $form_state): array {
-    $all_input = $form_state->getValues();
+    $all_form_values = $form_state->getValues();
 
     // Process user search text and all filters.
     $user_criteria = [
@@ -49,7 +49,7 @@ class AssetFetchController extends ControllerBase {
 //      'tag' => [],
     ];
     $valid_criterion_types = implode('|', array_keys($user_criteria));
-    foreach ($all_input as $input_key => $input_value) {
+    foreach ($all_form_values as $input_key => $input_value) {
       if ($input_value) {
         if (preg_match("/^brandfolder_controls_($valid_criterion_types)_(.+)$/", $input_key, $matches)) {
           $criterion_type = $matches[1];
@@ -72,14 +72,14 @@ class AssetFetchController extends ControllerBase {
       }
     }
     // Labels.
-    if (!empty($all_input['brandfolder_controls_labels'])) {
+    if (!empty($all_form_values['brandfolder_controls_labels'])) {
       // Translate label IDs to their latest names (caching isn't good enough
       // here), since Brandfolder doesn't seem to support searching for assets
       // by label ID/key.
       // @todo.
       $bf = brandfolder_api();
       $label_id_name_mapping = $bf->listLabelsInBrandfolder(NULL, TRUE);
-      $selected_label_names = array_intersect_key($label_id_name_mapping, $all_input['brandfolder_controls_labels']);
+      $selected_label_names = array_intersect_key($label_id_name_mapping, $all_form_values['brandfolder_controls_labels']);
       array_walk($selected_label_names, function(&$value) {
         $value = "\"$value\"";
       });
@@ -93,8 +93,8 @@ class AssetFetchController extends ControllerBase {
     }
 
     // Sorting.
-    $query_params['sort_by'] = $all_input['brandfolder_controls_sort_criterion'] ?? 'created_at';
-    $query_params['order'] = $all_input['brandfolder_controls_sort_order'] ?? 'desc';
+    $query_params['sort_by'] = $all_form_values['brandfolder_controls_sort_criterion'] ?? 'created_at';
+    $query_params['order'] = $all_form_values['brandfolder_controls_sort_order'] ?? 'desc';
 
     $gatekeeper = \Drupal::getContainer()
       ->get(BrandfolderGatekeeper::class);
@@ -106,7 +106,15 @@ class AssetFetchController extends ControllerBase {
     $output = '<p class="brandfolder-browser__no-results-message">' . t('No assets found') . '</p>';
     $assets = $gatekeeper->fetchAssets($query_params);
     if (!empty($assets->data)) {
-      $output = brandfolder_format_asset_list($assets);
+      $disabled_bf_attachment_ids = [];
+      if (!empty($all_form_values['disabled_bf_attachment_ids'])) {
+        $disabled_bf_attachment_ids = explode(',', $all_form_values['disabled_bf_attachment_ids']);
+      }
+      $selected_bf_attachment_ids = [];
+      if (!empty($all_form_values['selected_bf_attachment_ids'])) {
+        $selected_bf_attachment_ids = explode(',', $all_form_values['selected_bf_attachment_ids']);
+      }
+      $output = brandfolder_format_asset_list($assets, $disabled_bf_attachment_ids, $selected_bf_attachment_ids);
     }
 
     $asset_container_id = brandfolder_browser_get_asset_list_container_id($form);
