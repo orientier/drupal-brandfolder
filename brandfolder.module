@@ -564,7 +564,34 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
       '#options' => $label_options,
       '#multiple' => TRUE,
     ];
+  }
 
+  // Orientation/aspect.
+  $controls['orientation'] = [
+    '#type'        => 'fieldset',
+    '#title' => t('Orientation'),
+    '#collapsible' => TRUE,
+    '#collapsed'   => TRUE,
+    '#attributes'  => [
+      'class' => [
+        'brandfolder-browser-control-group',
+        'brandfolder-browser-control-group--orientation',
+      ],
+    ],
+  ];
+  $orientation_options = [
+    'landscape' => t('Horizontal'),
+    'portrait' => t('Vertical'),
+    'square' => t('Square'),
+    'panorama' => t('Panoramic'),
+  ];
+  foreach ($orientation_options as $key => $label) {
+    $controls['orientation']["brandfolder_controls_aspect_$key"] = [
+      '#type'       => 'checkbox',
+      '#title'      => $label,
+      '#ajax'       => $ajax_defaults,
+      '#attributes' => $attribute_defaults,
+    ];
   }
 
   $controls['sort'] = [

@@ -45,6 +45,7 @@ class AssetFetchController extends ControllerBase {
     $user_criteria = [
       'collection' => [],
       'section' => [],
+      'aspect' => [],
       // @todo: Tag support.
 //      'tag' => [],
     ];
@@ -68,7 +69,8 @@ class AssetFetchController extends ControllerBase {
         array_walk($allowed_values, function(&$value) {
           $value = "\"$value\"";
         });
-        $search_query_components[] = "{$key}_key:(" . implode(' ', $allowed_values) . ')';
+        $criterion_suffix = $key == 'aspect' ? '' : '_key';
+        $search_query_components[] = "{$key}{$criterion_suffix}:(" . implode(' ', $allowed_values) . ')';
       }
     }
     // Labels.
