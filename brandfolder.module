@@ -531,7 +531,7 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
   // Get all possible labels. If there are more than one, allow users to
   // filter by label.
   $allowed_labels = $gatekeeper->getLabels();
-  if (isset($allowed_labels['children']) && count($allowed_labels['children']) > 1) {
+  if (count($allowed_labels) > 1) {
     $controls['labels'] = [
       '#type'        => 'fieldset',
       //    '#title' => t('Labels'),
@@ -545,17 +545,7 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
       ],
     ];
     $label_options = [];
-    foreach ($allowed_labels['children'] as $label_id => $data) {
-      $label = $data['label'];
-      $label_options[$label_id] = $label->attributes->name;
-      // @todo: Recurse cleanly to any depth.
-      if (isset($data['children']) && count($data['children']) > 1) {
-        foreach ($data['children'] as $label_id => $data) {
-          $label = $data['label'];
-          $label_options[$label_id] = " -- {$label->attributes->name}";
-        }
-      }
-    }
+    brandfolder_build_labels_select_list($allowed_labels, $label_options);
     $attributes = $attribute_defaults;
     $attributes['size'] = min(count($label_options), 10);
     $controls['labels']['brandfolder_controls_labels'] = [
@@ -615,21 +605,28 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
  *
  * @param $labels
  * @param $select_options
- *
- * @todo
  */
-//function brandfolder_build_labels_select_list($labels, &$select_options) {
-//  foreach ($labels as $position => $data) {
-//    if (isset($data['children']) && is_array($data['children'])) {
-//
-//    }
-//    else {
-//      $select_options[$data->id] = $data->attributes->name;
-//    }
-//  }
-//
-//  return;
-//}
+function brandfolder_build_labels_select_list($labels, &$select_options) {
+  foreach ($labels as $id => $data) {
+    $label = $data['label'];
+    // Add this label to the list, indented according to depth.
+    $display_value = '';
+    $label_depth = $label->attributes->depth;
+    if ($label_depth > 1) {
+      for ($i = 1; $i < $label_depth; $i++) {
+        $display_value .= '-';
+      }
+      $display_value .= ' ';
+    }
+    $display_value .= $label->attributes->name;
+    $select_options[$label->id] = $display_value;
+
+    // Recurse through any children/descendants.
+    if (isset($data['children']) && is_array($data['children'])) {
+      brandfolder_build_labels_select_list($data['children'], $select_options);
+    }
+  }
+}
 
 /**
  * Form validation handler to be applied to forms containing a Brandfolder 

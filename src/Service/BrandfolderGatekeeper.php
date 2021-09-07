@@ -381,7 +381,7 @@ class BrandfolderGatekeeper {
   public function getLabels(): array {
     try {
       // Start with all labels in the Brandfolder.
-      $labels = $this->bf_client->listLabelsInBrandfolder(NULL, [], TRUE);
+      $labels = $this->bf_client->listLabelsInBrandfolder();
       // Return empty array if no labels exist or some error has occurred.
       if (empty($labels)) {
 
@@ -389,12 +389,20 @@ class BrandfolderGatekeeper {
       }
       // Reduce the list per allowed/disallowed label criteria, as
       // applicable.
-      // @todo: Update this to work with the fact that the labels array can be nested. If a label is allowed, its descendants should also be allowed unless explicitly disallowed, etc.
+      // @todo: Test with nested labels. The current setup requires explicit whitelisting of all descendants (i.e. choices do not cascade).
       if (!empty($this->criteria['allowed']['label'])) {
-        $labels = array_intersect_key($labels, $this->criteria['allowed']['label']);
+        array_walk_recursive($labels, function(&$value, $key, $allowed_labels) {
+          if ($key === 'children') {
+            $value = array_intersect_key($value, $allowed_labels);
+          }
+        }, $this->criteria['allowed']['label']);
       }
       if (!empty($this->criteria['disallowed']['label'])) {
-        $labels = array_diff_key($labels, $this->criteria['disallowed']['label']);
+        array_walk_recursive($labels, function(&$value, $key, $allowed_labels) {
+          if ($key === 'children') {
+            $value = array_diff_key($value, $allowed_labels);
+          }
+        }, $this->criteria['allowed']['label']);
       }
     }
     catch (GuzzleException $e) {
@@ -454,7 +462,7 @@ class BrandfolderGatekeeper {
     $form['brandfolder']['bf_entity_criteria']['allowed'] = [
       '#type'        => 'fieldset',
       '#title'       => $this->t('Allowed'),
-      '#description' => $this->t('Only allow @brandfolder entities that meet *all* of the following criteria.', ['@brandfolder' => 'Brandfolder']),
+      '#description' => $this->t('Only allow @brandfolder entities that meet *all* of these criteria.', ['@brandfolder' => 'Brandfolder']),
     ];
     $form['brandfolder']['bf_entity_criteria']['allowed']['collection'] = [
       '#type'          => 'select',
@@ -473,7 +481,7 @@ class BrandfolderGatekeeper {
     $form['brandfolder']['bf_entity_criteria']['disallowed'] = [
       '#type'        => 'fieldset',
       '#title'       => $this->t('Disallowed'),
-      '#description' => $this->t('Do not allow @brandfolder entities that meet *any* of the following criteria.', ['@brandfolder' => 'Brandfolder']),
+      '#description' => $this->t('Do not allow @brandfolder entities that meet *any* of these criteria.', ['@brandfolder' => 'Brandfolder']),
     ];
     $form['brandfolder']['bf_entity_criteria']['disallowed']['collection'] = [
       '#type'          => 'select',
