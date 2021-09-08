@@ -87,6 +87,16 @@ class AssetFetchController extends ControllerBase {
       });
       $search_query_components[] = "labels:(" . implode(' ', $selected_label_names) . ')';
     }
+
+    // Upload recency.
+    if (!empty($all_form_values['brandfolder_controls_upload_date'])) {
+      $upload_date_input = $all_form_values['brandfolder_controls_upload_date'];
+      if ($upload_date_input != 'all') {
+        $search_query_components[] = "created_at:>now-$upload_date_input";
+      }
+    }
+
+    // Assemble the search query string.
     if (!empty($search_query_components)) {
       array_walk($search_query_components, function(&$subquery) {
         $subquery = "($subquery)";

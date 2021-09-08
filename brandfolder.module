@@ -625,6 +625,32 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
     ];
   }
 
+  // Upload recency.
+  $controls['upload_date'] = [
+    '#type'        => 'fieldset',
+    '#collapsible' => TRUE,
+    '#collapsed'   => TRUE,
+    '#attributes'  => [
+      'class' => [
+        'brandfolder-browser-control-group',
+        'brandfolder-browser-control-group--upload-date',
+      ],
+    ],
+  ];
+  $controls['upload_date']["brandfolder_controls_upload_date"] = [
+    '#type'       => 'radios',
+    '#title'      => t('Upload Date'),
+    '#options'    => [
+      'all'        => t('All'),
+      '30m' => t('Last 30 Minutes'),
+      '1d'   => t('Last 24 Hours'),
+      '7d'     => t('Last 7 Days'),
+      '30d'    => t('Last 30 Days'),
+    ],
+    '#ajax'       => $ajax_defaults,
+    '#attributes' => $attribute_defaults,
+  ];
+
   // Sorting.
   $controls['sort'] = [
     '#type'        => 'fieldset',
