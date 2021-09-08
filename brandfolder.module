@@ -501,7 +501,7 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
       ],
     ];
     foreach ($allowed_collections as $collection_id => $collection_name) {
-      $controls['collections']["brandfolder_controls_collection_$collection_id"] = [
+      $controls['collections']["brandfolder_controls_collection_key_$collection_id"] = [
         '#type'       => 'checkbox',
         '#title'      => $collection_name,
         '#ajax'       => $ajax_defaults,
@@ -527,7 +527,7 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
       ],
     ];
     foreach ($allowed_sections as $section_id => $section_name) {
-      $controls['sections']["brandfolder_controls_section_$section_id"] = [
+      $controls['sections']["brandfolder_controls_section_key_$section_id"] = [
         '#type'       => 'checkbox',
         '#title'      => $section_name,
         '#ajax'       => $ajax_defaults,
@@ -594,6 +594,38 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
     ];
   }
 
+  // File type.
+  // @todo: maintain a registry of file types that are actually used and popular for the given Brandfolder and use those.
+  $controls['filetype'] = [
+    '#type'        => 'fieldset',
+    '#title' => t('Popular File Types'),
+    '#collapsible' => TRUE,
+    '#collapsed'   => TRUE,
+    '#attributes'  => [
+      'class' => [
+        'brandfolder-browser-control-group',
+        'brandfolder-browser-control-group--filetype',
+      ],
+    ],
+  ];
+  $filetype_options = [
+    'jpg',
+    'png',
+    'svg',
+    'gif',
+    'webp',
+    'mp4',
+  ];
+  foreach ($filetype_options as $type) {
+    $controls['filetype']["brandfolder_controls_filetype_$type"] = [
+      '#type'       => 'checkbox',
+      '#title'      => $type,
+      '#ajax'       => $ajax_defaults,
+      '#attributes' => $attribute_defaults,
+    ];
+  }
+
+  // Sorting.
   $controls['sort'] = [
     '#type'        => 'fieldset',
     //    '#title' => t('Sort'),

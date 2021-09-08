@@ -43,9 +43,10 @@ class AssetFetchController extends ControllerBase {
 
     // Process user search text and all filters.
     $user_criteria = [
-      'collection' => [],
-      'section' => [],
+      'collection_key' => [],
+      'section_key' => [],
       'aspect' => [],
+      'filetype' => [],
       // @todo: Tag support.
 //      'tag' => [],
     ];
@@ -64,13 +65,12 @@ class AssetFetchController extends ControllerBase {
     if (!empty($user_search_query)) {
       $search_query_components[] = $user_search_query;
     }
-    foreach ($user_criteria as $key => $allowed_values) {
+    foreach ($user_criteria as $criterion => $allowed_values) {
       if (count($allowed_values) > 0) {
         array_walk($allowed_values, function(&$value) {
           $value = "\"$value\"";
         });
-        $criterion_suffix = $key == 'aspect' ? '' : '_key';
-        $search_query_components[] = "{$key}{$criterion_suffix}:(" . implode(' ', $allowed_values) . ')';
+        $search_query_components[] = "$criterion:(" . implode(' ', $allowed_values) . ')';
       }
     }
     // Labels.
