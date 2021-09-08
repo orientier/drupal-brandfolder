@@ -45,6 +45,19 @@
           }
         }
       });
+      // Tag input handling.
+      $browser_container.find('.brandfolder-browser-control--tag-text-input').on('keypress', function(event) {
+        if (event.which === 13) {
+          event.preventDefault();
+          event.stopPropagation();
+          let $textfield = $(this);
+          let tag_name = $textfield.val();
+          if (tag_name.length > 0) {
+            // Drupal.behaviors.BrandfolderBrowser.handleTagInput(tag_name, $browser_container);
+            $textfield.closest('fieldset').find('input[type="submit"]').trigger('mousedown');
+          }
+        }
+      });
       let $bf_browser_assets = $browser_container.find('.brandfolder-asset');
       let $bf_browser_attachments = $browser_container.find('.brandfolder-attachment');
       $bf_browser_assets.once('brandfolder-browser').on('click', function(event) {
@@ -135,6 +148,36 @@
         let $button = $(event.currentTarget);
         $button.closest('.brandfolder-asset').removeClass(asset_active_class);
       });
-    }
+    },
+    // handleTagInput: function(tag_name, $context) {
+    //   // Clear the text field.
+    //   $context.find('.brandfolder-browser-control--tag-text-input').val('');
+    //   // Add the new tag to our data store if it's not already there.
+    //   let $tag_list_store_el = $context.find('.brandfolder-controls-tag-list-store');
+    //   if ($tag_list_store_el.length > 0) {
+    //     let tag_list_store = JSON.parse($tag_list_store_el.val());
+    //     // @todo: Deterministic and unique key gen, e.g. hash.
+    //     let tag_key = tag_name.replace(/\s/, '_');
+    //     if (!(tag_key in tag_list_store)) {
+    //       tag_list_store[tag_key] = 1;
+    //       $tag_list_store_el.val(JSON.stringify(tag_list_store));
+    //       // Add a checkbox for the new tag.
+    //       let $tag_list = $context.find('.brandfolder-browser-controls__tag_list');
+    //       let $tag_checkbox_starter = $context.find('.brandfolder-controls__tags-read-only-reference');
+    //       if ($tag_list.length > 0 && $tag_checkbox_starter.length > 0) {
+    //         let $new_tag_checkbox = $($tag_checkbox_starter.clone(true));
+    //         $new_tag_checkbox.removeClass('hidden', 'brandfolder-controls__tags-read-only-reference');
+    //         let checkbox_el = $new_tag_checkbox.find('input[type="checkbox"');
+    //         if (checkbox_el) {
+    //           checkbox_el.val(tag_key);
+    //           $new_tag_checkbox.find('label').first().innerHTML(tag_name);
+    //           $tag_list.append($new_tag_checkbox);
+    //           // Check the checkbox and trigger AJAX form submission.
+    //           checkbox_el.prop('checked', true);
+    //         }
+    //       }
+    //     }
+    //   }
+    // }
   };
 })(jQuery, Drupal);

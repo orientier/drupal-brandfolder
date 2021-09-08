@@ -235,7 +235,7 @@ function brandfolder_browser_media_library_form_manipulator(&$form, \Drupal\Core
   $selected_bf_attachment_ids = array_map('brandfolder_map_media_entity_to_attachment', $selected_media_entity_ids);
   $selected_bf_attachment_ids = array_filter($selected_bf_attachment_ids);
 
-  brandfolder_browser($form, $gatekeeper, $selected_bf_attachment_ids, [], $selection_limit);
+  brandfolder_browser($form, $form_state, $gatekeeper, $selected_bf_attachment_ids, [], $selection_limit);
 
   // Relocate the BF browser element, using it to replace the standard Media
   // Library output entirely.
@@ -250,7 +250,8 @@ function brandfolder_browser_media_library_form_manipulator(&$form, \Drupal\Core
  * Basic, agnostic function to embellish a form with elements needed for the
  * core BF browsing experience.
  *
- * @param $form
+ * @param array $form
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
  * @param \Drupal\brandfolder\Service\BrandfolderGatekeeper $gatekeeper
  * @param array $disabled_attachment_ids
  * @param array $selected_attachment_ids
@@ -259,7 +260,7 @@ function brandfolder_browser_media_library_form_manipulator(&$form, \Drupal\Core
  *
  * @todo: Relocate and make pluggable. See also brandfolder_browser_controls().
  */
-function brandfolder_browser(&$form, BrandfolderGatekeeper $gatekeeper, array $disabled_attachment_ids = [], array $selected_attachment_ids = [], int $selection_limit = -1) {
+function brandfolder_browser(&$form, &$form_state, BrandfolderGatekeeper $gatekeeper, array $disabled_attachment_ids = [], array $selected_attachment_ids = [], int $selection_limit = -1) {
   $bf_asset_list = t('No Brandfolder assets found.');
   $query_params = [
     'include' => 'attachments'
@@ -288,7 +289,7 @@ function brandfolder_browser(&$form, BrandfolderGatekeeper $gatekeeper, array $d
       ],
     ],
   ];
-  $controls = brandfolder_browser_controls($gatekeeper, $asset_container_id, $form['#form_id']);
+  $controls = brandfolder_browser_controls($gatekeeper, $asset_container_id, $form['#form_id'], $form, $form_state);
   $form['brandfolder_browser']['brandfolder_browser_controls'] += $controls;
 
   $form['brandfolder_browser']['brandfolder_browser_assets'] = [
@@ -431,11 +432,25 @@ function brandfolder_format_asset_list(object $assets, array $disabled_attachmen
  * @param \Drupal\brandfolder\Service\BrandfolderGatekeeper $gatekeeper
  * @param string $asset_container_id
  * @param $form_id
+ * @param array $form
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
  *
  * @return array
  */
-function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string $asset_container_id, $form_id): array {
+function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string $asset_container_id, $form_id, $form, $form_state): array {
   $controls = [];
+
+  $all_form_values = $form_state->getValues();
+  $tag_key_mapping = isset($all_form_values['brandfolder_controls_tag_key_mapping']) ? json_decode($all_form_values['brandfolder_controls_tag_key_mapping'], TRUE) : [];
+  $tag_checkbox_data = [];
+  foreach ($all_form_values as $input_id => $value) {
+    if (preg_match('/^brandfolder_controls_tags_checkbox_(.+)$/', $input_id, $matches)) {
+      $tag_key = $matches[1];
+      if (isset($tag_key_mapping[$tag_key])) {
+        $tag_checkbox_data[$tag_key] = $tag_key_mapping[$tag_key];
+      }
+    }
+  }
 
   // Explicitly set an AJAX URL to avoid problems with nested AJAX forms.
   // Any valid URL will work, but we use our dedicated stub route.
@@ -649,6 +664,75 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
     ],
     '#ajax'       => $ajax_defaults,
     '#attributes' => $attribute_defaults,
+  ];
+
+  // Tags.
+  $controls['tags'] = [
+    '#type'        => 'fieldset',
+    '#title' => t('Tags'),
+    '#collapsible' => TRUE,
+    '#collapsed'   => TRUE,
+    '#attributes'  => [
+      'class' => [
+        'brandfolder-browser-control-group',
+        'brandfolder-browser-control-group--tags',
+      ],
+    ],
+  ];
+  $controls['tags']['tag_list'] = [
+    '#type'        => 'fieldset',
+    '#collapsible' => FALSE,
+    '#attributes'  => [
+      'class' => [
+        'brandfolder-browser-controls__tag_list',
+      ],
+    ],
+  ];
+  foreach ($tag_checkbox_data as $tag_key => $tag_name) {
+    $controls['tags']['tag_list']["brandfolder_controls_tags_$tag_key"] = [
+      '#type'       => 'checkbox',
+      '#title'      => $tag_name,
+      '#ajax'       => $ajax_defaults,
+      '#attributes' => $attribute_defaults,
+    ];
+  }
+
+  $attributes = $attribute_defaults;
+  $attributes['class'][] = 'brandfolder-browser-control--tag-text-input';
+  $controls['tags']['brandfolder_controls_tag_text_input'] = [
+    '#type' => 'textfield',
+    '#length' => 120,
+    '#ajax' => $ajax_defaults,
+    '#attributes' => $attributes,
+  ];
+  $controls['tags']['brandfolder_controls_tag_text_input_submit'] = [
+    '#type' => 'button',
+    '#value' => t('Add'),
+    '#ajax' => $ajax_defaults,
+    '#attributes' => $attribute_defaults,
+    '#limit_validation_errors' => [],
+  ];
+  $tag_key_mapping_string = $form_state->getValue('brandfolder_controls_tag_key_mapping');
+  $tag_key_mapping = empty($tag_key_mapping_string) ? [] : json_decode($tag_key_mapping_string, TRUE);
+  $new_tag_name = $form_state->getValue('brandfolder_controls_tag_text_input');
+  if (!empty($new_tag_name)) {
+    $tag_key = md5($new_tag_name);
+    $controls['tags']['tag_list']["brandfolder_controls_tags_$tag_key"] = [
+      '#type'       => 'checkbox',
+      '#title'      => $new_tag_name,
+      '#ajax'       => $ajax_defaults,
+      '#attributes' => $attribute_defaults,
+    ];
+    $tag_key_mapping[$tag_key] = $new_tag_name;
+  }
+  $controls['brandfolder_controls_tag_key_mapping'] = [
+    '#type' => 'hidden',
+    '#value' => json_encode($tag_key_mapping),
+    '#attributes' => [
+      'class' => [
+        'brandfolder-controls-tag-key-mapping',
+      ]
+    ],
   ];
 
   // Sorting.

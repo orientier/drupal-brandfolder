@@ -41,14 +41,15 @@ class AssetFetchController extends ControllerBase {
   public function assetFetchFormAjaxCallback(array &$form, FormStateInterface $form_state): array {
     $all_form_values = $form_state->getValues();
 
+    $tag_key_mapping = isset($all_form_values['brandfolder_controls_tag_key_mapping']) ? json_decode($all_form_values['brandfolder_controls_tag_key_mapping'], TRUE) : [];
+
     // Process user search text and all filters.
     $user_criteria = [
       'collection_key' => [],
       'section_key' => [],
       'aspect' => [],
       'filetype' => [],
-      // @todo: Tag support.
-//      'tag' => [],
+      'tags' => [],
     ];
     $valid_criterion_types = implode('|', array_keys($user_criteria));
     foreach ($all_form_values as $input_key => $input_value) {
@@ -56,9 +57,18 @@ class AssetFetchController extends ControllerBase {
         if (preg_match("/^brandfolder_controls_($valid_criterion_types)_(.+)$/", $input_key, $matches)) {
           $criterion_type = $matches[1];
           $criterion = $matches[2];
+          if ($criterion_type == 'tags') {
+            if (isset($tag_key_mapping[$criterion])) {
+              $user_criteria[$criterion_type][] = $tag_key_mapping[$criterion];
+            }
+            continue;
+          }
           $user_criteria[$criterion_type][] = $criterion;
         }
       }
+    }
+    if (!empty($all_form_values['brandfolder_controls_tag_text_input'])) {
+      $user_criteria['tags'][] = $all_form_values['brandfolder_controls_tag_text_input'];
     }
     $search_query_components = [];
     $user_search_query = $form_state->getValue('brandfolder_controls_search_text') ?? '';
