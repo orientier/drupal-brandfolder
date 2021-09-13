@@ -31,20 +31,6 @@
       if (selection_limit && all_selected_attachments.length >= selection_limit) {
         $browser_container.addClass('selection-limit-reached');
       }
-      // Allow users to submit search text by hitting the "Enter" key.
-      $browser_container.find('.brandfolder-browser-control-group--search input[type="search"]').on('keypress', function(event) {
-        if (event.which === 13) {
-          event.preventDefault();
-          event.stopPropagation();
-          const $container = $(this).closest('.brandfolder-browser-control-group--search');
-          if ($container.length > 0) {
-            const $submit_button = $container.find('input[type="submit"]');
-            if ($submit_button.length > 0) {
-              $submit_button.trigger('mousedown');
-            }
-          }
-        }
-      });
       // Tag input handling.
       $browser_container.find('.brandfolder-browser-control--tag-text-input').on('keypress', function(event) {
         if (event.which === 13) {

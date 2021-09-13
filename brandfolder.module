@@ -195,6 +195,7 @@ function brandfolder_browser_media_library_form_manipulator(&$form, \Drupal\Core
     ->get(BrandfolderGatekeeper::class);
   $gatekeeper->loadFromMediaSource($media_source);
 
+  $context = ['media_library'];
   $selected_media_entity_ids = [];
   $selection_limit = -1;
   $build_info = $form_state->getBuildInfo();
@@ -209,6 +210,7 @@ function brandfolder_browser_media_library_form_manipulator(&$form, \Drupal\Core
         $field_manager = \Drupal::service('entity_field.manager');
         (array) $bundle_fields = $field_manager->getFieldDefinitions($ml_opener_params['entity_type_id'], $ml_opener_params['bundle']);
         $field_name = $ml_opener_params['field_name'];
+        $context[] = $field_name;
         if (isset($bundle_fields[$field_name])) {
           $selection_limit = $bundle_fields[$field_name]->getFieldStorageDefinition()->getCardinality();
         }
@@ -235,7 +237,8 @@ function brandfolder_browser_media_library_form_manipulator(&$form, \Drupal\Core
   $selected_bf_attachment_ids = array_map('brandfolder_map_media_entity_to_attachment', $selected_media_entity_ids);
   $selected_bf_attachment_ids = array_filter($selected_bf_attachment_ids);
 
-  brandfolder_browser($form, $form_state, $gatekeeper, $selected_bf_attachment_ids, [], $selection_limit);
+  $context_string = implode('-', $context);
+  brandfolder_browser_init($form, $form_state, $gatekeeper, $selected_bf_attachment_ids, [], $selection_limit, $context_string);
 
   // Relocate the BF browser element, using it to replace the standard Media
   // Library output entirely.
@@ -257,10 +260,12 @@ function brandfolder_browser_media_library_form_manipulator(&$form, \Drupal\Core
  * @param array $selected_attachment_ids
  * @param int $selection_limit
  *  This should be -1 if there is no limit.
+ * @param string|null $context_id
  *
+ * @throws \GuzzleHttp\Exception\GuzzleException
  * @todo: Relocate and make pluggable. See also brandfolder_browser_controls().
  */
-function brandfolder_browser(&$form, &$form_state, BrandfolderGatekeeper $gatekeeper, array $disabled_attachment_ids = [], array $selected_attachment_ids = [], int $selection_limit = -1) {
+function brandfolder_browser_init(&$form, FormStateInterface $form_state, BrandfolderGatekeeper $gatekeeper, array $disabled_attachment_ids = [], array $selected_attachment_ids = [], int $selection_limit = -1, string $context_id = NULL) {
   $bf_asset_list = t('No Brandfolder assets found.');
   $query_params = [
     'include' => 'attachments'
@@ -271,37 +276,7 @@ function brandfolder_browser(&$form, &$form_state, BrandfolderGatekeeper $gateke
     $bf_asset_list = brandfolder_format_asset_list($assets, $disabled_attachment_ids, $selected_attachment_ids);
   }
 
-  $browser_id = Html::getUniqueId('brandfolder-browser');
-  $asset_container_id = brandfolder_browser_get_asset_list_container_id($form);
-
-  $form['brandfolder_browser'] = [
-    '#type' => 'fieldset',
-    '#collabsible' => FALSE,
-    '#prefix' => "<div id=\"$browser_id\" class=\"brandfolder-browser\" data-selection-limit=\"{$selection_limit}\">",
-    '#suffix' => "</div>",
-  ];
-  $form['brandfolder_browser']['brandfolder_browser_controls'] = [
-    '#type' => 'fieldset',
-    '#collabsible' => FALSE,
-    '#attributes' => [
-      'class' => [
-        'brandfolder-browser-controls',
-      ],
-    ],
-  ];
-  $controls = brandfolder_browser_controls($gatekeeper, $asset_container_id, $form['#form_id'], $form, $form_state);
-  $form['brandfolder_browser']['brandfolder_browser_controls'] += $controls;
-
-  $form['brandfolder_browser']['brandfolder_browser_assets'] = [
-    '#markup' => "<div id=\"$asset_container_id\" class=\"brandfolder-assets\">
-                    $bf_asset_list
-                  </div>",
-  ];
-
-  $form['brandfolder_browser']['bf_gatekeeper_criteria'] = [
-    '#type' => 'hidden',
-    '#value' => json_encode($gatekeeper->getCriteria()),
-  ];
+  brandfolder_browser_core($form, $form_state, $gatekeeper->getCriteria(), $bf_asset_list, $selection_limit, $context_id);
 
   $form['disabled_bf_attachment_ids'] = [
     '#type' => 'hidden',
@@ -327,38 +302,77 @@ function brandfolder_browser(&$form, &$form_state, BrandfolderGatekeeper $gateke
 }
 
 /**
- * Helper function to get an ID for the asset list container element in a
- * Brandfolder browser.
+ * Basic, agnostic function to embellish a form with elements needed for the
+ * core BF browsing experience.
  *
  * @param array $form
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ * @param array $gatekeeper_criteria
+ * @param string $bf_asset_list
+ * @param int $selection_limit
+ *  This should be -1 if there is no limit.
+ * @param string|null $context_id
  *
- * @return string
+ * @todo: Relocate and make pluggable. See also brandfolder_browser_controls().
  */
-function brandfolder_browser_get_asset_list_container_id(array $form): string {
-  $asset_container_id = $form['#form_id'] . '__brandfolder-browser-assets';
+function brandfolder_browser_core(array &$form, FormStateInterface $form_state, array $gatekeeper_criteria, string $bf_asset_list, int $selection_limit = -1, string $context_id = NULL) {
+  $bf_browser_id = $form_state->getValue('brandfolder_browser_id');
+  if (empty($bf_browser_id)) {
+    $all_input = $form_state->getUserInput();
+    if (!empty($all_input['brandfolder_browser_id'])) {
+      $bf_browser_id = $all_input['brandfolder_browser_id'];
+    }
+    else {
+      $id_components = [
+        'brandfolder-browser'
+      ];
+      if ($context_id) {
+        $id_components[] = $context_id;
+      }
+      $bf_browser_id = Html::getUniqueId(implode('-', $id_components));
+    }
+  }
 
-  // @todo: Use unique ID to avoid potential conflicts with multiple BF-related elements in a single form. The code below is a start, but needs to be fixed to avoid issues with AJAX rebuilds resulting in ID mismatches.
-//  $asset_container_id_base = 'brandfolder-assets';
-//
-//  // If we're in an AJAX context where the async request was triggered by the
-//  // Brandfolder browser with the intent to update an asset list, make sure to
-//  // preserve the existing ID for the asset list container.
-//  if (!is_null($form_state) && \Drupal::request()->isXmlHttpRequest()) {
-//    if ($triggering_element = $form_state->getTriggeringElement()) {
-//      if (isset($triggering_element['#ajax']['wrapper'])) {
-//        $target_el_id = $triggering_element['#ajax']['wrapper'];
-//        if (strpos($target_el_id, $asset_container_id_base) === 0) {
-//          $asset_container_id = $target_el_id;
-//        }
-//      }
-//    }
-//  }
-//  // Otherwise, generate a new unique element ID for the asset list container.
-//  if (!isset($asset_container_id)) {
-//    $asset_container_id = Html::getUniqueId($asset_container_id_base);
-//  }
+  $form['brandfolder_browser'] = [
+    '#type' => 'fieldset',
+    '#collabsible' => FALSE,
+    '#prefix' => "<div id=\"$bf_browser_id\" class=\"brandfolder-browser\" data-selection-limit=\"{$selection_limit}\">",
+    '#suffix' => "</div>",
+  ];
+  $form['brandfolder_browser']['brandfolder_browser_id'] = [
+    '#type' => 'hidden',
+    '#value' => $bf_browser_id,
+  ];
+  $form['brandfolder_browser']['brandfolder_browser_selection_limit'] = [
+    '#type' => 'hidden',
+    '#value' => $selection_limit,
+  ];
+  $form['brandfolder_browser']['brandfolder_browser_controls'] = [
+    '#type' => 'fieldset',
+    '#collabsible' => FALSE,
+    '#attributes' => [
+      'class' => [
+        'brandfolder-browser-controls',
+      ],
+    ],
+  ];
 
-  return $asset_container_id;
+  $gatekeeper = \Drupal::getContainer()
+    ->get(BrandfolderGatekeeper::class);
+  $gatekeeper->setCriteria($gatekeeper_criteria);
+  $controls = brandfolder_browser_controls($gatekeeper, $bf_browser_id, $form, $form_state);
+  $form['brandfolder_browser']['brandfolder_browser_controls'] += $controls;
+
+  $form['brandfolder_browser']['brandfolder_browser_assets'] = [
+    '#markup' => "<div class=\"brandfolder-assets\">
+                    $bf_asset_list
+                  </div>",
+  ];
+
+  $form['brandfolder_browser']['bf_gatekeeper_criteria'] = [
+    '#type' => 'hidden',
+    '#value' => json_encode($gatekeeper_criteria),
+  ];
 }
 
 /**
@@ -430,14 +444,13 @@ function brandfolder_format_asset_list(object $assets, array $disabled_attachmen
  * filter, sort, etc. assets in a Brandfolder browser context.
  *
  * @param \Drupal\brandfolder\Service\BrandfolderGatekeeper $gatekeeper
- * @param string $asset_container_id
- * @param $form_id
+ * @param string $bf_browser_id
  * @param array $form
  * @param \Drupal\Core\Form\FormStateInterface $form_state
  *
  * @return array
  */
-function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string $asset_container_id, $form_id, $form, $form_state): array {
+function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string $bf_browser_id, array &$form, FormStateInterface $form_state): array {
   $controls = [];
 
   $all_form_values = $form_state->getValues();
@@ -452,14 +465,43 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
     }
   }
 
-  // Explicitly set an AJAX URL to avoid problems with nested AJAX forms.
-  // Any valid URL will work, but we use our dedicated stub route.
-  // @todo Revisit depending on outcome of this core issue and related discussion: https://www.drupal.org/project/drupal/issues/2504115.
-  $url = Url::fromRoute('brandfolder.asset_fetch_stub_route')->setOption('query', [FormBuilderInterface::AJAX_FORM_REQUEST => 1, 'form_id' => $form_id])->toString();
+  // These AJAX requests will always post to the $form['#action'] URL. Ensure
+  // that this URL has certain query params so that these AJAX submissions are
+  // handled properly.
+  // @see This core issue and related discussion: https://www.drupal.org/project/drupal/issues/2504115.
+  $ajax_form_request_param = FormBuilderInterface::AJAX_FORM_REQUEST;
+  try {
+    $url = Url::fromUserInput($form['#action']);
+    $url->mergeOptions(['query' => [$ajax_form_request_param => 1, 'form_id' => $form['#form_id']]]);
+    $url = $url->toString();
+  }
+  catch (\InvalidArgumentException $e) {
+    $url = $form['#action'];
+    if (!(strpos($url, '?') > 0)) {
+      $url .= '?';
+    }
+    else {
+      $url .= '&';
+    }
+    $params = [];
+    if (!(strpos($url, FormBuilderInterface::AJAX_FORM_REQUEST) > 0)) {
+      $params[] = "{$ajax_form_request_param}=1";
+    }
+    if (!(strpos($url, FormBuilderInterface::AJAX_FORM_REQUEST) > 0)) {
+      $params[] = "form_id={$form['#form_id']}";
+    }
+    if (count($params) > 0) {
+      $url .= implode('&', $params);
+    }
+  }
+  $form['#action'] = $url;
 
   $ajax_defaults = [
-    'callback' => 'Drupal\brandfolder\Controller\AssetFetchController::assetFetchFormAjaxCallback',
-    'wrapper' => $asset_container_id,
+    'callback' => [
+      'Drupal\brandfolder\Controller\AssetFetchController',
+      'assetFetchFormAjaxCallback',
+    ],
+    'wrapper' => $bf_browser_id,
     'progress' => [
       'type' => 'throbber',
       'message' => t('Searching...'),
@@ -484,10 +526,12 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
     ],
   ];
 
+  $ajax = $ajax_defaults;
+  $ajax['event'] = 'change';
   $controls['search']['brandfolder_controls_search_text'] = [
     '#type' => 'search',
     '#length' => 120,
-    '#ajax' => $ajax_defaults,
+    '#ajax' => $ajax,
     '#attributes' => $attribute_defaults,
   ];
 

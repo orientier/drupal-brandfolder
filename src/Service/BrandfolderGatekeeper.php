@@ -53,56 +53,56 @@ class BrandfolderGatekeeper {
    *
    * @todo: Consider supporting more complex boolean logic. However, that may be better left to per-site alteration.
    */
-  protected array $criteria;
+  protected $criteria;
 
   /**
    * The config factory service.
    *
    * @var \Drupal\Core\Config\ConfigFactoryInterface
    */
-  protected ConfigFactoryInterface $configFactory;
+  protected $configFactory;
 
   /**
    * Logger.
    *
    * @var \Drupal\Core\Logger\LoggerChannel
    */
-  protected LoggerChannelInterface $logger;
+  protected $logger;
 
   /**
    * All Brandfolder entities for consideration.
    *
    * @var array
    */
-  protected array $all_bf_entities;
+  protected $all_bf_entities;
 
   /**
    * Valid entities.
    *
    * @var array
    */
-  protected array $valid_bf_entities;
+  protected $valid_bf_entities;
 
   /**
    * Invalid entities.
    *
    * @var array
    */
-  protected array $invalid_bf_entities;
+  protected $invalid_bf_entities;
 
   /**
    * Readable message pertaining to validation, etc.
    *
    * @var string
    */
-  protected string $message;
+  protected $message;
 
   /**
    * Brandfolder API client.
    *
    * @var Brandfolder $bf_client
    */
-  protected Brandfolder $bf_client;
+  protected $bf_client;
 
   /**
    * BrandfolderGatekeeper constructor.

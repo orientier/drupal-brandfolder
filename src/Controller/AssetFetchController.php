@@ -21,6 +21,8 @@ class AssetFetchController extends ControllerBase {
    * etc.
    *
    * @return array
+   *
+   * @todo: Remove this after confirming we won't need it for any AJAX callbacks.
    */
   public function assetFetchStubRouteHandler() : array {
     $output = [
@@ -38,7 +40,7 @@ class AssetFetchController extends ControllerBase {
    *
    * @return array
    */
-  public function assetFetchFormAjaxCallback(array &$form, FormStateInterface $form_state): array {
+  public static function assetFetchFormAjaxCallback(array &$form, FormStateInterface $form_state, \Symfony\Component\HttpFoundation\Request $request): array {
     $all_form_values = $form_state->getValues();
 
     $tag_key_mapping = isset($all_form_values['brandfolder_controls_tag_key_mapping']) ? json_decode($all_form_values['brandfolder_controls_tag_key_mapping'], TRUE) : [];
@@ -120,12 +122,17 @@ class AssetFetchController extends ControllerBase {
 
     $gatekeeper = \Drupal::getContainer()
       ->get(BrandfolderGatekeeper::class);
-    if ($gatekeeper_criteria = $form_state->getValue('bf_gatekeeper_criteria')) {
-      $gatekeeper->setCriteria(json_decode($gatekeeper_criteria, TRUE));
+    $gatekeeper_criteria = [];
+    $gatekeeper_criteria_string = $form_state->getValue('bf_gatekeeper_criteria');
+    if (!empty($gatekeeper_criteria_string)) {
+      $gatekeeper_criteria = json_decode($gatekeeper_criteria_string, TRUE);
+      if (!empty($gatekeeper_criteria)) {
+        $gatekeeper->setCriteria($gatekeeper_criteria);
+      }
     }
     $query_params['include'] = 'attachments';
 
-    $output = '<p class="brandfolder-browser__no-results-message">' . t('No assets found') . '</p>';
+    $bf_asset_list = '<p class="brandfolder-browser__no-results-message">' . t('No assets found') . '</p>';
     $assets = $gatekeeper->fetchAssets($query_params);
     if (!empty($assets->data)) {
       $disabled_bf_attachment_ids = [];
@@ -136,14 +143,18 @@ class AssetFetchController extends ControllerBase {
       if (!empty($all_form_values['selected_bf_attachment_ids'])) {
         $selected_bf_attachment_ids = explode(',', $all_form_values['selected_bf_attachment_ids']);
       }
-      $output = brandfolder_format_asset_list($assets, $disabled_bf_attachment_ids, $selected_bf_attachment_ids);
+      $bf_asset_list = brandfolder_format_asset_list($assets, $disabled_bf_attachment_ids, $selected_bf_attachment_ids);
     }
 
-    $asset_container_id = brandfolder_browser_get_asset_list_container_id($form);
-    $output = "<div id=\"$asset_container_id\">$output</div>";
+    // Testing with ML-specific structure.
+    // @todo: return proper portion of form depending on context.
+    $form['output']['brandfolder_browser']['brandfolder_browser_assets'] = [
+      '#markup' => "<div class=\"brandfolder-assets\">
+                    $bf_asset_list
+                  </div>",
+    ];
 
-    // Return asset list.
-    return ['#markup' => $output];
+    return $form['output']['brandfolder_browser'];
   }
 
   /**
