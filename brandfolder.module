@@ -204,16 +204,11 @@ function brandfolder_browser_media_library_form_manipulator(&$form, \Drupal\Core
     if (strpos($view->current_display, 'widget') === 0) {
       try {
         $state = MediaLibraryState::fromRequest($view->getRequest());
-//        $selections_remaining = $state->getAvailableSlots();
+        $selection_limit = $state->getAvailableSlots();
         $ml_opener_params = $state->getOpenerParameters();
 
-        $field_manager = \Drupal::service('entity_field.manager');
-        (array) $bundle_fields = $field_manager->getFieldDefinitions($ml_opener_params['entity_type_id'], $ml_opener_params['bundle']);
         $field_name = $ml_opener_params['field_name'];
         $context[] = $field_name;
-        if (isset($bundle_fields[$field_name])) {
-          $selection_limit = $bundle_fields[$field_name]->getFieldStorageDefinition()->getCardinality();
-        }
 
         $user_input = $form_state->getUserInput();
         if (!empty($user_input[$field_name]['selection'])) {
@@ -225,15 +220,7 @@ function brandfolder_browser_media_library_form_manipulator(&$form, \Drupal\Core
       } catch (Exception $e) {}
     }
   }
-
-  // Reduce selection limit by the number of already-selected entities, if
-  // applicable.
-  if ($selection_limit > 0) {
-    $selection_limit -= count($selected_media_entity_ids);
-    // Ensure we don't inadvertently push the limit below zero.
-    $selection_limit = max($selection_limit, 0);
-  }
-
+  
   $selected_bf_attachment_ids = array_map('brandfolder_map_media_entity_to_attachment', $selected_media_entity_ids);
   $selected_bf_attachment_ids = array_filter($selected_bf_attachment_ids);
 
