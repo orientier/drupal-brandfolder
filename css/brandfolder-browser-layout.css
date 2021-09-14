@@ -21,6 +21,7 @@
   text-transform: none;
   /*font-size: 1em;*/
   font-weight: bold;
+  margin: 0 0 0.5rem;
 }
 
 .brandfolder-browser fieldset.brandfolder-browser-controls {
@@ -52,9 +53,56 @@
   display: inline-block;
 }
 
+.brandfolder-browser .brandfolder-browser-control-group--labels label {
+  margin: 0 0 0.5rem;
+}
+
+.brandfolder-browser .brandfolder-browser-controls .brandfolder-browser-controls__tag-filter-mode > .form-radios > .form-item {
+  display: inline-flex;
+  margin: 0 1rem 0.5rem 0;
+  align-items: center;
+}
+.brandfolder-browser .brandfolder-browser-controls .brandfolder-browser-controls__tag-filter-mode input[type="radio"] {
+  margin: 0 0.25rem 0 0;
+}
+
+.brandfolder-browser .brandfolder-browser-controls__tag_list {
+  width: 100%;
+}
+.brandfolder-browser .brandfolder-browser-controls__tag_list > .fieldset-wrapper > .form-item {
+  display: inline-flex;
+  margin: 0 1rem 0.5rem 0;
+  align-items: center;
+}
+.brandfolder-browser .brandfolder-browser-controls__tag_list input[type="checkbox"] {
+  margin: 0 0.25rem 0 0;
+}
+
+.brandfolder-browser .brandfolder-browser-controls__new_tag_input_group > .fieldset-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.brandfolder-browser .brandfolder-browser-controls__new_tag_input_group > .fieldset-wrapper > .form-item,
+.brandfolder-browser .brandfolder-browser-controls__new_tag_input_group > .fieldset-wrapper > input[type="submit"] {
+  margin: 0 1rem 1rem 0;
+}
+.brandfolder-browser .brandfolder-browser-controls__new_tag_input_group > .fieldset-wrapper > .form-item {
+  flex: 1 1 auto;
+}
+.brandfolder-browser .brandfolder-browser-controls__new_tag_input_group > .fieldset-wrapper > input[type="submit"] {
+  flex: 0 0 auto;
+}
+.brandfolder-browser .brandfolder-browser-controls__new_tag_input_group input[type="text"] {
+  width: 100%;
+}
+
 .brandfolder-browser .brandfolder-browser-control-group--sort .form-item {
   float: left;
   margin: 0 1rem 1rem 0;
+}
+.brandfolder-browser .brandfolder-browser-control-group--sort label {
+  margin: 0 0 0.5rem;
 }
 
 .brandfolder-browser .brandfolder-asset-list {

@@ -69,9 +69,6 @@ class AssetFetchController extends ControllerBase {
         }
       }
     }
-    if (!empty($all_form_values['brandfolder_controls_tag_text_input'])) {
-      $user_criteria['tags'][] = $all_form_values['brandfolder_controls_tag_text_input'];
-    }
     $search_query_components = [];
     $user_search_query = $form_state->getValue('brandfolder_controls_search_text') ?? '';
     if (!empty($user_search_query)) {
@@ -82,7 +79,13 @@ class AssetFetchController extends ControllerBase {
         array_walk($allowed_values, function(&$value) {
           $value = "\"$value\"";
         });
-        $search_query_components[] = "$criterion:(" . implode(' ', $allowed_values) . ')';
+        if ($criterion == 'tags' && $form_state->getValue('brandfolder_controls_tag_filter_mode') == 'all') {
+          $separator = ' AND ';
+        }
+        else {
+          $separator = ' ';
+        }
+        $search_query_components[] = "$criterion:(" . implode($separator, $allowed_values) . ')';
       }
     }
     // Labels.

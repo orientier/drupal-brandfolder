@@ -450,20 +450,10 @@ function brandfolder_format_asset_list(object $assets, array $disabled_attachmen
  *
  * @return array
  */
-function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string $bf_browser_id, array &$form, FormStateInterface $form_state): array {
+function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string $bf_browser_id, array &$form, FormStateInterface &$form_state): array {
   $controls = [];
 
-  $all_form_values = $form_state->getValues();
-  $tag_key_mapping = isset($all_form_values['brandfolder_controls_tag_key_mapping']) ? json_decode($all_form_values['brandfolder_controls_tag_key_mapping'], TRUE) : [];
-  $tag_checkbox_data = [];
-  foreach ($all_form_values as $input_id => $value) {
-    if (preg_match('/^brandfolder_controls_tags_checkbox_(.+)$/', $input_id, $matches)) {
-      $tag_key = $matches[1];
-      if (isset($tag_key_mapping[$tag_key])) {
-        $tag_checkbox_data[$tag_key] = $tag_key_mapping[$tag_key];
-      }
-    }
-  }
+  $all_user_input = $form_state->getUserInput();
 
   // These AJAX requests will always post to the $form['#action'] URL. Ensure
   // that this URL has certain query params so that these AJAX submissions are
@@ -607,7 +597,7 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
       '#attributes'  => [
         'class' => [
           'brandfolder-browser-control-group',
-          'brandfolder-browser-control-group--sections',
+          'brandfolder-browser-control-group--labels',
         ],
       ],
     ];
@@ -696,7 +686,7 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
       ],
     ],
   ];
-  $controls['upload_date']["brandfolder_controls_upload_date"] = [
+  $controls['upload_date']['brandfolder_controls_upload_date'] = [
     '#type'       => 'radios',
     '#title'      => t('Upload Date'),
     '#options'    => [
@@ -723,6 +713,20 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
       ],
     ],
   ];
+  // Allow users to choose whether the selected tags should be combined
+  // inclusively or exclusively.
+  $controls['tags']['brandfolder_controls_tag_filter_mode'] = [
+    '#type'       => 'radios',
+    '#options'      => [
+      'any' => t('Any selected'),
+      'all' => t('All selected'),
+    ],
+    '#default_value'       => 'any',
+    '#ajax'       => $ajax_defaults,
+    '#attributes' => $attribute_defaults,
+    '#prefix' => '<div class="brandfolder-browser-controls__tag-filter-mode">',
+    '#suffix' => '</div>',
+  ];
   $controls['tags']['tag_list'] = [
     '#type'        => 'fieldset',
     '#collapsible' => FALSE,
@@ -732,43 +736,99 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
       ],
     ],
   ];
-  foreach ($tag_checkbox_data as $tag_key => $tag_name) {
+  $num_tag_checkboxes = 0;
+  $tag_key_mapping_string = $form_state->getValue('brandfolder_controls_tag_key_mapping');
+  if (empty($tag_key_mapping_string)) {
+    if (isset($all_user_input['brandfolder_controls_tag_key_mapping'])) {
+      $tag_key_mapping_string = $all_user_input['brandfolder_controls_tag_key_mapping'];
+    }
+  }
+  $tag_key_mapping = empty($tag_key_mapping_string) ? [] : json_decode($tag_key_mapping_string, TRUE);
+  foreach ($tag_key_mapping as $tag_key => $tag_name) {
     $controls['tags']['tag_list']["brandfolder_controls_tags_$tag_key"] = [
       '#type'       => 'checkbox',
       '#title'      => $tag_name,
       '#ajax'       => $ajax_defaults,
       '#attributes' => $attribute_defaults,
     ];
+    $num_tag_checkboxes++;
   }
 
+  $tag_text_input_should_be_cleared = FALSE;
+
+  $new_tag_name = $form_state->getValue('brandfolder_controls_tag_text_input');
+  if (empty($new_tag_name)) {
+    if (isset($all_user_input['brandfolder_controls_tag_text_input'])) {
+      $new_tag_name = $all_user_input['brandfolder_controls_tag_text_input'];
+    }
+  }
+  // If the user has just entered the name of a tag to use in filtering...
+  if (!empty($new_tag_name)) {
+    // Declare that the text input field should be cleared/reset.
+    $tag_text_input_should_be_cleared = TRUE;
+    // Generate a reliable key that can be mapped to the tag's human-readable
+    // name.
+    $tag_key = md5($new_tag_name);
+    // Add a (pre-checked) checkbox to the form for filtering results by the
+    // given tag. Users will then be able to uncheck it as desired. Such
+    // checkboxes will persist for the life of the Brandfolder browser form,
+    // whether checked or unchecked.
+    $tag_checkbox_identifier = "brandfolder_controls_tags_$tag_key";
+    $controls['tags']['tag_list'][$tag_checkbox_identifier] = [
+      '#type'       => 'checkbox',
+      '#default_value' => TRUE,
+      '#title'      => $new_tag_name,
+      '#ajax'       => $ajax_defaults,
+      '#attributes' => $attribute_defaults,
+    ];
+    $num_tag_checkboxes++;
+    // Ensure that the dynamically-generated checkbox has a positive value
+    // for immediate processing. Technically, this may be more suited to a
+    // validation function, but keep it here for now for clarity.
+    $form_state->setValue($tag_checkbox_identifier, TRUE);
+    $all_user_input[$tag_checkbox_identifier] = TRUE;
+    $form_state->setUserInput($all_user_input);
+    // Add the new tag to our key:name mapping.
+    $tag_key_mapping[$tag_key] = $new_tag_name;
+  }
+
+  // If there are no tag checkboxes at this time, remove the container and
+  // tag filter mode selector.
+  if ($num_tag_checkboxes == 0) {
+    unset($controls['tags']['tag_list']);
+    unset($controls['tags']['brandfolder_controls_tag_filter_mode']);
+  }
+
+  $controls['tags']['new_tag_input_group'] = [
+    '#type'        => 'fieldset',
+    '#collapsible' => FALSE,
+    '#attributes'  => [
+      'class' => [
+        'brandfolder-browser-controls__new_tag_input_group',
+      ],
+    ],
+  ];
+  $ajax = $ajax_defaults;
+  $ajax['event'] = 'change';
   $attributes = $attribute_defaults;
   $attributes['class'][] = 'brandfolder-browser-control--tag-text-input';
-  $controls['tags']['brandfolder_controls_tag_text_input'] = [
+  $controls['tags']['new_tag_input_group']['brandfolder_controls_tag_text_input'] = [
     '#type' => 'textfield',
     '#length' => 120,
-    '#ajax' => $ajax_defaults,
+    '#ajax' => $ajax,
     '#attributes' => $attributes,
   ];
-  $controls['tags']['brandfolder_controls_tag_text_input_submit'] = [
+  if ($tag_text_input_should_be_cleared) {
+    $controls['tags']['new_tag_input_group']['brandfolder_controls_tag_text_input']['#value'] = '';
+  }
+  $controls['tags']['new_tag_input_group']['brandfolder_controls_tag_text_input_submit'] = [
     '#type' => 'button',
     '#value' => t('Add'),
     '#ajax' => $ajax_defaults,
     '#attributes' => $attribute_defaults,
     '#limit_validation_errors' => [],
   ];
-  $tag_key_mapping_string = $form_state->getValue('brandfolder_controls_tag_key_mapping');
-  $tag_key_mapping = empty($tag_key_mapping_string) ? [] : json_decode($tag_key_mapping_string, TRUE);
-  $new_tag_name = $form_state->getValue('brandfolder_controls_tag_text_input');
-  if (!empty($new_tag_name)) {
-    $tag_key = md5($new_tag_name);
-    $controls['tags']['tag_list']["brandfolder_controls_tags_$tag_key"] = [
-      '#type'       => 'checkbox',
-      '#title'      => $new_tag_name,
-      '#ajax'       => $ajax_defaults,
-      '#attributes' => $attribute_defaults,
-    ];
-    $tag_key_mapping[$tag_key] = $new_tag_name;
-  }
+
   $controls['brandfolder_controls_tag_key_mapping'] = [
     '#type' => 'hidden',
     '#value' => json_encode($tag_key_mapping),
