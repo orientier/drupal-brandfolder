@@ -31,7 +31,8 @@ use Drupal\Core\Form\FormBuilderInterface;
  * Helper function to get a Brandfolder object that can be used to interact with
  * the Brandfolder API.
  *
- * @param string|null $api_key
+ * @param string|null $stored_key_type
+ * @param string|null $custom_api_key
  *   If provided, an API key to use when connecting to Brandfolder. If not
  *   provided, the default API key set in the module configuration will be used.
  *
@@ -39,25 +40,33 @@ use Drupal\Core\Form\FormBuilderInterface;
  *   A \Brandfolder\Brandfolder object for interacting with the Brandfolder SDK,
  *   or FALSE on failure.
  */
-function brandfolder_api(string $api_key = NULL) {
-  // Get the default API key from module configuration if none is explicitly
-  // provided.
-  if (is_null($api_key)) {
-    $api_key = \Drupal::config('brandfolder.settings')->get('api_key');
+function brandfolder_api(?string $stored_key_type = 'guest', string $custom_api_key = NULL) {
+  $config = \Drupal::config('brandfolder.settings');
+
+  $api_key_types = [
+    'admin',
+    'collaborator',
+    'guest',
+  ];
+  if (in_array($stored_key_type, $api_key_types)) {
+    $api_key = $config->get("api_keys.$stored_key_type");
+    if (empty($api_key)) {
+
+      return FALSE;
+    }
   }
-  if (empty($api_key)) {
-    return FALSE;
+  elseif (!is_null($custom_api_key)) {
+    $api_key = $custom_api_key;
   }
 
   // Set Brandfolder and collection based on module config if present (NULL
   // otherwise).
-  $default_brandfolder = \Drupal::config('brandfolder.settings')->get('default_brandfolder');
-  $bf = new Brandfolder($api_key, $default_brandfolder);
+  $brandfolder_id = \Drupal::config('brandfolder.settings')->get('brandfolder_id');
 
-  $default_collection = \Drupal::config('brandfolder.settings')->get('default_collection');
-  if ($default_collection) {
-    // @todo: getter/setter methods.
-    $bf->default_collection_id = $default_collection;
+  $bf = new Brandfolder($api_key, $brandfolder_id);
+
+  if ($config->get('verbose_log_mode')) {
+    $bf->enableVerboseLogging();
   }
 
   return $bf;
@@ -220,7 +229,7 @@ function brandfolder_browser_media_library_form_manipulator(&$form, \Drupal\Core
       } catch (Exception $e) {}
     }
   }
-  
+
   $selected_bf_attachment_ids = array_map('brandfolder_map_media_entity_to_attachment', $selected_media_entity_ids);
   $selected_bf_attachment_ids = array_filter($selected_bf_attachment_ids);
 
@@ -1037,6 +1046,12 @@ function brandfolder_map_attachment_to_file($attachment, $create_new_file = TRUE
         $attachment = $attachment->data;
       }
     }
+    if ($bf->verboseLoggingIsEnabled()) {
+      foreach ($bf->getLogData() as $log_entry) {
+        $logger->debug($log_entry);
+      }
+      $bf->clearLogData();
+    }
     if ($attachment) {
       if (!empty($attachment->relationships->asset)) {
         $asset_id = $attachment->relationships->asset->data->id;
@@ -1185,12 +1200,12 @@ function brandfolder_map_attachment_to_media_entity($attachment, $media_type_id,
   }
   elseif ($create_new_entity) {
     if ($attachment_id) {
+      $bf_client = brandfolder_api();
       try {
         // Generate a default name.
         // @todo: Improve on this by allowing admins to configure patterns for auto-created entity names?
         $default_name = "Auto-Created Entity for Brandfolder Attachment $attachment_id";
         $asset = FALSE;
-        $bf_client = brandfolder_api();
         if ($attachment = $bf_client->fetchAttachment($attachment_id, ['include' => 'asset'])) {
           $asset_id = $attachment->data->relationships->asset->data->id ?? FALSE;
           if ($asset_id) {
@@ -1208,6 +1223,12 @@ function brandfolder_map_attachment_to_media_entity($attachment, $media_type_id,
       }
       catch (\Drupal\Core\Entity\EntityStorageException $e) {
         $logger->error('There was an error saving a new media entity for Brandfolder attachment !attachment_id.', ['!attachment_id' => $attachment_id]);
+      }
+      if ($bf_client->verboseLoggingIsEnabled()) {
+        foreach ($bf_client->getLogData() as $log_entry) {
+          $logger->debug($log_entry);
+        }
+        $bf_client->clearLogData();
       }
     }
   }
@@ -1440,6 +1461,12 @@ function brandfolder_media_presave(MediaInterface $media) {
                 // @todo: asset.update webhook action to update this value if it is populated in BF in the future and the Drupal field remains empty.
                 $image_file_data['alt'] = $asset->data->custom_field_values['alt-text'];
               }
+            }
+            if ($bf->verboseLoggingIsEnabled()) {
+              foreach ($bf->getLogData() as $log_entry) {
+                $logger->debug($log_entry);
+              }
+              $bf->clearLogData();
             }
           }
           $media->set('bf_image', $image_file_data);

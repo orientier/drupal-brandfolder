@@ -2,12 +2,27 @@ brandfolder.settings:
   type: config_object
   label: 'Brandfolder Settings'
   mapping:
-    api_key:
+    api_keys.admin:
       type: string
-      label: 'Default API key for interacting with Brandfolder REST API'
-    default_brandfolder:
+      label: 'API key for an Admin user; used for interacting with the Brandfolder REST API'
+    api_keys.collaborator:
       type: string
-      label: 'ID of a Brandfolder to use for all operations by default'
-    default_collection:
+      label: 'API key for a Collaborator user; used for interacting with the Brandfolder REST API'
+    api_keys.guest:
       type: string
-      label: 'ID of a Collection to use for all operations by default'
+      label: 'API key for a Guest user; used for interacting with the Brandfolder REST API'
+    brandfolder_id:
+      type: string
+      label: 'ID of the Brandfolder to be integrated with the Drupal site'
+    preview_collection_id:
+      type: string
+      label: 'ID of a Collection to use for previewing assets to test basic integration functionality'
+    metadata_sync_mode:
+      type: string
+      label: 'How to handle the relationship between Brandfolder metadata and Drupal metadata'
+    alt_text_custom_field:
+      type: string
+      label: 'The ID of a Brandfolder custom field used to store alt-text for images'
+    verbose_log_mode:
+      type: boolean
+      label: 'Whether to log things like Brandfolder API calls, etc.'

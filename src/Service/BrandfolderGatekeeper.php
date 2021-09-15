@@ -121,10 +121,13 @@ class BrandfolderGatekeeper {
     $bf_config = $this->configFactory->get('brandfolder.settings');
     $api_key = $bf_config->get('api_key');
     // @todo: Consider not referring to this as the "default Brandfolder," and, rather, as the "Brandfolder," "global Brandfolder," etc. We are requiring the use of one Brandfolder per Drupal site.
-    $default_brandfolder = $bf_config->get('default_brandfolder');
-    if ($api_key && $default_brandfolder) {
+    $brandfolder_id = $bf_config->get('brandfolder_id');
+    if ($api_key && $brandfolder_id) {
       // @todo: Brandfolder as a service; DI, etc.
-      $this->bf_client = new Brandfolder($api_key, $default_brandfolder);
+      $this->bf_client = new Brandfolder($api_key, $brandfolder_id);
+      if ($bf_config->get('verbose_log_mode')) {
+        $this->bf_client->enableVerboseLogging();
+      }
     }
     else {
       $msg = 'You must configure an API key and select a Brandfolder. Visit the Brandfolder configuration page or request assistance from an administrator.';
@@ -253,6 +256,14 @@ class BrandfolderGatekeeper {
       $this->message = implode('. ', $messages) . '.';
     }
 
+    $bf_config = $this->configFactory->get('brandfolder.settings');
+    if ($bf_config->get('verbose_log_mode')) {
+      foreach ($this->bf_client->getLogData() as $log_entry) {
+        $this->logger->debug($log_entry);
+      }
+      $this->bf_client->clearLogData();
+    }
+
     return $bf_entities_are_valid;
   }
 
@@ -307,6 +318,14 @@ class BrandfolderGatekeeper {
 
     $assets = $this->bf_client->listAssets($query_params, 'all');
 
+    $bf_config = $this->configFactory->get('brandfolder.settings');
+    if ($bf_config->get('verbose_log_mode')) {
+      foreach ($this->bf_client->getLogData() as $log_entry) {
+        $this->logger->debug($log_entry);
+      }
+      $this->bf_client->clearLogData();
+    }
+
     return $assets;
   }
 
@@ -320,6 +339,15 @@ class BrandfolderGatekeeper {
     try {
       // Start with all collections in the Brandfolder.
       $collections = $this->bf_client->getCollectionsInBrandfolder();
+
+      $bf_config = $this->configFactory->get('brandfolder.settings');
+      if ($bf_config->get('verbose_log_mode')) {
+        foreach ($this->bf_client->getLogData() as $log_entry) {
+          $this->logger->debug($log_entry);
+        }
+        $this->bf_client->clearLogData();
+      }
+
       // Return empty array if no collections exist or some error has occurred.
       if (empty($collections)) {
 

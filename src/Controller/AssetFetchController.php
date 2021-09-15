@@ -93,9 +93,19 @@ class AssetFetchController extends ControllerBase {
       // Translate label IDs to their latest names (caching isn't good enough
       // here), since Brandfolder doesn't seem to support searching for assets
       // by label ID/key.
-      // @todo.
       $bf = brandfolder_api();
+      $bf_config = \Drupal::config('brandfolder.settings');
+      if ($bf_config->get('verbose_log_mode')) {
+        $bf->enableVerboseLogging();
+      }
       $label_id_name_mapping = $bf->listLabelsInBrandfolder(NULL, TRUE);
+      if ($bf_config->get('verbose_log_mode')) {
+        $logger = \Drupal::logger('brandfolder');
+        foreach ($bf->getLogData() as $log_entry) {
+          $logger->debug($log_entry);
+        }
+        $bf->clearLogData();
+      }
       $selected_label_names = array_intersect_key($label_id_name_mapping, $all_form_values['brandfolder_controls_labels']);
       array_walk($selected_label_names, function(&$value) {
         $value = "\"$value\"";
