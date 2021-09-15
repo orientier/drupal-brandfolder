@@ -83,7 +83,7 @@ class AssetFetchController extends ControllerBase {
           $separator = ' AND ';
         }
         else {
-          $separator = ' ';
+          $separator = ' OR ';
         }
         $search_query_components[] = "$criterion:(" . implode($separator, $allowed_values) . ')';
       }
@@ -110,7 +110,7 @@ class AssetFetchController extends ControllerBase {
       array_walk($selected_label_names, function(&$value) {
         $value = "\"$value\"";
       });
-      $search_query_components[] = "labels:(" . implode(' ', $selected_label_names) . ')';
+      $search_query_components[] = "labels:(" . implode(' OR ', $selected_label_names) . ')';
     }
 
     // Upload recency.
