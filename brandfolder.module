@@ -1305,7 +1305,7 @@ function brandfolder_parse_cdn_url($cdn_url) {
     'type' => '',
   ];
 
-  if (preg_match("/.*cdn\.(brandfolder\.io|bfldr\.com)\/(([^\/]+)\/(as|at)\/([\w\-]+)\/(.*))/", $cdn_url, $matches)) {
+  if (preg_match("/.*cdn\.(brandfolder\.io|bfldr\.com)\/(([^\/]+)\/(as|at)\/([\w\-]+)\/([^\?]+))/", $cdn_url, $matches)) {
     $uri_suffix = $matches[2];
     $return = [
       'uri' => 'bf://' . $uri_suffix,
