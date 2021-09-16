@@ -21,3 +21,10 @@ services:
   Drupal\brandfolder\Service\BrandfolderGatekeeper:
     class: Drupal\brandfolder\Service\BrandfolderGatekeeper
     arguments: [ '@string_translation', '@logger.factory', '@config.factory' ]
+
+  file.mime_type.guesser.brandfolder:
+    class: Drupal\brandfolder\File\MimeType\BrandfolderMimeTypeGuesser
+    arguments: ['@module_handler', '@database']
+    lazy: true
+    tags:
+      - { name: mime_type_guesser, priority: 100 }

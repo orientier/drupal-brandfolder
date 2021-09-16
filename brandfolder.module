@@ -1320,6 +1320,33 @@ function brandfolder_parse_cdn_url($cdn_url) {
 }
 
 /**
+ * Helper function to parse a Brandfolder URI and return useful derived data.
+ *
+ * @param string $uri
+ *
+ * @return bool|array
+ *  If the given URI pertains to Brandfolder, return an array containing the
+ *  following keys:
+ *   ['cdn_id', 'id', 'type', 'filename', 'query'].
+ *  Otherwise, return FALSE.
+ */
+function brandfolder_parse_uri(string $uri) {
+  $return = FALSE;
+
+  if (preg_match("/^bf:\/\/(([^\/]+)\/(as|at)\/([\w\-]+)\/([^\?]*)(\?(.*))?)$/", $uri, $matches)) {
+    $return = [
+      'cdn_id' => $matches[2],
+      'id' => $matches[4],
+      'filename' => $matches[5],
+      'query' => $matches[7],
+    ];
+    $return['type'] = ($matches[3] == 'as') ? 'asset' : 'attachment';
+  }
+
+  return $return;
+}
+
+/**
  * Given a Drupal file ID, return a corresponding Brandfolder attachment ID.
  *
  * If the file does not correspond to a Brandfolder attachment, return FALSE.
