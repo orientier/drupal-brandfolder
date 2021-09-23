@@ -151,12 +151,13 @@ function brandfolder_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $fo
       if (isset($form['field_brandfolder_attachment_id'])) {
         $form['field_brandfolder_attachment_id']['#disabled'] = TRUE;
       }
-      // Disable the auto-managed BF Image field.
-      // @todo: Make this field only minimally editable
-      // (allow users to specify things like custom alt text but not
-      // replace/remove the image itself).
-      if (isset($form['bf_image'])) {
-        $form['bf_image']['#disabled'] = TRUE;
+      // Limit users' ability to interact with the auto-managed BF Image field.
+      // @see brandfolder_process_image_widget_for_internal_field().
+      if (isset($form['bf_image']) && isset($form['bf_image']['widget'])) {
+        $widget_deltas = Element::children($form['bf_image']['widget']);
+        foreach ($widget_deltas as $delta) {
+          $form['bf_image']['widget'][$delta]['#process'][] = 'brandfolder_process_image_widget_for_internal_field';
+        }
       }
     }
   }
@@ -167,6 +168,33 @@ function brandfolder_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $fo
     // This is outside the scope of the Brandfolder module, however.
 //    unset($form['default_value']);
 //  }
+}
+
+/**
+ * Widget process callback for image widgets pertaining to special image field
+ * that we auto-generate/populate based on linked Brandfolder attachment.
+ *
+ * @param $element
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ * @param $form
+ *
+ * @return array
+ *
+ * @see brandfolder_form_alter().
+ */
+function brandfolder_process_image_widget_for_internal_field($element, FormStateInterface $form_state, $form) {
+  // Disable the main file manipulation elements while leaving supplemental
+  // elements like alt text field accessible.
+  $off_limits_items = [
+    'upload_button',
+    'remove_button',
+    'upload',
+  ];
+  foreach ($off_limits_items as $key) {
+    $element[$key]['#access'] = FALSE;
+  }
+
+  return $element;
 }
 
 /**
@@ -1335,12 +1363,13 @@ function brandfolder_parse_uri(string $uri) {
 
   if (preg_match("/^bf:\/\/(([^\/]+)\/(as|at)\/([\w\-]+)\/([^\?]*)(\?(.*))?)$/", $uri, $matches)) {
     $return = [
-      'cdn_id' => $matches[2],
-      'id' => $matches[4],
-      'filename' => $matches[5],
-      'query' => $matches[7],
+      'cdn_id' => $matches[2] ?? '',
+      'id' => $matches[4] ?? '',
+      'filename' => $matches[5] ?? '',
+      'query' => $matches[7] ?? '',
     ];
-    $return['type'] = ($matches[3] == 'as') ? 'asset' : 'attachment';
+    $type_component = $matches[3] ?? '';
+    $return['type'] = ($type_component == 'as') ? 'asset' : 'attachment';
   }
 
   return $return;
