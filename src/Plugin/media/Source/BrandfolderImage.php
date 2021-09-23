@@ -181,9 +181,14 @@ class BrandfolderImage extends MediaSourceBase {
       'asset_updated_datetime_milliseconds'=> 'Brandfolder asset updated date/time with milliseconds (Y-m-d\TH:i:s.v)',
       'bf_position' => $this->t('Brandfolder attachment position'),
       //      'tags' => $this->t('Tags'),
-      'alt_text' => $this->t('Alt-Text (from Brandfolder custom field)'),
-      // @todo: Allow admins to specify BF custom fields other than alt-text?
     ];
+
+    $config = $this->configFactory->get('brandfolder.settings');
+    $alt_text_custom_field_id = $config->get('alt_text_custom_field');
+    if (!empty($alt_text_custom_field_id)) {
+      $fields['alt_text'] = $this->t('Alt-Text (from Brandfolder custom field)');
+      // @todo: Allow admins to specify BF custom fields other than alt-text?
+    }
 
     return $fields;
   }
@@ -428,8 +433,22 @@ class BrandfolderImage extends MediaSourceBase {
         return ($asset ? "{$asset->data->attributes->name} - {$attachment->data->attributes->filename}" : $attachment->data->attributes->filename);
 
       case 'alt_text':
-        // @todo: Make this field name configurable, show messaging encouraging admins to create it, etc.
-        return $asset->data->custom_field_values['alt-text'] ?? FALSE;
+        // @todo: Show messaging encouraging admins to create and specify this custom field as needed, etc.
+        $config = $this->configFactory->get('brandfolder.settings');
+        $alt_text_custom_field_id = $config->get('alt_text_custom_field');
+        if (!empty($alt_text_custom_field_id)) {
+          // Look up the current name associated with the given custom field
+          // key ID.
+          if ($custom_field_keys = $this->brandfolderClient->listCustomFields(NULL, FALSE, TRUE)) {
+            if (isset($custom_field_keys[$alt_text_custom_field_id])) {
+              $custom_field_name = $custom_field_keys[$alt_text_custom_field_id];
+              if (!empty($asset->data->custom_field_values[$custom_field_name])) {
+                return $asset->data->custom_field_values[$custom_field_name];
+              }
+            }
+          }
+        }
+        break;
 
       //        default:
       //          return isset($this->metadata[$bf_attachment_id][$name]) ? $this->metadata[$bf_attachment_id][$name] : FALSE;
@@ -547,6 +566,10 @@ class BrandfolderImage extends MediaSourceBase {
         'label' => 'Brandfolder Image',
         'translatable' => FALSE,
         'field_type' => 'image',
+        'settings' => [
+          'file_extensions' => '',
+          'alt_field_required' => 0,
+        ],
       ]);
   }
 

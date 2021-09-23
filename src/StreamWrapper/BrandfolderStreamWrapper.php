@@ -50,14 +50,14 @@ class BrandfolderStreamWrapper implements StreamWrapperInterface {
    *
    * @var Connection
    */
-  protected Connection $connection;
+  protected $connection;
 
   /**
    * Drupal logger.
    *
    * @var LoggerInterface $logger
    */
-  protected LoggerInterface $logger;
+  protected $logger;
 
   /**
    * @inheritDoc
@@ -166,7 +166,7 @@ class BrandfolderStreamWrapper implements StreamWrapperInterface {
    * @var array
    */
 // @codingStandardsIgnoreStart
-  protected array $_stat = [
+  protected $_stat = [
 // @codingStandardsIgnoreEnd
     // Device number.
     0 => 0,

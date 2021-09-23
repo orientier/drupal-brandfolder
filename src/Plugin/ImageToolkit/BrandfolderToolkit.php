@@ -467,6 +467,7 @@ class BrandfolderToolkit extends ImageToolkitBase {
       IMAGETYPE_WBMP,
       IMAGETYPE_XBM,
       IMAGETYPE_ICO,
+      IMAGETYPE_WEBP,
     ];
   }
 
