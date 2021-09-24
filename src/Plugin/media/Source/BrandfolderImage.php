@@ -194,6 +194,46 @@ class BrandfolderImage extends MediaSourceBase {
   }
 
   /**
+   * Provide a list of metadata fields that should always be updated with fresh
+   * Brandfolder data even if the target/mapped media entity field has a value
+   * in Drupal.
+   *
+   * @return string[]
+   *
+   * @todo: Consider making these configurable per field per media type...
+   */
+  public function getForcefullyUpdatedMetadataAttributes() {
+    // @todo: Consider expanding this list. Obviously something like filemime ought to be updated if it changes in Brandfolder. However, we'd need to do more than just update this media metadata - we'd need to update the relevant Drupal file and figure out any usage/validation/etc. implications.
+    $fields = [
+//      'name',
+//      'description',
+//      'mime_type',
+//      'filename',
+//      'file_extension',
+//      'thumbnail_url',
+//      'filesize',
+//      'width',
+//      'height',
+//      'asset_creation_date',
+//      'asset_creation_datetime_minutes',
+//      'asset_creation_datetime_seconds',
+//      'asset_creation_datetime_milliseconds',
+      'asset_updated_date',
+      'asset_updated_datetime_minutes',
+      'asset_updated_datetime_seconds',
+      'asset_updated_datetime_milliseconds',
+      'bf_position',
+    ];
+
+    // Intersect with the master metadata list just to make sure this never
+    // returns some item that we no longer support.
+    $all_supported_fields = $this->getMetadataAttributes();
+    $all_supported_field_names = array_keys($all_supported_fields);
+
+    return array_intersect($fields, $all_supported_field_names);
+  }
+
+  /**
    * {@inheritdoc}
    */
   public function defaultConfiguration() {
@@ -424,7 +464,11 @@ class BrandfolderImage extends MediaSourceBase {
         return $attachment->data->attributes->extension;
 
       case 'bf_position':
-        return $attachment->data->attributes->position;
+        // Positions as used internally by Brandfolder and returned via API
+        // start at zero. However, CDN URLs provided in the Brandfolder web app
+        // use positions starting at one. Therefore, we iIncrement the internal
+        // position index here to match non-technical users' expectations.
+        return $attachment->data->attributes->position + 1;
 
       case 'description':
         return $asset->data->attributes->description;

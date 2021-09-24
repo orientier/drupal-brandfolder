@@ -37,6 +37,8 @@ class WebhookEventSubscriber implements EventSubscriberInterface {
    * React to a Brandfolder asset being updated.
    *
    * @param \Drupal\brandfolder\Event\BrandfolderWebhookEvent $event
+   *
+   * @todo: Break some of this code out into other handlers if it becomes unwieldy.
    */
   public function assetUpdate(BrandfolderWebhookEvent $event) {
     $bf_asset_id = $event->data['key'];
@@ -62,31 +64,35 @@ class WebhookEventSubscriber implements EventSubscriberInterface {
       }
 
       // Metadata sync.
-      // Current functionality: if there is a BF custom field designated for
-      // storing image alt text, and this updated asset has a value for that
-      // field, see if corresponding Drupal image fields and/or media entities
-      // are lacking alt text. If so, pull the text from BF to populate those.
-      $config = \Drupal::config('brandfolder.settings');
-      $alt_text_custom_field_id = $config->get('alt_text_custom_field');
-      if (!empty($alt_text_custom_field_id)) {
-        // Note: we always Look up the current name associated with the given
-        // custom field key ID. The name can change at any time in Brandfolder
-        // without Drupal knowing, but the ID never changes (but we can't
-        // use the ID directly when getting field values for an asset).
-        if ($custom_field_keys = $bf->listCustomFields(NULL, FALSE, TRUE)) {
-          if (isset($custom_field_keys[$alt_text_custom_field_id])) {
-            $custom_field_name = $custom_field_keys[$alt_text_custom_field_id];
-            if (!empty($asset->data->custom_field_values[$custom_field_name])) {
-              $alt_text = $asset->data->custom_field_values[$custom_field_name];
+      $updated_entities = [];
 
-              $query = $db->select('brandfolder_file', 'bf')
-                ->fields('bf', ['fid', 'bf_attachment_id'])
-                ->condition('bf_asset_id', $bf_asset_id);
-              if ($query->countQuery()->execute()->fetchField()) {
-                $entity_type_manager = \Drupal::entityTypeManager();
+      $query = $db->select('brandfolder_file', 'bf')
+        ->fields('bf', ['fid', 'bf_attachment_id'])
+        ->condition('bf_asset_id', $bf_asset_id);
+      if ($query->countQuery()->execute()->fetchField()) {
+        $entity_type_manager = \Drupal::entityTypeManager();
+        // Start with llt-text-specific functionality.
+        // If there is a BF custom field designated for storing
+        // image alt text, and this updated asset has a value for that
+        // field, see if corresponding Drupal image fields and/or file entities
+        // are lacking alt text. If so, pull the text from BF to populate those.
+        $config = \Drupal::config('brandfolder.settings');
+        $alt_text_custom_field_id = $config->get('alt_text_custom_field');
+        if (!empty($alt_text_custom_field_id)) {
+          // Note: we always Look up the current name associated with the given
+          // custom field key ID. The name can change at any time in Brandfolder
+          // without Drupal knowing, but the ID never changes (but we can't
+          // use the ID directly when getting field values for an asset).
+          if ($custom_field_keys = $bf->listCustomFields(NULL, FALSE, TRUE)) {
+            if (isset($custom_field_keys[$alt_text_custom_field_id])) {
+              $custom_field_name = $custom_field_keys[$alt_text_custom_field_id];
+              if (!empty($asset->data->custom_field_values[$custom_field_name])) {
+                $alt_text = $asset->data->custom_field_values[$custom_field_name];
+
                 $relevant_fids = $query->execute()->fetchCol(0);
 
                 // File Entity module support.
+                // @todo: Also auto-populate these fields on BF-related file creation.
                 $fe_alt_text_field_name = 'field_image_alt_text';
                 $fe_alt_text_field_file_ids = \Drupal::entityQuery('file')
                   ->condition('fid', $relevant_fids, 'IN')
@@ -103,7 +109,6 @@ class WebhookEventSubscriber implements EventSubscriberInterface {
                 }
 
                 // Standard image fields referencing relevant files.
-                $updated_entities = [];
                 $field_manager = \Drupal::service('entity_field.manager');
                 $image_field_registry = $field_manager->getFieldMapByFieldType('image');
                 foreach ($image_field_registry as $entity_type => $image_fields) {
@@ -136,52 +141,57 @@ class WebhookEventSubscriber implements EventSubscriberInterface {
                     }
                   }
                 }
+              }
+            }
+          }
+        }
 
-                // The following code finds media entities with any of the given
-                // attachments as their source field and triggers a metadata
-                // update. In practice, this set of entities will almost
-                // always be a subset of the set processed above
-                // (because all relevant BF-sourced media entities also
-                // have a "bf_image" image field with a file ID that maps to one
-                // of these attachments). In that case, this code will find no
-                // eligible entities, because any that were processed above are
-                // excluded. However, it's possible that an eligible entity
-                // may not exist in the set above if someone  manually added alt
-                // text to the relevant image field in Drupal.
-                // In that scenario, we still need to trigger a
-                // media metadata update because the field to which alt text
-                // is mapped may still be empty.
-                $relevant_attachment_ids = $query->execute()->fetchCol(1);
-                $media_types = $entity_type_manager
-                  ->getStorage('media_type')
-                  ->loadMultiple();
-                $media_storage = $entity_type_manager->getStorage('media');
-                $updated_media_entity_ids = $updated_entities['media'] ?? [-1];
-                foreach ($media_types as $media_type_id => $media_type) {
-                  $source = $media_type->getSource();
-                  if ($source instanceof BrandfolderImage) {
-                    // If this type has a mapping for the custom alt text
-                    // field...
-                    $field_mapping = $media_type->getFieldMap();
-                    if (!empty($field_mapping['alt_text'])) {
-                      // Find any entities of this type that are missing a value
-                      // in the corresponding Drupal field.
-                      $target_field = $field_mapping['alt_text'];
-                      $media_entity_ids = \Drupal::entityQuery('media')
-                        ->condition('bundle', $media_type_id)
-                        ->condition('mid', $updated_media_entity_ids, 'NOT IN')
-                        ->condition($target_field, '')
-                        ->condition('field_brandfolder_attachment_id', $relevant_attachment_ids, 'IN')
-                        ->execute();
-                      if (count($media_entity_ids) > 0) {
-                        $media_entities = $media_storage->loadMultiple($media_entity_ids);
-                        foreach ($media_entities as $media_entity) {
-                          // Save the entity to force a metadata update.
-                          $media_entity->save();
+        // Find media entities with any of the given attachments as their source
+        // field and trigger a general metadata update (if not already processed
+        // by alt-text handling above).
+        $relevant_attachment_ids = $query->execute()->fetchCol(1);
+        $media_types = $entity_type_manager
+          ->getStorage('media_type')
+          ->loadMultiple();
+        $media_storage = $entity_type_manager->getStorage('media');
+        $updated_media_entity_ids = $updated_entities['media'] ?? [-1];
+        foreach ($media_types as $media_type_id => $media_type) {
+          $source = $media_type->getSource();
+          if ($source instanceof BrandfolderImage) {
+            // If this type has one or more field mappings defined, resave the
+            // entity. We could try to get fancier and only retrieve entities
+            // that have one or more empty fields on the mapped field list, but
+            // that's overkill since we'd have to accommodate various
+            // field/storage types and corresponding definitions of "empty."
+            $field_mapping = $media_type->getFieldMap();
+            if (!empty($field_mapping)) {
+              $media_entity_ids = \Drupal::entityQuery('media')
+                ->condition('bundle', $media_type_id)
+                // Exclude anything we've already resaved above.
+                ->condition('mid', $updated_media_entity_ids, 'NOT IN')
+                ->condition('field_brandfolder_attachment_id', $relevant_attachment_ids, 'IN')
+                ->execute();
+              if (count($media_entity_ids) > 0) {
+                $media_entities = $media_storage->loadMultiple($media_entity_ids);
+                foreach ($media_entities as $media_entity) {
+                  // Forcefully update any metadata-mapped fields that should
+                  // always be updated regardless of whether data exists in the
+                  // field (default Media behavior is only to update if mapped
+                  // fields are empty).
+                  foreach ($media_entity->getTranslationLanguages() as $langcode => $data) {
+                    if ($media_entity->hasTranslation($langcode)) {
+                      $translation = $media_entity->getTranslation($langcode);
+                      $translation_field_mapping = $translation->bundle->entity->getFieldMap();
+                      $forcefully_updated_metadata = array_flip($source->getForcefullyUpdatedMetadataAttributes());
+                      $forcefully_updated_field_mapping = array_intersect_key($translation_field_mapping, $forcefully_updated_metadata);
+                      foreach ($forcefully_updated_field_mapping as $metadata_attribute_name => $entity_field_name) {
+                        if ($translation->hasField($entity_field_name)) {
+                          $translation->set($entity_field_name, $source->getMetadata($translation, $metadata_attribute_name));
                         }
                       }
                     }
                   }
+                  $media_entity->save();
                 }
               }
             }
