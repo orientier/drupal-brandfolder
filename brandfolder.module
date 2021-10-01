@@ -1108,8 +1108,10 @@ function brandfolder_map_attachment_to_file($attachment, $create_new_file = TRUE
 
       $filename = $attachment->attributes->filename;
       $mime_type = $attachment->attributes->mimetype;
+      $mimetype_handler = \Drupal::getContainer()
+        ->get('file.mime_type.guesser.brandfolder');
       if (empty($mime_type)) {
-        if (!$mime_type = brandfolder_get_mimetype_from_filename($filename)) {
+        if (!$mime_type = $mimetype_handler->guessMimeTypeFromExtension($filename)) {
           $logger->error('Attempting to map an attachment to a Drupal file but this attachment appears not to have a mimetype (attachment ID !attachment_id).', ['!attachment_id' => $attachment_id]);
 
           return FALSE;
@@ -1129,24 +1131,23 @@ function brandfolder_map_attachment_to_file($attachment, $create_new_file = TRUE
       $bf_file_data['width'] = $attachment->attributes->width;
       $bf_file_data['height'] = $attachment->attributes->height;
 
-      // The file extension in the CDN URL does not necessarily correspond to
-      // the original file type. Use the latter in the URI so we can reliably
-      // look up attachments/Drupal files later based on URI.
-      // @todo: More testing with CDN v2.1 and various image formats, extensionless files, etc.
       $uri = $info['uri'];
-      if ($extension = brandfolder_image_mimetype_extension_mapping($mime_type)) {
-        $uri = preg_replace('/\.(\w+)$/', ".$extension", $uri);
-        // If the attachment has a mime type but its filename has no extension,
-        // add an appropriate extension to the Drupal file entity's filename.
-        if (!preg_match('/\.\w+$/', $filename)) {
+      // If the attachment has a mime type but its filename has no extension,
+      // add an appropriate extension to the Drupal file's filename.
+      if (!preg_match('/\.[^\.]+$/', $filename)) {
+        if ($extension = $mimetype_handler->getExtensionFromMimetype($mime_type)) {
           $filename .= '.' . $extension;
+          // Be sure to use that same extension in the URI so we can reliably
+          // look up files by URI later. The regex op below will update the URI
+          // to use that extension whether it already has an extension or not.
+          $uri = preg_replace('/([^\.]+)(\.[^\.]+)?$/', "$1.$extension", $uri);
         }
       }
       $file_data['filename'] = $filename;
       $file_data['uri'] = $bf_file_data['uri'] = $uri;
 
       // Store data in the brandfolder_file table before saving the file, so
-      // we can use it to lookup things like filesize when the file is being
+      // we can use it to look up things like filesize when the file is being
       // saved.
       $db->insert('brandfolder_file')
         ->fields($bf_file_data)
@@ -1331,15 +1332,17 @@ function brandfolder_parse_cdn_url($cdn_url) {
     'id' => '',
     'filename' => '',
     'type' => '',
+    'query' => '',
   ];
 
-  if (preg_match("/.*cdn\.(brandfolder\.io|bfldr\.com)\/(([^\/]+)\/(as|at)\/([\w\-]+)\/([^\?]+))/", $cdn_url, $matches)) {
+  if (preg_match("/.*cdn\.(brandfolder\.io|bfldr\.com)\/(([^\/]+)\/(as|at)\/([\w\-]+)\/([^\?]+))(\?(.*))?$/", $cdn_url, $matches)) {
     $uri_suffix = $matches[2];
     $return = [
       'uri' => 'bf://' . $uri_suffix,
       'cdn_id' => $matches[3],
       'id' => $matches[5],
       'filename' => $matches[6],
+      'query' => $matches[8] ?? '',
     ];
     $return['type'] = ($matches[4] == 'as') ? 'asset' : 'attachment';
   }
@@ -1373,82 +1376,6 @@ function brandfolder_parse_uri(string $uri) {
   }
 
   return $return;
-}
-
-/**
- * Given a Drupal file ID, return a corresponding Brandfolder attachment ID.
- *
- * If the file does not correspond to a Brandfolder attachment, return FALSE.
- *
- * @param int $fid
- *   Drupal managed file ID.
- *
- * @return bool|string
- *   The attachment ID on success; FALSE on failure.
- */
-function brandfolder_map_file_id_to_attachment($fid) {
-  $attachment_id = FALSE;
-
-  $db = \Drupal::database();
-  $query = $db->select('brandfolder_file', 'bf')
-    ->fields('bf', ['bf_attachment_id'])
-    ->condition('fid', $fid);
-  if ($query->countQuery()->execute()->fetchField()) {
-    $result = $query->execute();
-    $attachment_id = $result->fetch()->bf_attachment_id;
-  }
-
-  return $attachment_id;
-}
-
-/**
- * Helper function to translate certain image mimetypes to file extensions.
- *
- * @param string $mimetype
- *   The file mime type (e.g. "image/jpeg").
- *
- * @return bool|string
- *   The file extension (e.g. "jpg") on success; FALSE if the given mime type
- *   cannot be mapped to an extension.
- */
-function brandfolder_image_mimetype_extension_mapping($mimetype) {
-  $extension = FALSE;
-
-  $mime_type_mapping = [
-    'image/gif' => 'gif',
-    'image/jpeg' => 'jpg',
-    'image/png' => 'png',
-    'image/svg+xml' => 'svg',
-    'image/tiff' => 'tiff',
-    'image/webp' => 'webp',
-  ];
-  if (isset($mime_type_mapping[$mimetype])) {
-    $extension = $mime_type_mapping[$mimetype];
-  }
-
-  return $extension;
-}
-
-/**
- * Helper function to determine a mime type based on a given filename.
- *
- * @param string $filename
- *   The name of the file to examine.
- *
- * @return null|string
- *   The mime type (e.g. "image/jpeg") on success; FALSE if the given file name
- *   cannot be mapped to a mime type.
- */
-function brandfolder_get_mimetype_from_filename($filename) {
-  $mimetype = NULL;
-
-  if (preg_match('/\.([^\.]+)$/', $filename, $matches)) {
-    $extension = $matches[1];
-
-    $mimetype = \GuzzleHttp\Psr7\mimetype_from_extension($extension);
-  }
-
-  return $mimetype;
 }
 
 /**

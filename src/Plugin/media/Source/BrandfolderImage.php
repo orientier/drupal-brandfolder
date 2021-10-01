@@ -183,6 +183,13 @@ class BrandfolderImage extends MediaSourceBase {
       //      'tags' => $this->t('Tags'),
     ];
 
+    $forcefully_updated_fields = $this->getForcefullyUpdatedMetadataAttributes();
+    array_walk($fields, function(&$field_label, $field_name) use ($forcefully_updated_fields) {
+      if (in_array($field_name, $forcefully_updated_fields)) {
+        $field_label .= $this->t(' (will always be updated whenever Brandfolder data changes).');
+      }
+    });
+
     $config = $this->configFactory->get('brandfolder.settings');
     $alt_text_custom_field_id = $config->get('alt_text_custom_field');
     if (!empty($alt_text_custom_field_id)) {
@@ -204,7 +211,8 @@ class BrandfolderImage extends MediaSourceBase {
    */
   public function getForcefullyUpdatedMetadataAttributes() {
     // @todo: Consider expanding this list. Obviously something like filemime ought to be updated if it changes in Brandfolder. However, we'd need to do more than just update this media metadata - we'd need to update the relevant Drupal file and figure out any usage/validation/etc. implications.
-    $fields = [
+
+    return [
 //      'name',
 //      'description',
 //      'mime_type',
@@ -224,13 +232,6 @@ class BrandfolderImage extends MediaSourceBase {
       'asset_updated_datetime_milliseconds',
       'bf_position',
     ];
-
-    // Intersect with the master metadata list just to make sure this never
-    // returns some item that we no longer support.
-    $all_supported_fields = $this->getMetadataAttributes();
-    $all_supported_field_names = array_keys($all_supported_fields);
-
-    return array_intersect($fields, $all_supported_field_names);
   }
 
   /**

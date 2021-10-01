@@ -22,9 +22,11 @@ services:
     class: Drupal\brandfolder\Service\BrandfolderGatekeeper
     arguments: [ '@string_translation', '@logger.factory', '@config.factory' ]
 
+# @todo: Gather more data about mime type and file extension relationships among real-world customers. Decide whether it's best to use the file extension guesser, Brandfolder API as per the custom guesser below, or a hybrid, etc.
   file.mime_type.guesser.brandfolder:
-    class: Drupal\brandfolder\File\MimeType\BrandfolderMimeTypeGuesser
+    class: Drupal\brandfolder\File\MimeType\BrandfolderMimeTypeHandler
     arguments: ['@module_handler', '@database']
-    lazy: true
+# @todo: Test first-time installation with proxy class.
+#    lazy: true
     tags:
       - { name: mime_type_guesser, priority: 100 }

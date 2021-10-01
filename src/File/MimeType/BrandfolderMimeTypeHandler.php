@@ -13,11 +13,12 @@ use function brandfolder_parse_uri;
 /**
  * Extend the core mimetype guesser to support Brandfolder-hosted files.
  * Without this, any module that uses the core guesser for Brandfolder files
- * (the file_entity module does this, for example), will cause those files to
- * be assigned the generic "application/octet-stream" mimetype (due to
- * simplistic parsing of URIs in an attempt to extract a file extension).
+ * (the file_entity module does this, for example), could cause those files to
+ * be assigned the generic "application/octet-stream" mimetype if the URI does
+ * not end with a recognized file extension.
+ * Also provide mimetype and extension-related utilities.
  */
-class BrandfolderMimeTypeGuesser extends ExtensionMimeTypeGuesser implements MimeTypeGuesserInterface, LegacyMimeTypeGuesserInterface {
+class BrandfolderMimeTypeHandler extends ExtensionMimeTypeGuesser implements MimeTypeGuesserInterface, LegacyMimeTypeGuesserInterface {
 
   /**
    * The database connection.
@@ -75,6 +76,73 @@ class BrandfolderMimeTypeGuesser extends ExtensionMimeTypeGuesser implements Mim
 
     // Default: use the ExtensionMimeTypeGuesser guesser.
     return parent::guessMimeType($path);
+  }
+
+  /**
+   * Additional method to perform a straightforward extension-based mimetype
+   * guess when desired.
+   *
+   * @param $path
+   *
+   * @return string|null
+   */
+  public function guessMimeTypeFromExtension($path) {
+    return parent::guessMimeType($path);
+  }
+
+  /**
+   * Get the mimetype mapping.
+   *
+   * @return array
+   */
+  public function getMapping(): array {
+    if ($this->mapping === NULL) {
+      $mapping = $this->defaultMapping;
+      // Allow modules to alter the default mapping.
+      $this->moduleHandler->alter('file_mimetype_mapping', $mapping);
+    }
+    else {
+      $mapping = $this->mapping;
+    }
+
+    return $mapping;
+  }
+
+  /**
+   * Attempt to determine a good filename extension based on a file's mimetype.
+   *
+   * @param $mimetype
+   *
+   * @return false|int|string
+   */
+  public function getExtensionFromMimetype($mimetype) {
+    $explicit_mapping = [
+      'image/gif' => 'gif',
+      'image/jpeg' => 'jpg',
+      'image/png' => 'png',
+      'image/svg+xml' => 'svg',
+      'image/tiff' => 'tiff',
+      'image/webp' => 'webp',
+    ];
+    if (isset($explicit_mapping[$mimetype])) {
+
+      return $explicit_mapping[$mimetype];
+    }
+
+    $mapping = $this->getMapping();
+    $mimetype_key = array_search($mimetype, $mapping['mimetypes']);
+    if ($mimetype_key !== FALSE) {
+      // Note: multiple entries may exist for a given mimetype. This will simply
+      // return the first one. Unfortunately, they are not listed in any
+      // apparent order.
+      $extension = array_search($mimetype_key, $mapping['extensions']);
+      if ($extension !== FALSE) {
+
+        return $extension;
+      }
+    }
+
+    return FALSE;
   }
 
 }
