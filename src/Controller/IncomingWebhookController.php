@@ -7,6 +7,7 @@ use Drupal\Core\Access\AccessResult;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Routing\Access\AccessInterface;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Handle incoming Brandfolder webhook requests/events.
@@ -18,7 +19,7 @@ class IncomingWebhookController extends ControllerBase implements AccessInterfac
    *
    * @var array $valid_event_types
    */
-  protected array $valid_event_types = [
+  protected $valid_event_types = [
     'asset.create',
     'asset.update',
     'asset.delete',
@@ -28,10 +29,6 @@ class IncomingWebhookController extends ControllerBase implements AccessInterfac
    * Access management. Block requests that are blatantly invalid.
    *
    * @param \Symfony\Component\HttpFoundation\Request $request
-   *
-   * @param \Drupal\Core\Session\AccountInterface $account
-   *   The Drupal user account making the request. This will typically be
-   *   anonymous.
    *
    * @return \Drupal\Core\Access\AccessResultInterface
    *   The access result.
@@ -56,6 +53,8 @@ class IncomingWebhookController extends ControllerBase implements AccessInterfac
    * Handle incoming webhooks.
    *
    * @param \Symfony\Component\HttpFoundation\Request $request
+   *
+   * @return \Symfony\Component\HttpFoundation\Response
    */
   public function webhookListener(Request $request) {
     $payload = json_decode($request->getContent(), TRUE);
@@ -65,6 +64,8 @@ class IncomingWebhookController extends ControllerBase implements AccessInterfac
       $dispatcher = \Drupal::service('event_dispatcher');
       $dispatcher->dispatch($bf_event_type, new BrandfolderWebhookEvent($payload['data']));
     }
+
+    return new Response($this->t('Webhook handling complete.'), Response::HTTP_OK);
   }
 
 }
