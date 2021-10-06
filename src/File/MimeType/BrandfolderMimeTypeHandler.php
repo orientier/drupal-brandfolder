@@ -44,6 +44,14 @@ class BrandfolderMimeTypeHandler extends ExtensionMimeTypeGuesser implements Mim
   /**
    * {@inheritdoc}
    */
+  public function isGuesserSupported(): bool {
+
+    return TRUE;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function guessMimeType($path): ?string {
     // If this path is a URI for a Brandfolder attachment, look up the mimetype
     // that we've stored locally, or, if necessary, try to look it up via BF
@@ -75,7 +83,7 @@ class BrandfolderMimeTypeHandler extends ExtensionMimeTypeGuesser implements Mim
     }
 
     // Default: use the ExtensionMimeTypeGuesser guesser.
-    return parent::guessMimeType($path);
+    return method_exists($this, 'guessMimeType') ? parent::guessMimeType($path) : parent::guess($path);
   }
 
   /**
@@ -87,7 +95,8 @@ class BrandfolderMimeTypeHandler extends ExtensionMimeTypeGuesser implements Mim
    * @return string|null
    */
   public function guessMimeTypeFromExtension($path) {
-    return parent::guessMimeType($path);
+
+    return method_exists($this, 'guessMimeType') ? parent::guessMimeType($path) : parent::guess($path);
   }
 
   /**
