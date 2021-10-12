@@ -278,37 +278,45 @@ class BrandfolderGatekeeper {
   public function fetchAssets(array $query_params = []) {
     $search_components = !empty($query_params['search']) ? [$query_params['search']] : [];
 
-    // Brandfolder may only be supporting section and collection searches by
-    // human-readable name, rather than key/ID. Therefore, map the ID/key-based
-    // criteria to the corresponding names.
-    // @todo: Update if/when Brandfolder confirms support for key-based search.
-    $collection_ids_and_names = $this->bf_client->getCollectionsInBrandfolder( NUll, [], TRUE);
-    $section_ids_and_names = $this->bf_client->listSectionsInBrandfolder( NUll, [], TRUE);
-    $map = [
-      'collection' => $collection_ids_and_names,
-      'section' => $section_ids_and_names,
+    $key_based_criteria = [
+      'collection',
+      'section',
     ];
-    foreach ($this->criteria['allowed'] as $criteria_family => $criteria) {
-      if (!empty($criteria)) {
-        if (isset($map[$criteria_family])) {
-          $criteria = array_intersect_key($map[$criteria_family], $criteria);
-        }
-        array_walk($criteria, function(&$criterion) {
-          $criterion = "\"$criterion\"";
+    foreach ($key_based_criteria as $criterion) {
+      if (!empty($this->criteria['allowed'][$criterion])) {
+        $criteria = $this->criteria['allowed'][$criterion];
+        array_walk($criteria, function (&$item) {
+          $item = "\"$item\"";
         });
-        $search_components[] = "$criteria_family:(" . implode(' ', $criteria) . ')';
+        $search_components[] = "{$criterion}_key:(" . implode(' OR ', $criteria) . ')';
+      }
+      if (!empty($this->criteria['disallowed'][$criterion])) {
+        $criteria = $this->criteria['disallowed'][$criterion];
+        array_walk($criteria, function (&$item) {
+          $item = "\"$item\"";
+        });
+        $search_components[] = "NOT {$criterion}_key:(" . implode(' OR ', $criteria) . ')';
       }
     }
-    foreach ($this->criteria['disallowed'] as $criteria_family => $criteria) {
-      if (!empty($criteria)) {
-        if (isset($map[$criteria_family])) {
-          $criteria = array_intersect_key($map[$criteria_family], $criteria);
-        }
-        array_walk($criteria, function(&$criterion) {
-          $criterion = "%22$criterion%22";
-        });
-        $search_components[] = "NOT $criteria_family:(" . implode(' ', $criteria) . ')';
-      }
+
+    // Brandfolder only supports label searches by human-readable name, rather
+    // than key/ID. Therefore, map the ID/key-based criteria to the
+    // corresponding names.
+    // @todo: Update if/when Brandfolder adds support for key-based search.
+    $label_ids_and_names = $this->bf_client->listLabelsInBrandfolder( NUll, TRUE);
+    if (!empty($this->criteria['allowed']['label'])) {
+      $criteria = array_intersect_key($label_ids_and_names, $this->criteria['allowed']['label']);
+      array_walk($criteria, function (&$criterion) {
+        $criterion = "\"$criterion\"";
+      });
+      $search_components[] = "label:(" . implode(' OR ', $criteria) . ')';
+    }
+    if (!empty($this->criteria['disallowed']['label'])) {
+      $criteria = array_intersect_key($label_ids_and_names, $this->criteria['disallowed']['label']);
+      array_walk($criteria, function (&$criterion) {
+        $criterion = "\"$criterion\"";
+      });
+      $search_components[] = "NOT label:(" . implode(' OR ', $criteria) . ')';
     }
 
     array_walk($search_components, function(&$component) {
