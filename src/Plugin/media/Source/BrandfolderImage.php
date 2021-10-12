@@ -4,6 +4,7 @@ namespace Drupal\brandfolder\Plugin\media\Source;
 
 use Drupal\brandfolder\Service\BrandfolderGatekeeper;
 use Drupal\Component\Datetime\TimeInterface;
+use Drupal\Component\Utility\NestedArray;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityFieldManagerInterface;
@@ -96,6 +97,13 @@ class BrandfolderImage extends MediaSourceBase {
   protected $moduleHandler;
 
   /**
+   * The inviolable source field name.
+   *
+   * @var string
+   */
+  protected $source_field_name;
+
+  /**
    * Constructs a new class instance.
    *
    * @param array $configuration
@@ -124,6 +132,8 @@ class BrandfolderImage extends MediaSourceBase {
    *   The module handler.
    */
   public function __construct(array $configuration, $plugin_id, $plugin_definition, EntityTypeManagerInterface $entity_type_manager, EntityFieldManagerInterface $entity_field_manager, FieldTypePluginManagerInterface $field_type_manager, ConfigFactoryInterface $config_factory, AccountProxyInterface $account_proxy, UrlGeneratorInterface $url_generator, LoggerChannelFactoryInterface $logger, CacheBackendInterface $cache, TimeInterface $time, ModuleHandlerInterface $module_handler) {
+    $this->source_field_name = 'field_brandfolder_attachment_id';
+
     parent::__construct($configuration, $plugin_id, $plugin_definition, $entity_type_manager, $entity_field_manager, $field_type_manager, $config_factory);
 
     // @todo: DI
@@ -239,12 +249,26 @@ class BrandfolderImage extends MediaSourceBase {
    */
   public function defaultConfiguration() {
     return [
-      'source_field' => 'field_brandfolder_attachment_id',
+      'source_field' => $this->source_field_name,
       'source_field_label' => $this->t('Brandfolder Attachment ID'),
       'brandfolder' => [
         'bf_entity_criteria' => [],
       ],
     ];
+  }
+
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setConfiguration(array $configuration) {
+    $merged_config = NestedArray::mergeDeep(
+      $this->defaultConfiguration(),
+      $configuration
+    );
+    $merged_config['source_field'] = $this->source_field_name;
+
+    $this->configuration = $merged_config;
   }
 
   /**
@@ -274,11 +298,9 @@ class BrandfolderImage extends MediaSourceBase {
    *
    * @return string
    *   The source field name. Always use our explicit field machine name.
-   *
-   * @todo: Collision testing.
    */
-  protected function getSourceFieldName() {
-    return $this->configuration['source_field'];
+  protected function getSourceFieldName(): string {
+    return $this->source_field_name;
   }
 
   /**
