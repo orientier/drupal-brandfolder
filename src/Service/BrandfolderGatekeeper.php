@@ -120,8 +120,7 @@ class BrandfolderGatekeeper {
     $this->logger = $logger_factory->get('brandfolder');
     $this->configFactory = $config_factory;
     $bf_config = $this->configFactory->get('brandfolder.settings');
-    $api_key = $bf_config->get('api_key');
-    // @todo: Consider not referring to this as the "default Brandfolder," and, rather, as the "Brandfolder," "global Brandfolder," etc. We are requiring the use of one Brandfolder per Drupal site.
+    $api_key = $bf_config->get('api_keys.admin');
     $brandfolder_id = $bf_config->get('brandfolder_id');
     if ($api_key && $brandfolder_id) {
       // @todo: Brandfolder as a service; DI, etc.
@@ -133,7 +132,7 @@ class BrandfolderGatekeeper {
     else {
       $msg = 'You must configure an API key and select a Brandfolder. Visit the Brandfolder configuration page or request assistance from an administrator.';
       $this->logger->error($msg);
-      // @todo.
+      // @todo Friendlier failure/messaging.
       throw new \Exception($msg);
     }
   }
