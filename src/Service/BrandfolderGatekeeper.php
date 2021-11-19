@@ -231,7 +231,9 @@ class BrandfolderGatekeeper {
       foreach ($bf_entities as $bf_entity_id => $bf_entity_data) {
         $bf_entity_is_valid = TRUE;
         foreach ($this->criteria['allowed'] as $criteria_family => $criteria) {
-          if (!empty($criteria)) {
+          // Check all criteria families except filetype.
+          // @todo: Consider file type/extension validation here.
+          if (!empty($criteria) && $criteria_family != 'filetype') {
             $qualifying_attributes = array_intersect($criteria, $bf_entity_data[$criteria_family]);
             if (count($qualifying_attributes) == 0) {
               $this->invalid_bf_entities[$bf_entity_type][$bf_entity_id] = $bf_entity_id;
@@ -254,7 +256,6 @@ class BrandfolderGatekeeper {
       }
     }
 
-    // @todo: File type/extension validation here.
 
     $bf_entities_are_valid = empty($this->invalid_bf_entities);
 
