@@ -7,6 +7,7 @@ use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Component\Utility\NestedArray;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
 use Drupal\Core\Entity\EntityFieldManagerInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
@@ -351,6 +352,19 @@ class BrandfolderImage extends MediaSourceBase {
 //    }
 
     return $field;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function prepareViewDisplay(MediaTypeInterface $type, EntityViewDisplayInterface $display) {
+    // Set the view display so only our special bf_image field is displayed
+    // initially. This is important because, by default, only the source field
+    // would be shown, which in our case is a textual attachment ID, so this
+    // is a much better out-of-the-box experience.
+    // Admins can obviously tweak as desired.
+    // @todo: A nice feature might be to allow admins to select another media type from which to copy any applicable settings. Useful when you're converting an existing site to use Brandfolder and have numerous media view modes with various image formatters.
+    $display->setComponent('bf_image', ['type' => 'image', 'label' => 'visually_hidden']);
   }
 
   /**
