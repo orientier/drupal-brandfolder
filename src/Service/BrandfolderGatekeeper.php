@@ -2,6 +2,7 @@
 
 namespace Drupal\brandfolder\Service;
 
+use Drupal\brandfolder\Plugin\media\Source\BrandfolderImage;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelInterface;
@@ -169,6 +170,17 @@ class BrandfolderGatekeeper {
     if (!empty($source_config['brandfolder']['bf_entity_criteria'])) {
       $this->criteria = $source_config['brandfolder']['bf_entity_criteria'];
     }
+    // @todo: Expose this in config.
+    if ($source instanceof BrandfolderImage) {
+      $this->criteria['allowed']['filetype'] = [
+        'jpg',
+        'png',
+        'gif',
+        'tiff',
+        'svg',
+        'webp',
+      ];
+    }
   }
 
   /**
@@ -241,6 +253,8 @@ class BrandfolderGatekeeper {
         }
       }
     }
+
+    // @todo: File type/extension validation here.
 
     $bf_entities_are_valid = empty($this->invalid_bf_entities);
 
@@ -317,6 +331,14 @@ class BrandfolderGatekeeper {
         $criterion = "\"$criterion\"";
       });
       $search_components[] = "NOT label:(" . implode(' OR ', $criteria) . ')';
+    }
+
+    if (!empty($this->criteria['allowed']['filetype'])) {
+      $extension_list = $this->criteria['allowed']['filetype'];
+      array_walk($extension_list, function (&$criterion) {
+        $criterion = "\"$criterion\"";
+      });
+      $search_components[] = "filetype:(" . implode(' OR ', $extension_list) . ')';
     }
 
     array_walk($search_components, function(&$component) {

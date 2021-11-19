@@ -430,7 +430,23 @@ function brandfolder_format_asset_list(object $assets, array $disabled_attachmen
         .         "<div class=\"brandfolder-asset__attachments\">"
         .           "<h3 class=\"brandfolder-asset__attachment-list-heading\">" . t('Attachments') . "</h3>"
         .           "<ul class=\"brandfolder-asset__attachment-list\">";
+
+      // Exclude unsupported attachment types (which would be returned if
+      // their parent asset has other attachments that are of a supported type).
+      // @todo: Sync with media type config.
+      $supported_mimetypes = [
+        'image/gif',
+        'image/jpeg',
+        'image/png',
+        'image/svg+xml',
+        'image/tiff',
+        'image/webp',
+      ];
+
       foreach ($asset->attachments as $attachment_id => $attachment) {
+        if (!in_array($attachment->mimetype, $supported_mimetypes)) {
+          continue;
+        }
         $attachment_classes_array = ['brandfolder-attachment'];
         if (in_array($attachment_id, $disabled_attachment_ids)) {
           $attachment_classes_array[] = 'brandfolder-attachment--disabled';
@@ -687,7 +703,7 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
     'svg',
     'gif',
     'webp',
-    'mp4',
+//    'mp4',
   ];
   foreach ($filetype_options as $type) {
     $controls['filetype']["brandfolder_controls_filetype_$type"] = [
