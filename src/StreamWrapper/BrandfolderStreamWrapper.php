@@ -357,7 +357,8 @@ class BrandfolderStreamWrapper implements StreamWrapperInterface {
           // @see \Drupal\brandfolder\Image\BrandfolderImageFactory.
           $image = \Drupal::service('image.factory')->get($full_uri);
           if ($image->isValid()) {
-            foreach ($image_style->getEffects() as $effect) {
+            $effects = $image_style->getEffects();
+            foreach ($effects as $effect) {
               if (!$effect->applyEffect($image)) {
                 $this->logger->error('Could not apply the image effect !effect_name to the Brandfolder image !uri.', [
                   '!effect_name' => $effect->label(),
