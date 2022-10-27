@@ -88,6 +88,13 @@ class BrandfolderToolkit extends ImageToolkitBase {
 //  }
 
   /**
+   * A record of all image operations applied to the current image.
+   *
+   * @var array
+   */
+  protected array $operationsRecord = [];
+
+  /**
    * Parameters to apply to the CDN URL for the source image.
    *
    * @var array
@@ -100,6 +107,14 @@ class BrandfolderToolkit extends ImageToolkitBase {
    * @var array
    */
   protected array $file_data = [];
+
+  /**
+   * A semi-immutable copy of the file data array, for reference.
+   * This will only be set/reset when parseFile() is called.
+   *
+   * @var array
+   */
+  protected array $original_file_data = [];
 
   /**
    * Constructs a BrandfolderToolkit object.
@@ -169,6 +184,97 @@ class BrandfolderToolkit extends ImageToolkitBase {
 //    }
 //    return $this->resource;
 //  }
+
+  /**
+   * Record an image processing operation in order to maintain a record of all
+   * operations, in sequence. This context can be used to convert traditional
+   * image manipulation sequences into a set of CDN URL parameters that will
+   * achieve the same end result.
+   *
+   * @param string $operation_name The name of the operation, e.g. "resize."
+   * @param array $operation_arguments All arguments passed to the operation.
+   */
+  public function recordOperation(string $operation_name, array $operation_arguments) {
+    $this->operationsRecord[] = [
+      'operation' => $operation_name,
+      'arguments' => $operation_arguments,
+      'file_data' => $this->file_data,
+      'bf_cdn_url_params' => $this->brandfolder_cdn_url_params,
+    ];
+  }
+
+  /**
+   * Get a record of all operations performed so far.
+   *
+   * @return array
+   *   The operations record.
+   */
+  public function getOperationsRecord() {
+    return $this->operationsRecord;
+  }
+
+  /**
+   * Populate/overwrite the file_data array.
+   *
+   * @param array $file_data
+   *
+   * @return void
+   */
+  public function setFileData(array $file_data) {
+    $this->file_data = $file_data;
+  }
+
+  /**
+   * Set an individual item in the file_data array.
+   *
+   * @param string $key
+   * @param $value
+   *
+   * @return void
+   */
+  public function setFileDataItem(string $key, $value) {
+    $this->file_data[$key] = $value;
+  }
+
+  /**
+   * Get the file_data array.
+   *
+   * @return array
+   */
+  public function getFileData() {
+    return $this->file_data;
+  }
+
+  /**
+   * Get an individual item from the file_data array.
+   *
+   * @param string $key
+   *
+   * @return mixed
+   */
+  public function getFileDataItem(string $key) {
+    return isset($this->file_data[$key]) ? $this->file_data[$key] : NULL;
+  }
+
+  /**
+   * Get the original_file_data array.
+   *
+   * @return array
+   */
+  public function getOriginalFileData() {
+    return $this->original_file_data;
+  }
+
+  /**
+   * Get an individual item from the original_file_data array.
+   *
+   * @param string $key
+   *
+   * @return mixed
+   */
+  public function getOriginalFileDataItem(string $key) {
+    return isset($this->original_file_data[$key]) ? $this->original_file_data[$key] : NULL;
+  }
 
   /**
    * Populate an array of Brandfolder CDN URL query parameters relevant to the
@@ -269,7 +375,11 @@ class BrandfolderToolkit extends ImageToolkitBase {
         ->condition('bf_attachment_id', $bf_attachment_id);
       if ($query->countQuery()->execute()->fetchField() > 0) {
         $result = $query->execute();
-        $this->file_data = $result->fetchAssoc();
+        $file_data = $result->fetchAssoc();
+        if (empty($this->original_file_data)) {
+          $this->original_file_data = $file_data;
+        }
+        $this->file_data = $file_data;
 
         $extension = $matches[3] ?? '';
         $this->setType($this->extensionToImageType($extension));

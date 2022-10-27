@@ -52,11 +52,17 @@ class Resize extends BrandfolderImageToolkitOperationBase {
    * {@inheritdoc}
    */
   protected function execute(array $arguments = []) {
+    $new_width = $arguments['width'];
+    $new_height = $arguments['height'];
     $params = [
-      'width' => $arguments['width'],
-      'height' => $arguments['height'],
+      'width' => $new_width,
+      'height' => $new_height,
     ];
-    $this->getToolkit()->setCdnUrlParams($params);
+    $toolkit = $this->getToolkit();
+    $toolkit->setCdnUrlParams($params);
+    $toolkit->setFileDataItem('width', $new_width);
+    $toolkit->setFileDataItem('height', $new_height);
+    $toolkit->recordOperation("resize", $arguments);
 
     return TRUE;
   }
