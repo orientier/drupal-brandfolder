@@ -105,29 +105,6 @@ function brandfolder_form_field_config_edit_form_alter(&$form, \Drupal\Core\Form
 }
 
 /**
- * Implements hook_form_FORM_ID_alter().
- */
-function brandfolder_form_views_exposed_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id) {
-  // If this is a Views exposed filters form for a Media Library view pertaining
-  // to a Brandfolder-sourced media type, disable it in favor of our own
-  // browsing experience.
-  // @todo: Review.
-  $storage = $form_state->getStorage();
-  if (isset($storage['view'])) {
-    $view = $storage['view'];
-    if ($view->storage->id() == 'media_library') {
-      if (isset($view->args[0])) {
-        $media_type_id = $view->args[0];
-        $media_type = \Drupal::entityTypeManager()->getStorage('media_type')->load($media_type_id);
-        if ($media_type && $media_type->getSource() instanceof BrandfolderImage) {
-          $form = [];
-        }
-      }
-    }
-  }
-}
-
-/**
  * Implements hook_form_alter().
  */
 function brandfolder_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id) {
@@ -212,6 +189,27 @@ function brandfolder_views_pre_render(ViewExecutable $view) {
         ->load($media_type_id);
       if ($media_type && $media_type->getSource() instanceof BrandfolderImage) {
         $view->header = $view->footer = [];
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_views_pre_build().
+ */
+function brandfolder_views_pre_build(ViewExecutable $view) {
+  // If this is a Media Library view pertaining to a Brandfolder-sourced media
+  // type, remove view header and footer, as they are not part of our custom
+  // browsing experience.
+  if ($view->storage->id() == 'media_library') {
+    if (isset($view->args[0])) {
+      $media_type_id = $view->args[0];
+      $media_type = \Drupal::entityTypeManager()
+        ->getStorage('media_type')
+        ->load($media_type_id);
+      if ($media_type && $media_type->getSource() instanceof BrandfolderImage) {
+        // Tell view not to use exposed form.
+        $view->display_handler->has_exposed = FALSE;
       }
     }
   }
@@ -624,7 +622,7 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
       ];
     }
   }
-  
+
   // Get all possible labels. If there are more than one, allow users to
   // filter by label.
   $allowed_labels = $gatekeeper->getLabels();
@@ -950,7 +948,7 @@ function brandfolder_build_labels_select_list($labels, &$select_options) {
 }
 
 /**
- * Form validation handler to be applied to forms containing a Brandfolder 
+ * Form validation handler to be applied to forms containing a Brandfolder
  * Browser, after other validation handlers have executed.
  *
  * @param array $form
