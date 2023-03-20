@@ -317,10 +317,13 @@ function brandfolder_browser_init(&$form, FormStateInterface $form_state, Brandf
   ];
 
   $form['#attached']['library'][] = 'brandfolder/brandfolder-browser';
-  $validation_handlers = !empty($form['#validate']) ? $form['#validate'] : [];
-  array_unshift($validation_handlers, 'brandfolder_browser_selection_converter');
-  $validation_handlers[] = 'brandfolder_browser_host_form_validator';
-  $form['#validate'] = $validation_handlers;
+
+  // Completely replace standard validation with our own custom
+  // validators/processors.
+  $form['#validate'] = [
+    'brandfolder_browser_selection_converter',
+    'brandfolder_browser_host_form_validator',
+  ];
 }
 
 /**
