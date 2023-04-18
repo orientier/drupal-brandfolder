@@ -135,6 +135,16 @@ class BrandfolderImage extends MediaSourceBase {
   public function __construct(array $configuration, $plugin_id, $plugin_definition, EntityTypeManagerInterface $entity_type_manager, EntityFieldManagerInterface $entity_field_manager, FieldTypePluginManagerInterface $field_type_manager, ConfigFactoryInterface $config_factory, AccountProxyInterface $account_proxy, UrlGeneratorInterface $url_generator, LoggerChannelFactoryInterface $logger, CacheBackendInterface $cache, TimeInterface $time, ModuleHandlerInterface $module_handler) {
     $this->source_field_name = 'field_brandfolder_attachment_id';
 
+    // Customize some aspects of the plugin definition.
+    // @see \Drupal\media\MediaSourceBase
+    // Our media thumbnails are the same as the primary image for each media
+    // item, i.e. the Brandfolder attachment served via a BF CDN URL.
+    // See comment about this in BrandfolderImage::getMetadata() under the
+    // "thumbnail_uri" case.
+    $plugin_definition['thumbnail_width_metadata_attribute'] = 'width';
+    $plugin_definition['thumbnail_height_metadata_attribute'] = 'height';
+    $plugin_definition['thumbnail_alt_metadata_attribute'] = 'alt_text';
+
     parent::__construct($configuration, $plugin_id, $plugin_definition, $entity_type_manager, $entity_field_manager, $field_type_manager, $config_factory);
 
     // @todo: DI
@@ -388,8 +398,8 @@ class BrandfolderImage extends MediaSourceBase {
 
     $api_params = [
       'include' => 'asset',
-      //      'fields' => 'metadata,thumbnail_url,view_thumbnail_retina,extension,version_count,tag_names'
-      'fields' => 'thumbnail_url,extension'
+      //      'fields' => 'metadata,extension,version_count,tag_names'
+      'fields' => 'extension'
     ];
     $attachment = $this->brandfolderClient->fetchAttachment($bf_attachment_id, $api_params);
     // In the edge case that we are unable to fetch the attachment from BF,
@@ -466,8 +476,18 @@ class BrandfolderImage extends MediaSourceBase {
 
     switch ($attribute_name) {
       case 'thumbnail_uri':
-        //        return $attachment->data->attributes->thumbnail_url;
-        // Alternate approach. Media expects a Drupal file entity.
+        // Note that the Media module expects there to be a Drupal file entity
+        // for the thumbnail. The Drupal media thumbnail for Brandfolder
+        // attachments will correspond to the BF CDN URL rather than the
+        // "thumbnail_url" value returned by the API. This is somewhat
+        // unintuitive but is actually desirable because (a) many Drupal users
+        // and modules use the media thumbnail as a quick way to get from an
+        // entity reference field to an actual image, and (b) the thumbnail_url
+        // for an attachment in Brandfolder
+        // (e.g. "https://thumbs.brandfolder.com/yadayadda") is not
+        // something that can be changed without changing the attachment
+        // source file (unlike assets, for which users can customize the
+        // thumbnail in Brandfolder).
         // @todo.
         if ($fid = brandfolder_map_attachment_to_file($bf_attachment_id)) {
           if ($file = File::load($fid)) {

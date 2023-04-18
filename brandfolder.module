@@ -1328,6 +1328,15 @@ function brandfolder_get_asset_from_attachment(string $attachment_id) {
     $result = $query->execute();
     $asset_id = $result->fetch()->bf_asset_id;
   }
+  else {
+    // If we don't have a local record of this attachment, try to fetch it
+    // from the Brandfolder API.
+    $bf_client = brandfolder_api();
+    $attachment = $bf_client->fetchAttachment($attachment_id, ['include' => 'asset']);
+    if ($attachment) {
+      $asset_id = $attachment->data->relationships->asset->data->id;
+    }
+  }
 
   return $asset_id;
 }
@@ -1440,13 +1449,7 @@ function brandfolder_media_presave(MediaInterface $media) {
   if ($source instanceof BrandfolderImage) {
     $logger = \Drupal::logger('brandfolder');
     $bf_attachment_id = $source->getSourceFieldValue($media);
-    $bf_asset_id = brandfolder_get_asset_from_attachment($bf_attachment_id);
-    if (!$bf_asset_id) {
-      $msg = 'Could not map attachment ID @attachment_id to an asset.';
-      $msg_vars = ['@attachment_id' => $bf_attachment_id];
-      $logger->error($msg, $msg_vars);
-      throw new EntityMalformedException(t($msg, $msg_vars));
-    }
+
     // Create an image field on BrandfolderImage-sourced media types if one does
     // not already exist. If one does exist, see if it could benefit from
     // Brandfolder metadata.
@@ -1477,6 +1480,16 @@ function brandfolder_media_presave(MediaInterface $media) {
         $metadata_fetch_required = TRUE;
       }
     }
+
+    // Ensure that attachment maps to an asset.
+    $bf_asset_id = brandfolder_get_asset_from_attachment($bf_attachment_id);
+    if (!$bf_asset_id) {
+      $msg = 'Could not map attachment ID @attachment_id to an asset.';
+      $msg_vars = ['@attachment_id' => $bf_attachment_id];
+      $logger->error($msg, $msg_vars);
+      throw new EntityMalformedException(t($msg, $msg_vars));
+    }
+
     if ($metadata_fetch_required) {
       // Pull alt text from Brandfolder if a custom field has been
       // designated for that.
@@ -1484,32 +1497,30 @@ function brandfolder_media_presave(MediaInterface $media) {
       $alt_text_custom_field_id = $config->get('alt_text_custom_field');
       if (!empty($alt_text_custom_field_id)) {
         // @todo: Update per new SDK.
-        if ($bf_asset_id = brandfolder_get_asset_from_attachment($bf_attachment_id)) {
-          $bf = brandfolder_api();
-          $params = [
-            'include' => 'custom_fields',
-          ];
-          if ($asset = $bf->fetchAsset($bf_asset_id, $params)) {
-            // Look up the current name associated with the given custom field
-            // key ID.
-            if ($custom_field_keys = $bf->listCustomFields(NULL, FALSE, TRUE)) {
-              if (isset($custom_field_keys[$alt_text_custom_field_id])) {
-                $custom_field_name = $custom_field_keys[$alt_text_custom_field_id];
-                if (!empty($asset->data->custom_field_values[$custom_field_name])) {
-                  // @todo: asset.update webhook action to update this value if it is populated in BF in the future and the Drupal field remains empty.
-                  $image_field_data['alt'] = $asset->data->custom_field_values[$custom_field_name];
-                  $image_updated = TRUE;
-                }
+        $bf = brandfolder_api();
+        $params = [
+          'include' => 'custom_fields',
+        ];
+        if ($asset = $bf->fetchAsset($bf_asset_id, $params)) {
+          // Look up the current name associated with the given custom field
+          // key ID.
+          if ($custom_field_keys = $bf->listCustomFields(NULL, FALSE, TRUE)) {
+            if (isset($custom_field_keys[$alt_text_custom_field_id])) {
+              $custom_field_name = $custom_field_keys[$alt_text_custom_field_id];
+              if (!empty($asset->data->custom_field_values[$custom_field_name])) {
+                // @todo: asset.update webhook action to update this value if it is populated in BF in the future and the Drupal field remains empty.
+                $image_field_data['alt'] = $asset->data->custom_field_values[$custom_field_name];
+                $image_updated = TRUE;
               }
+            }
 
-            }
           }
-          if ($bf->verboseLoggingIsEnabled()) {
-            foreach ($bf->getLogData() as $log_entry) {
-              $logger->debug($log_entry);
-            }
-            $bf->clearLogData();
+        }
+        if ($bf->verboseLoggingIsEnabled()) {
+          foreach ($bf->getLogData() as $log_entry) {
+            $logger->debug($log_entry);
           }
+          $bf->clearLogData();
         }
       }
     }
