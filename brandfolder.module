@@ -1455,8 +1455,8 @@ function brandfolder_media_presave(MediaInterface $media) {
     // Brandfolder metadata.
     $imageItem = $media->get('bf_image');
     $image_field_data = ($imageItem && $imageItem->count() > 0) ? $imageItem->first()->getValue() : [];
-    $image_updated = FALSE;
-    $metadata_fetch_required = FALSE;
+    $is_image_update_required = FALSE;
+    $is_metadata_fetch_required = FALSE;
     if (empty($image_field_data)) {
       if (!empty($bf_attachment_id)) {
         // @todo: If changed. Dupe reconciliation, etc.
@@ -1465,8 +1465,8 @@ function brandfolder_media_presave(MediaInterface $media) {
           $image_field_data = [
             'target_id' => $fid,
           ];
-          $image_updated = TRUE;
-          $metadata_fetch_required = TRUE;
+          $is_image_update_required = TRUE;
+          $is_metadata_fetch_required = TRUE;
           $image = Drupal::service('image.factory')->get($file->getFileUri());
           if ($image->isValid()) {
             $image_field_data['width'] = $image->getWidth();
@@ -1477,7 +1477,7 @@ function brandfolder_media_presave(MediaInterface $media) {
     }
     else {
       if (empty($image_field_data['alt'])) {
-        $metadata_fetch_required = TRUE;
+        $is_metadata_fetch_required = TRUE;
       }
     }
 
@@ -1490,7 +1490,7 @@ function brandfolder_media_presave(MediaInterface $media) {
       throw new EntityMalformedException(t($msg, $msg_vars));
     }
 
-    if ($metadata_fetch_required) {
+    if ($is_metadata_fetch_required) {
       // Pull alt text from Brandfolder if a custom field has been
       // designated for that.
       $config = \Drupal::config('brandfolder.settings');
@@ -1510,7 +1510,7 @@ function brandfolder_media_presave(MediaInterface $media) {
               if (!empty($asset->data->custom_field_values[$custom_field_name])) {
                 // @todo: asset.update webhook action to update this value if it is populated in BF in the future and the Drupal field remains empty.
                 $image_field_data['alt'] = $asset->data->custom_field_values[$custom_field_name];
-                $image_updated = TRUE;
+                $is_image_update_required = TRUE;
               }
             }
 
@@ -1524,9 +1524,19 @@ function brandfolder_media_presave(MediaInterface $media) {
         }
       }
     }
-    if ($image_updated) {
+    if ($is_image_update_required) {
       $media->set('bf_image', $image_field_data);
     }
+
+    // Also update the media "thumbnail" with image data if applicable.
+    $thumbnail_default = ['target_id' => NULL, 'alt' => NULL, 'title' => NULL, 'width' => NULL, 'height' => NULL];
+    $existing_thumbnail = $media->get('thumbnail');
+    $existing_thumbnail_data = $existing_thumbnail ? $media->get('thumbnail')->first()->getValue() : $thumbnail_default;
+    $new_thumbnail_data = array_intersect_key($image_field_data, $thumbnail_default);
+    if ($new_thumbnail_data != $existing_thumbnail_data) {
+      $media->set('thumbnail', $new_thumbnail_data);
+    }
+
 
     // Enforce Brandfolder configuration defined at the media type level.
     // Any violations will typically be caught elsewhere in a more user-friendly

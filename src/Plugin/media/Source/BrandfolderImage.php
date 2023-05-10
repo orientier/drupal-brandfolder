@@ -488,7 +488,6 @@ class BrandfolderImage extends MediaSourceBase {
         // something that can be changed without changing the attachment
         // source file (unlike assets, for which users can customize the
         // thumbnail in Brandfolder).
-        // @todo.
         if ($fid = brandfolder_map_attachment_to_file($bf_attachment_id)) {
           if ($file = File::load($fid)) {
             $uri = $file->getFileUri();
@@ -498,6 +497,7 @@ class BrandfolderImage extends MediaSourceBase {
             }
           }
         }
+        break;
 
       case 'name':
         return "{$asset->data->attributes->name} - {$attachment->data->attributes->filename}";
@@ -534,22 +534,35 @@ class BrandfolderImage extends MediaSourceBase {
         return ($asset ? "{$asset->data->attributes->name} - {$attachment->data->attributes->filename}" : $attachment->data->attributes->filename);
 
       case 'alt_text':
-        // @todo: Show messaging encouraging admins to create and specify this custom field as needed, etc.
-        $config = $this->configFactory->get('brandfolder.settings');
-        $alt_text_custom_field_id = $config->get('alt_text_custom_field');
-        if (!empty($alt_text_custom_field_id)) {
-          // Look up the current name associated with the given custom field
-          // key ID.
-          if ($custom_field_keys = $this->brandfolderClient->listCustomFields(NULL, FALSE, TRUE)) {
-            if (isset($custom_field_keys[$alt_text_custom_field_id])) {
-              $custom_field_name = $custom_field_keys[$alt_text_custom_field_id];
-              if (!empty($asset->data->custom_field_values[$custom_field_name])) {
-                return $asset->data->custom_field_values[$custom_field_name];
+        $alt_text = FALSE;
+        // See if alt text exists for the media entity's image field. This may
+        // be manually entered or pulled from BF (depending on metadata sync
+        // settings). If it exists, use it.
+        $imageItem = $media->get('bf_image');
+        $image_field_data = ($imageItem && $imageItem->count() > 0) ? $imageItem->first()->getValue() : FALSE;
+        if ($image_field_data && !empty($image_field_data['alt'])) {
+          $alt_text = $image_field_data['alt'];
+        }
+        // Otherwise, look into fetching from a BF custom field.
+        // @todo: This really shouldn't be necessary if webhooks are active and metadata is syncing, right? Should we keep this for greater redundancy/robustness? Downside is longer execution time.
+        else {
+          // @todo: Show messaging encouraging admins to create and specify this custom field as needed, etc.
+          $config = $this->configFactory->get('brandfolder.settings');
+          $alt_text_custom_field_id = $config->get('alt_text_custom_field');
+          if (!empty($alt_text_custom_field_id)) {
+            // Look up the current name associated with the given custom field
+            // key ID.
+            if ($custom_field_keys = $this->brandfolderClient->listCustomFields(NULL, FALSE, TRUE)) {
+              if (isset($custom_field_keys[$alt_text_custom_field_id])) {
+                $custom_field_name = $custom_field_keys[$alt_text_custom_field_id];
+                if (!empty($asset->data->custom_field_values[$custom_field_name])) {
+                  $alt_text = $asset->data->custom_field_values[$custom_field_name];
+                }
               }
             }
           }
         }
-        break;
+        return $alt_text;
 
       //        default:
       //          return isset($this->metadata[$bf_attachment_id][$name]) ? $this->metadata[$bf_attachment_id][$name] : FALSE;

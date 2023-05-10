@@ -4,6 +4,7 @@ namespace Drupal\brandfolder\EventSubscriber;
 
 use Drupal\brandfolder\Event\BrandfolderWebhookEvent;
 use Drupal\brandfolder\Plugin\media\Source\BrandfolderImage;
+use Drupal\Core\Entity\Query\QueryException;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 /**
@@ -38,6 +39,10 @@ class WebhookEventSubscriber implements EventSubscriberInterface {
    *
    * @param \Drupal\brandfolder\Event\BrandfolderWebhookEvent $event
    *
+   * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
+   * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
+   * @throws \Drupal\Core\Entity\EntityStorageException
+   *
    * @todo: Break some of this code out into other handlers if it becomes unwieldy.
    */
   public function assetUpdate(BrandfolderWebhookEvent $event) {
@@ -71,7 +76,7 @@ class WebhookEventSubscriber implements EventSubscriberInterface {
         ->condition('bf_asset_id', $bf_asset_id);
       if ($query->countQuery()->execute()->fetchField()) {
         $entity_type_manager = \Drupal::entityTypeManager();
-        // Start with llt-text-specific functionality.
+        // Start with alt-text-specific functionality.
         // If there is a BF custom field designated for storing
         // image alt text, and this updated asset has a value for that
         // field, see if corresponding Drupal image fields and/or file entities
@@ -94,18 +99,24 @@ class WebhookEventSubscriber implements EventSubscriberInterface {
                 // File Entity module support.
                 // @todo: Also auto-populate these fields on BF-related file creation.
                 $fe_alt_text_field_name = 'field_image_alt_text';
-                $fe_alt_text_field_file_ids = \Drupal::entityQuery('file')
-                  ->condition('fid', $relevant_fids, 'IN')
-                  ->notExists($fe_alt_text_field_name)
-                  ->execute();
-                if (count($fe_alt_text_field_file_ids) > 0) {
-                  $fe_alt_text_field_files = $entity_type_manager
-                    ->getStorage('file')
-                    ->loadMultiple($fe_alt_text_field_file_ids);
-                  foreach ($fe_alt_text_field_files as $file) {
-                    $file->set($fe_alt_text_field_name, $alt_text);
-                    $file->save();
+                try {
+                  $fe_alt_text_field_file_ids = \Drupal::entityQuery('file')
+                    ->condition('fid', $relevant_fids, 'IN')
+                    ->notExists($fe_alt_text_field_name)
+                    ->execute();
+                  if (count($fe_alt_text_field_file_ids) > 0) {
+                    $fe_alt_text_field_files = $entity_type_manager
+                      ->getStorage('file')
+                      ->loadMultiple($fe_alt_text_field_file_ids);
+                    foreach ($fe_alt_text_field_files as $file) {
+                      $file->set($fe_alt_text_field_name, $alt_text);
+                      $file->save();
+                    }
                   }
+                }
+                catch (QueryException $e) {
+                  // File Entity module presumably not installed or has been
+                  // modified, etc.
                 }
 
                 // Standard image fields referencing relevant files.
@@ -149,6 +160,7 @@ class WebhookEventSubscriber implements EventSubscriberInterface {
         // Find media entities with any of the given attachments as their source
         // field and trigger a general metadata update (if not already processed
         // by alt-text handling above).
+        // @todo: Will the alt-text-updated media items have had all their other metadata properly updated, though? (Specifically whatever metadata is supposed to be forcefully updated).
         $relevant_attachment_ids = $query->execute()->fetchCol(1);
         $media_types = $entity_type_manager
           ->getStorage('media_type')
