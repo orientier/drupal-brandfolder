@@ -204,7 +204,7 @@ class BrandfolderSettingsForm extends ConfigFormBase {
         $form['sample_pics'] = [
           '#type'   => 'markup',
           '#prefix' => '<h2>Sample Images</h2>',
-          '#markup' => implode(' ', $thumbnails),
+          '#markup' => '<div class="brandfolder-sample-images">' . implode(' ', $thumbnails) . '</div>',
           '#weight' => 999,
         ];
       }
@@ -222,8 +222,10 @@ class BrandfolderSettingsForm extends ConfigFormBase {
       '#type'          => 'checkbox',
       '#title'         => $this->t('Detailed logging'),
       '#default_value' => $config->get('verbose_log_mode'),
-      '#description'   => $this->t('Enable this setting to create log entries for all Brandfolder API queries, etc. This can be useful for troubleshooting.'),
+      '#description'   => $this->t('Enable this setting to create log entries for all Brandfolder API queries, incoming webhooks, etc. This can be useful for troubleshooting, but should probably only be enabled for short periods lest it overwhelm your logs.'),
     ];
+
+    $form['#attached']['library'][] = 'brandfolder/brandfolder-admin';
 
     if ($config->get('verbose_log_mode')) {
       foreach ($bf->getLogData() as $log_entry) {

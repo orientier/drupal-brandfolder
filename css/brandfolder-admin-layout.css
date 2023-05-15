@@ -1,0 +1,5 @@
+.brandfolder-sample-images img {
+  max-width: 150px;
+  height: auto;
+  object-fit: scale-down;
+}

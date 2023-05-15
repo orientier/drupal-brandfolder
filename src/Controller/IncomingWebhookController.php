@@ -8,6 +8,7 @@ use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Routing\Access\AccessInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Drupal\Component\Serialization\Json;
 
 /**
  * Handle incoming Brandfolder webhook requests/events.
@@ -58,7 +59,18 @@ class IncomingWebhookController extends ControllerBase implements AccessInterfac
    */
   public function webhookListener(Request $request) {
     $payload = json_decode($request->getContent(), TRUE);
-    if (isset($payload['data']['attributes'])) {
+    $is_request_valid = isset($payload['data']['attributes']);
+
+    $bf_config = \Drupal::config('brandfolder.settings');
+    if ($bf_config->get('verbose_log_mode')) {
+      $logger = \Drupal::logger('brandfolder');
+      $logger->debug('Brandfolder webhook received. It looks like {validity} request. Payload: {payload}', [
+        'validity' => $is_request_valid ? 'a valid' : 'an invalid',
+        'payload' => Json::encode($payload),
+      ]);
+    }
+
+    if ($is_request_valid) {
       $bf_event_type = $payload['data']['attributes']['event_type'];
       // Fire/dispatch events so Drupal modules can act on this webhook.
       $dispatcher = \Drupal::service('event_dispatcher');

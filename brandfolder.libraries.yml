@@ -7,3 +7,10 @@ brandfolder-browser:
       css/brandfolder-browser-theme.css: {}
   js:
     js/brandfolder-browser.js: {}
+brandfolder-admin:
+  version: 1.x
+  css:
+    layout:
+      css/brandfolder-admin-layout.css: {}
+    theme:
+      css/brandfolder-admin-theme.css: {}

@@ -225,7 +225,7 @@ class BrandfolderStreamWrapper implements StreamWrapperInterface {
     // Load file size from DB before proceeding.
     $file_data_loaded = $this->loadFileData($url);
     if (!$file_data_loaded) {
-      $this->logger->error('Could not load file data for !url', ['!url' => $url]);
+      $this->logger->error('Could not load file data for :url', [':url' => $url]);
     }
 
     return $this->stream_stat();
@@ -360,9 +360,9 @@ class BrandfolderStreamWrapper implements StreamWrapperInterface {
             $effects = $image_style->getEffects();
             foreach ($effects as $effect) {
               if (!$effect->applyEffect($image)) {
-                $this->logger->error('Could not apply the image effect !effect_name to the Brandfolder image !uri.', [
-                  '!effect_name' => $effect->label(),
-                  '!uri'         => $full_uri,
+                $this->logger->error('Could not apply the image effect :effect_name to the Brandfolder image :uri.', [
+                  ':effect_name' => $effect->label(),
+                  ':uri'         => $full_uri,
                 ]);
               }
             }
