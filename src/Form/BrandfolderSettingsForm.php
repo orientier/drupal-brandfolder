@@ -75,15 +75,13 @@ class BrandfolderSettingsForm extends ConfigFormBase {
 
     $brandfolders_list = $collections_list = [];
     if ($bf) {
-      try {
-        $brandfolders_list = $bf->getBrandfolders();
-      } catch (\Exception $e) {
+      $brandfolders_list = $bf->getBrandfolders();
+      if (!$brandfolders_list) {
         $messenger->addMessage($this->t('Please fill in all the requested API keys. You will then be able to select a Brandfolder.'));
       }
       if ($brandfolder_id) {
-        try {
-          $collections_list = $bf->getCollectionsInBrandfolder();
-        } catch (\Exception $e) {
+        $collections_list = $bf->getCollectionsInBrandfolder();
+        if (!$collections_list) {
           $messenger->addMessage($this->t('Could not find collections for the selected Brandfolder.'));
         }
       }
@@ -261,20 +259,14 @@ class BrandfolderSettingsForm extends ConfigFormBase {
         if ($config->get('verbose_log_mode')) {
           $bf->enableVerboseLogging();
         }
-        $api_success = FALSE;
-        try {
-          $brandfolders = $bf->getBrandfolders();
-          // Note that the getBrandfolders request will return a 200 response even
-          // if the API key is invalid, and the brandfolders array will simply be
-          // empty. This is a quirk of the Brandfolder API.
-          if (!empty($brandfolders)) {
-            $api_success = TRUE;
-            $a_valid_api_key_exists = TRUE;
-          }
-        } catch (\Exception $e) {
-          $api_success = FALSE;
+        $brandfolders = $bf->getBrandfolders();
+        // Note that the getBrandfolders request will return a 200 response even
+        // if the API key is invalid, and the brandfolders array will simply be
+        // empty. This is a quirk of the Brandfolder API.
+        if (!empty($brandfolders)) {
+          $a_valid_api_key_exists = TRUE;
         }
-        if (!$api_success) {
+        else {
           $message = $this->t('Could not connect to Brandfolder using the @key_type API key. Make sure the key is correct and is linked to a Brandfolder user who has permission to access at least one Brandfolder.', ['@key_type' => $api_key_type]);
           $form_state->setErrorByName($form_field_identifier, $message);
         }

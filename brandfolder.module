@@ -8,6 +8,7 @@
 use Drupal\brandfolder\Service\BrandfolderGatekeeper;
 use Drupal\brandfolder\Plugin\media\Source\BrandfolderImage;
 use Drupal\Component\Utility\Html;
+use Drupal\Core\Entity\EntityStorageException;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Routing\RouteMatchInterface;
 use Brandfolder\Brandfolder;
@@ -285,7 +286,6 @@ function brandfolder_browser_media_library_form_manipulator(&$form, \Drupal\Core
  *  This should be -1 if there is no limit.
  * @param string|null $context_id
  *
- * @throws \GuzzleHttp\Exception\GuzzleException
  * @todo: Relocate and make pluggable. See also brandfolder_browser_controls().
  */
 function brandfolder_browser_init(&$form, FormStateInterface $form_state, BrandfolderGatekeeper $gatekeeper, array $disabled_attachment_ids = [], array $selected_attachment_ids = [], int $selection_limit = -1, string $context_id = NULL) {
@@ -956,8 +956,6 @@ function brandfolder_build_labels_select_list($labels, &$select_options) {
  *
  * @param array $form
  * @param \Drupal\Core\Form\FormStateInterface $form_state
- *
- * @throws \GuzzleHttp\Exception\GuzzleException
  */
 function brandfolder_browser_host_form_validator(array &$form, \Drupal\Core\Form\FormStateInterface &$form_state) {
   $triggering_element = $form_state->getTriggeringElement();
@@ -978,8 +976,6 @@ function brandfolder_browser_host_form_validator(array &$form, \Drupal\Core\Form
  *
  * @param array $form
  * @param \Drupal\Core\Form\FormStateInterface $form_state
- *
- * @throws \GuzzleHttp\Exception\GuzzleException
  */
 function brandfolder_browser_selection_converter(array &$form, \Drupal\Core\Form\FormStateInterface &$form_state) {
   $triggering_element = $form_state->getTriggeringElement();
@@ -1196,7 +1192,7 @@ function brandfolder_map_attachment_to_file($attachment, $create_new_file = TRUE
           $attachment_id
         ]);
       }
-      catch (\Drupal\Core\Entity\EntityStorageException $e) {
+      catch (EntityStorageException $e) {
         $logger->error('There was an error saving a new file for Brandfolder attachment !attachment_id.', ['!attachment_id' => $attachment_id]);
       }
     }
@@ -1220,9 +1216,6 @@ function brandfolder_map_attachment_to_file($attachment, $create_new_file = TRUE
  *
  * @return bool|int
  *   The media entity ID on success; FALSE on failure.
- *
- * @throws \GuzzleHttp\Exception\GuzzleException
- *
  */
 function brandfolder_map_attachment_to_media_entity($attachment, $media_type_id, $create_new_entity = TRUE) {
   $entity_id = FALSE;
@@ -1267,7 +1260,7 @@ function brandfolder_map_attachment_to_media_entity($attachment, $media_type_id,
         $media->save();
         $entity_id = $media->id();
       }
-      catch (\Drupal\Core\Entity\EntityStorageException $e) {
+      catch (EntityStorageException $e) {
         $logger->error('There was an error saving a new media entity for Brandfolder attachment !attachment_id.', ['!attachment_id' => $attachment_id]);
       }
       if ($bf_client->verboseLoggingIsEnabled()) {

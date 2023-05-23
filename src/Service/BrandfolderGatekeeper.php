@@ -5,12 +5,10 @@ namespace Drupal\brandfolder\Service;
 use Drupal\brandfolder\Plugin\media\Source\BrandfolderImage;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
-use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\StringTranslation\TranslationInterface;
 use Drupal\media\MediaSourceInterface;
 use Brandfolder\Brandfolder;
-use GuzzleHttp\Exception\GuzzleException;
 
 /**
  * Helps determine which Brandfolder entities should be available in a given
@@ -288,7 +286,6 @@ class BrandfolderGatekeeper {
    * @param array $query_params
    *
    * @return mixed
-   * @throws \GuzzleHttp\Exception\GuzzleException
    */
   public function fetchAssets(array $query_params = []) {
     $search_components = !empty($query_params['search']) ? [$query_params['search']] : [];
@@ -377,34 +374,35 @@ class BrandfolderGatekeeper {
    *   An array keyed by collection ID whose values are collection names.
    */
   public function getCollections(): array {
-    try {
-      // Start with all collections in the Brandfolder.
-      $collections = $this->bf_client->getCollectionsInBrandfolder();
+    // Start with all collections in the Brandfolder.
+    $collections = $this->bf_client->getCollectionsInBrandfolder();
 
-      $bf_config = $this->configFactory->get('brandfolder.settings');
-      if ($bf_config->get('verbose_log_mode')) {
-        foreach ($this->bf_client->getLogData() as $log_entry) {
-          $this->logger->debug($log_entry);
-        }
-        $this->bf_client->clearLogData();
+    $bf_config = $this->configFactory->get('brandfolder.settings');
+    if ($bf_config->get('verbose_log_mode')) {
+      foreach ($this->bf_client->getLogData() as $log_entry) {
+        $this->logger->debug($log_entry);
       }
-
-      // Return empty array if no collections exist or some error has occurred.
-      if (empty($collections)) {
-
-        return [];
-      }
-      // Reduce the list per allowed/disallowed collection criteria, as
-      // applicable.
-      if (!empty($all_criteria['allowed']['collection'])) {
-        $collections = array_intersect_key($collections, $all_criteria['allowed']['collection']);
-      }
-      if (!empty($all_criteria['disallowed']['collection'])) {
-        $collections = array_diff_key($collections, $all_criteria['disallowed']['collection']);
-      }
+      $this->bf_client->clearLogData();
     }
-    catch (GuzzleException $e) {
-      $collections = [];
+
+    // Return empty array if no collections exist or some error has occurred.
+    if (empty($collections)) {
+
+      return [];
+    }
+
+    // Change $should_expand to TRUE once we support nested collections.
+    // Also consider only retrieving collection criteria rather than all
+    // criteria.
+    $all_criteria = $this->getCriteria(FALSE);
+
+    // Reduce the list per allowed/disallowed collection criteria, as
+    // applicable.
+    if (!empty($all_criteria['allowed']['collection'])) {
+      $collections = array_intersect_key($collections, $all_criteria['allowed']['collection']);
+    }
+    if (!empty($all_criteria['disallowed']['collection'])) {
+      $collections = array_diff_key($collections, $all_criteria['disallowed']['collection']);
     }
 
     return $collections;
@@ -417,25 +415,20 @@ class BrandfolderGatekeeper {
    *   An array keyed by section ID whose values are section names.
    */
   public function getSections(): array {
-    try {
-      // Start with all sections in the Brandfolder.
-      $sections = $this->bf_client->listSectionsInBrandfolder(NULL, [], TRUE);
-      // Return empty array if no sections exist or some error has occurred.
-      if (empty($sections)) {
+    // Start with all sections in the Brandfolder.
+    $sections = $this->bf_client->listSectionsInBrandfolder(NULL, [], TRUE);
+    // Return empty array if no sections exist or some error has occurred.
+    if (empty($sections)) {
 
-        return [];
-      }
-      // Reduce the list per allowed/disallowed section criteria, as
-      // applicable.
-      if (!empty($this->criteria['allowed']['section'])) {
-        $sections = array_intersect_key($sections, $this->criteria['allowed']['section']);
-      }
-      if (!empty($this->criteria['disallowed']['section'])) {
-        $sections = array_diff_key($sections, $this->criteria['disallowed']['section']);
-      }
+      return [];
     }
-    catch (GuzzleException $e) {
-      $sections = [];
+    // Reduce the list per allowed/disallowed section criteria, as
+    // applicable.
+    if (!empty($this->criteria['allowed']['section'])) {
+      $sections = array_intersect_key($sections, $this->criteria['allowed']['section']);
+    }
+    if (!empty($this->criteria['disallowed']['section'])) {
+      $sections = array_diff_key($sections, $this->criteria['disallowed']['section']);
     }
 
     return $sections;
@@ -588,6 +581,8 @@ class BrandfolderGatekeeper {
    * @return array
    *
    * @see $this->criteria
+   *
+   * @todo: Consider adding params to specify more limited criteria to return - e.g. $type ['all', 'label', 'collection', ...].
    */
   public function getCriteria($should_expand = TRUE) {
     $criteria = $this->criteria ?? [];
