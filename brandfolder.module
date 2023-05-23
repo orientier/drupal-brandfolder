@@ -76,15 +76,16 @@ function brandfolder_api(?string $stored_key_type = 'guest', string $custom_api_
  * Implements hook_help().
  */
 function brandfolder_help($route_name, RouteMatchInterface $route_match) {
+  $output = '';
+
   switch ($route_name) {
     // Main module help for the Brandfolder module.
     case 'help.page.brandfolder':
-      $output = '';
       $output .= '<h3>' . t('About') . '</h3>';
       $output .= '<p>' . t('Allows Brandfolder assets to be used by Drupal\'s Media/image/file systems.') . '</p>';
-
-      return $output;
   }
+
+  return $output;
 }
 
 /**
@@ -298,7 +299,7 @@ function brandfolder_browser_init(&$form, FormStateInterface $form_state, Brandf
     $bf_asset_list = brandfolder_format_asset_list($assets, $disabled_attachment_ids, $selected_attachment_ids);
   }
 
-  brandfolder_browser_core($form, $form_state, $gatekeeper->getCriteria(), $bf_asset_list, $selection_limit, $context_id);
+  brandfolder_browser_core($form, $form_state, $gatekeeper, $bf_asset_list, $selection_limit, $context_id);
 
   $form['disabled_bf_attachment_ids'] = [
     '#type' => 'hidden',
@@ -332,7 +333,7 @@ function brandfolder_browser_init(&$form, FormStateInterface $form_state, Brandf
  *
  * @param array $form
  * @param \Drupal\Core\Form\FormStateInterface $form_state
- * @param array $gatekeeper_criteria
+ * @param \Drupal\brandfolder\Service\BrandfolderGatekeeper $gatekeeper
  * @param string $bf_asset_list
  * @param int $selection_limit
  *  This should be -1 if there is no limit.
@@ -340,7 +341,7 @@ function brandfolder_browser_init(&$form, FormStateInterface $form_state, Brandf
  *
  * @todo: Relocate and make pluggable. See also brandfolder_browser_controls().
  */
-function brandfolder_browser_core(array &$form, FormStateInterface $form_state, array $gatekeeper_criteria, string $bf_asset_list, int $selection_limit = -1, string $context_id = NULL) {
+function brandfolder_browser_core(array &$form, FormStateInterface $form_state, BrandfolderGatekeeper $gatekeeper, string $bf_asset_list, int $selection_limit = -1, string $context_id = NULL) {
   $bf_browser_id = $form_state->getValue('brandfolder_browser_id');
   if (empty($bf_browser_id)) {
     $all_input = $form_state->getUserInput();
@@ -382,9 +383,6 @@ function brandfolder_browser_core(array &$form, FormStateInterface $form_state, 
     ],
   ];
 
-  $gatekeeper = \Drupal::getContainer()
-    ->get(BrandfolderGatekeeper::class);
-  $gatekeeper->setCriteria($gatekeeper_criteria);
   $controls = brandfolder_browser_controls($gatekeeper, $bf_browser_id, $form, $form_state);
   $form['brandfolder_browser']['brandfolder_browser_controls'] += $controls;
 
@@ -393,6 +391,8 @@ function brandfolder_browser_core(array &$form, FormStateInterface $form_state, 
                     $bf_asset_list
                   </div>",
   ];
+
+  $gatekeeper_criteria = $gatekeeper->getCriteria(FALSE);
 
   $form['brandfolder_browser']['bf_gatekeeper_criteria'] = [
     '#type' => 'hidden',
@@ -628,8 +628,10 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
 
   // Get all possible labels. If there are more than one, allow users to
   // filter by label.
-  $allowed_labels = $gatekeeper->getLabels();
-  if (count($allowed_labels) > 1) {
+  $allowed_labels_tree = $gatekeeper->getLabels();
+  $label_options = [];
+  brandfolder_build_labels_select_list($allowed_labels_tree, $label_options);
+  if (count($label_options) > 1) {
     $controls['labels'] = [
       '#type'        => 'fieldset',
       //    '#title' => t('Labels'),
@@ -642,8 +644,6 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
         ],
       ],
     ];
-    $label_options = [];
-    brandfolder_build_labels_select_list($allowed_labels, $label_options);
     $attributes = $attribute_defaults;
     $attributes['size'] = min(count($label_options), 10);
     $controls['labels']['brandfolder_controls_labels'] = [
@@ -1548,6 +1548,7 @@ function brandfolder_media_presave(MediaInterface $media) {
     $gatekeeper->loadFromMediaSource($source);
     $valid = $gatekeeper->validateBrandfolderEntities(['attachments' => [$bf_attachment_id]]);
     if (!$valid) {
+      \Drupal::messenger()->addError('The asset you selected does not appear to be allowed here. Please contact an administrator for assistance.');
       $msg = $gatekeeper->getMessage();
       $logger->error($msg);
       throw new EntityMalformedException($msg);

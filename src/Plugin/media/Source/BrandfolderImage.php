@@ -19,6 +19,7 @@ use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\media\MediaInterface;
 use Drupal\media\MediaSourceBase;
 use Drupal\media\MediaTypeInterface;
+use GuzzleHttp\Exception\GuzzleException;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\file\Entity\File;
 
@@ -597,9 +598,9 @@ class BrandfolderImage extends MediaSourceBase {
     $bf_connection_error = FALSE;
     if ($this->brandfolderClient) {
       try {
-        $this->brandfolderClient->listAssets();
+        $this->brandfolderClient->listAssets(['per' => 1]);
       }
-      catch (\Exception $exception) {
+      catch (GuzzleException $e) {
         $bf_connection_error = TRUE;
       }
     }
