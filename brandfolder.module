@@ -26,20 +26,22 @@ use Drupal\views\ViewExecutable;
 use Drupal\Core\Form\FormBuilderInterface;
 
 /**
- * Brandfolder helper function. For use in procedural code. De-emphasize this
- * in favor of services, etc.
+ * Helper function for use in procedural code. De-emphasize this in favor of
+ * services, etc.
  *
- * Helper function to get a Brandfolder object that can be used to interact with
- * the Brandfolder API.
+ * Get a Brandfolder object that can be used to interact with the
+ * Brandfolder API.
  *
  * @param string|null $stored_key_type
+ *  The type of key to use when retrieving an API key stored in module
+ *  configuration. Options are 'admin', 'collaborator', and 'guest' (default).
  * @param string|null $custom_api_key
  *   If provided, an API key to use when connecting to Brandfolder. If not
- *   provided, the default API key set in the module configuration will be used.
+ *   provided, an API key set in the module configuration will be used.
  *
- * @return bool|object
- *   A \Brandfolder\Brandfolder object for interacting with the Brandfolder SDK,
- *   or FALSE on failure.
+ * @return Brandfolder|false
+ *  A \Brandfolder\Brandfolder instance for interacting with the Brandfolder
+ *  SDK, or FALSE on failure.
  */
 function brandfolder_api(?string $stored_key_type = 'guest', string $custom_api_key = NULL) {
   $config = \Drupal::config('brandfolder.settings');
@@ -51,17 +53,16 @@ function brandfolder_api(?string $stored_key_type = 'guest', string $custom_api_
   ];
   if (in_array($stored_key_type, $api_key_types)) {
     $api_key = $config->get("api_keys.$stored_key_type");
-    if (empty($api_key)) {
-
-      return FALSE;
-    }
   }
   elseif (!is_null($custom_api_key)) {
     $api_key = $custom_api_key;
   }
+  if (empty($api_key)) {
 
-  // Set Brandfolder and collection based on module config if present (NULL
-  // otherwise).
+    return FALSE;
+  }
+
+  // Set Brandfolder based on module config if present (NULL otherwise).
   $brandfolder_id = \Drupal::config('brandfolder.settings')->get('brandfolder_id');
 
   $bf = new Brandfolder($api_key, $brandfolder_id);
@@ -264,6 +265,13 @@ function brandfolder_browser_media_library_form_manipulator(&$form, \Drupal\Core
   $context_string = implode('-', $context);
   brandfolder_browser_init($form, $form_state, $gatekeeper, $selected_bf_attachment_ids, [], $selection_limit, $context_string);
 
+  // Completely replace standard validation with our own custom
+  // validators/processors.
+  $form['#validate'] = [
+    'brandfolder_browser_to_media_library_selection_converter',
+    'brandfolder_browser_host_form_validator',
+  ];
+
   // Relocate the BF browser element, using it to replace the standard Media
   // Library output entirely.
   $main_bf_browser_element = $form['brandfolder_browser'];
@@ -318,13 +326,6 @@ function brandfolder_browser_init(&$form, FormStateInterface $form_state, Brandf
   ];
 
   $form['#attached']['library'][] = 'brandfolder/brandfolder-browser';
-
-  // Completely replace standard validation with our own custom
-  // validators/processors.
-  $form['#validate'] = [
-    'brandfolder_browser_selection_converter',
-    'brandfolder_browser_host_form_validator',
-  ];
 }
 
 /**
@@ -496,36 +497,42 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
 
   $all_user_input = $form_state->getUserInput();
 
-  // These AJAX requests will always post to the $form['#action'] URL. Ensure
-  // that this URL has certain query params so that these AJAX submissions are
-  // handled properly.
-  // @see This core issue and related discussion: https://www.drupal.org/project/drupal/issues/2504115.
-  $ajax_form_request_param = FormBuilderInterface::AJAX_FORM_REQUEST;
-  try {
-    $url = Url::fromUserInput($form['#action']);
-    $url->mergeOptions(['query' => [$ajax_form_request_param => 1, 'form_id' => $form['#form_id']]]);
-    $url = $url->toString();
+  if (isset($form['#action'])) {
+    // These AJAX requests will always post to the $form['#action'] URL, if one
+    // exists. Ensure that our URL has certain query params so that the AJAX
+    // submissions are handled properly.
+    // @see This core issue and related discussion: https://www.drupal.org/project/drupal/issues/2504115.
+    $ajax_form_request_param = FormBuilderInterface::AJAX_FORM_REQUEST;
+    try {
+      $url = Url::fromUserInput($form['#action']);
+      $url->mergeOptions([
+        'query' => [
+          $ajax_form_request_param => 1,
+          'form_id'                => $form['#form_id']
+        ]
+      ]);
+      $url = $url->toString();
+    } catch (\InvalidArgumentException $e) {
+      $url = $form['#action'];
+      if (!(strpos($url, '?') > 0)) {
+        $url .= '?';
+      }
+      else {
+        $url .= '&';
+      }
+      $params = [];
+      if (!(strpos($url, FormBuilderInterface::AJAX_FORM_REQUEST) > 0)) {
+        $params[] = "{$ajax_form_request_param}=1";
+      }
+      if (!(strpos($url, 'form_id') > 0)) {
+        $params[] = "form_id={$form['#form_id']}";
+      }
+      if (count($params) > 0) {
+        $url .= implode('&', $params);
+      }
+    }
+    $form['#action'] = $url;
   }
-  catch (\InvalidArgumentException $e) {
-    $url = $form['#action'];
-    if (!(strpos($url, '?') > 0)) {
-      $url .= '?';
-    }
-    else {
-      $url .= '&';
-    }
-    $params = [];
-    if (!(strpos($url, FormBuilderInterface::AJAX_FORM_REQUEST) > 0)) {
-      $params[] = "{$ajax_form_request_param}=1";
-    }
-    if (!(strpos($url, FormBuilderInterface::AJAX_FORM_REQUEST) > 0)) {
-      $params[] = "form_id={$form['#form_id']}";
-    }
-    if (count($params) > 0) {
-      $url .= implode('&', $params);
-    }
-  }
-  $form['#action'] = $url;
 
   $ajax_defaults = [
     'callback' => [
@@ -537,8 +544,10 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
       'type' => 'throbber',
       'message' => t('Searching...'),
     ],
-    'url' => $url,
   ];
+  if (isset($url)) {
+    $ajax_defaults['url'] = $url;
+  }
 
   $attribute_defaults = [
     'class' => [
@@ -951,6 +960,25 @@ function brandfolder_build_labels_select_list($labels, &$select_options) {
 }
 
 /**
+ * Check to see whether a form submission was triggered by one of our
+ * Brandfolder browser controls (e.g. search, filters, etc.).
+ *
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ *
+ * @return bool
+ */
+function is_form_submission_triggered_by_bf_browser_controls(FormStateInterface $form_state): bool {
+  $triggering_element = $form_state->getTriggeringElement();
+  if (isset($triggering_element['#attributes']['class'])) {
+    $classes = $triggering_element['#attributes']['class'];
+    if (is_array($classes) && in_array('brandfolder-browser-control', $classes)) {
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+/**
  * Form validation handler to be applied to forms containing a Brandfolder
  * Browser, after other validation handlers have executed.
  *
@@ -958,35 +986,27 @@ function brandfolder_build_labels_select_list($labels, &$select_options) {
  * @param \Drupal\Core\Form\FormStateInterface $form_state
  */
 function brandfolder_browser_host_form_validator(array &$form, \Drupal\Core\Form\FormStateInterface &$form_state) {
-  $triggering_element = $form_state->getTriggeringElement();
   // If the submission was triggered by one of our browser controls, the only
   // outcome should be to update the browser contents. We do not care about
   // other validation logic/errors.
-  if (isset($triggering_element['#attributes']['class'])) {
-    $classes = $triggering_element['#attributes']['class'];
-    if (is_array($classes) && in_array('brandfolder-browser-control', $classes)) {
-      $form_state->clearErrors();
-    }
+  if (is_form_submission_triggered_by_bf_browser_controls($form_state)) {
+    $form_state->clearErrors();
   }
 }
 
 /**
  * Helper function to translate Brandfolder browser selections to Drupal form
- * values. To be used as a form validation handler.
+ * values in a Media Library context. To be used as a form validation handler.
  *
  * @param array $form
  * @param \Drupal\Core\Form\FormStateInterface $form_state
  */
-function brandfolder_browser_selection_converter(array &$form, \Drupal\Core\Form\FormStateInterface &$form_state) {
-  $triggering_element = $form_state->getTriggeringElement();
+function brandfolder_browser_to_media_library_selection_converter(array &$form, \Drupal\Core\Form\FormStateInterface &$form_state) {
   // We don't need or want to perform validation when the submission is
   // triggered by one of our browser controls.
-  if (isset($triggering_element['#attributes']['class'])) {
-    $classes = $triggering_element['#attributes']['class'];
-    if (is_array($classes) && in_array('brandfolder-browser-control', $classes)) {
+  if (is_form_submission_triggered_by_bf_browser_controls($form_state)) {
 
-      return;
-    }
+    return;
   }
 
   $selected_media_entities = [];
@@ -994,7 +1014,7 @@ function brandfolder_browser_selection_converter(array &$form, \Drupal\Core\Form
   $selected_attachment_list = $form_state->getValue('selected_bf_attachment_ids');
   if (!empty($selected_attachment_list)) {
     $selected_attachments = explode(',', $selected_attachment_list);
-    // Media Library context.
+    // Determine the relevant media type from the form ID.
     if (preg_match('/^views_form_media_library_widget_(.+)$/', $form['#form_id'], $matches)) {
       $media_type_id = $matches[1];
       $selected_media_entities = array_map(function ($attachment_id) use ($media_type_id) {
@@ -1002,7 +1022,6 @@ function brandfolder_browser_selection_converter(array &$form, \Drupal\Core\Form
       }, $selected_attachments);
       $selected_media_entities_list = implode(',', $selected_media_entities);
     }
-    // @todo: Other contexts.
   }
   $media_select_form_values = array_combine($selected_media_entities, $selected_media_entities);
   $form_state->setValue('media_library_select_form', $media_select_form_values);
@@ -1232,6 +1251,7 @@ function brandfolder_map_attachment_to_media_entity($attachment, $media_type_id,
     ->condition('bundle', $media_type_id)
     ->condition($bf_media_source_field_name, $attachment_id)
     ->range(0, 1)
+    ->accessCheck(FALSE)
     ->execute();
 
   if (!empty($results)) {

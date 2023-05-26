@@ -135,7 +135,6 @@ class AssetFetchController extends ControllerBase {
 
     $gatekeeper = \Drupal::getContainer()
       ->get(BrandfolderGatekeeper::class);
-    $gatekeeper_criteria = [];
     $gatekeeper_criteria_string = $form_state->getValue('bf_gatekeeper_criteria');
     if (!empty($gatekeeper_criteria_string)) {
       $gatekeeper_criteria = json_decode($gatekeeper_criteria_string, TRUE);
@@ -159,15 +158,34 @@ class AssetFetchController extends ControllerBase {
       $bf_asset_list = brandfolder_format_asset_list($assets, $disabled_bf_attachment_ids, $selected_bf_attachment_ids);
     }
 
-    // Testing with ML-specific structure.
-    // @todo: return proper portion of form depending on context.
-    $form['output']['brandfolder_browser']['brandfolder_browser_assets'] = [
+    // The form structure varies depending on context. Determine where the
+    // Brandfolder browser lives within this particular form.
+    // @todo: Consider something less rigid.
+
+    // Media Library context:
+    if (isset($form['output']['brandfolder_browser'])) {
+      $parent = &$form['output']['brandfolder_browser'];
+    }
+    // Entity Browser context:
+    elseif (isset($form['widget']['brandfolder_browser'])) {
+      $parent = &$form['widget']['brandfolder_browser'];
+    }
+    // Possible generic context:
+    elseif (isset($form['brandfolder_browser'])) {
+      $parent = &$form['brandfolder_browser'];
+    }
+    // Fall back to placing the assets at the top level of the form. This is
+    // likely to yield unexpected results.
+    else {
+      $parent = &$form;
+    }
+    $parent['brandfolder_browser_assets'] = [
       '#markup' => "<div class=\"brandfolder-assets\">
                     $bf_asset_list
                   </div>",
     ];
 
-    return $form['output']['brandfolder_browser'];
+    return $parent;
   }
 
   /**

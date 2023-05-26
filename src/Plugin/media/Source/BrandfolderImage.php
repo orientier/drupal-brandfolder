@@ -594,6 +594,7 @@ class BrandfolderImage extends MediaSourceBase {
    * {@inheritdoc}
    */
   public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
+
     if ($this->brandfolderClient) {
       $test_result = $this->brandfolderClient->listAssets(['per' => 1]);
       $bf_connection_error = $test_result === FALSE;
