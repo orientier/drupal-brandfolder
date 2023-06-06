@@ -1403,15 +1403,17 @@ function brandfolder_parse_cdn_url($cdn_url) {
 function brandfolder_parse_uri(string $uri) {
   $return = FALSE;
 
-  if (preg_match("/^bf:\/\/(([^\/]+)\/(as|at)\/([\w\-]+)\/([^\?]*)(\?(.*))?)$/", $uri, $matches)) {
-    $return = [
-      'cdn_id' => $matches[2] ?? '',
-      'id' => $matches[4] ?? '',
-      'filename' => $matches[5] ?? '',
-      'query' => $matches[7] ?? '',
+  if (preg_match("/^bf:\/\/(styles\/(?P<image_style>[^\/]+)\/bf\/)?((?P<cdn_id>[^\/]+)\/(?P<type_id>as|at)\/(?P<id>[\w\-]+)\/(?P<filename>[^\?]*)(\?(?P<query>.*))?)$/", $uri, $matches)) {
+    $defaults = [
+      'image_style' => '',
+      'cdn_id' => '',
+      'type_id' => 'at',
+      'id' => '',
+      'filename' => '',
+      'query' => '',
     ];
-    $type_component = $matches[3] ?? '';
-    $return['type'] = ($type_component == 'as') ? 'asset' : 'attachment';
+    $return = array_intersect_key($matches, $defaults) + $defaults;
+    $return['type'] = ($return['type_id'] === 'as') ? 'asset' : 'attachment';
   }
 
   return $return;
@@ -1583,3 +1585,17 @@ function brandfolder_media_presave(MediaInterface $media) {
 //    // elsewhere]...
 //  }
 //}
+
+/**
+ * Implements hook_entity_embed_media_image_source_field_alter().
+ *
+ * Tell the Entity Embed module what field to use as an image "source" field
+ * when dealing with BrandfolderImage media entities.
+ */
+function brandfolder_entity_embed_media_image_source_field_alter(&$field_name, $media) {
+  $source = $media->getSource();
+  $bf_image_field_name = 'bf_image';
+  if ($source instanceof BrandfolderImage && $media->hasField($bf_image_field_name)) {
+    $field_name = $bf_image_field_name;
+  }
+}

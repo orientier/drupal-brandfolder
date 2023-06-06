@@ -113,7 +113,7 @@ class BrandfolderGatekeeper {
    * @throws \Exception
    */
   public function __construct(TranslationInterface $string_translation, LoggerChannelFactoryInterface $logger_factory, ConfigFactoryInterface $config_factory) {
-    $this->criteria = [];
+    $this->setCriteria([]);
     $this->stringTranslation = $string_translation;
     $this->logger = $logger_factory->get('brandfolder');
     $this->configFactory = $config_factory;
@@ -162,14 +162,15 @@ class BrandfolderGatekeeper {
    * @param MediaSourceInterface $source
    */
   public function loadFromMediaSource(MediaSourceInterface $source) {
+    $criteria = [];
     $source_config = $source->getConfiguration();
     // @todo: Build on this.
     if (!empty($source_config['brandfolder']['bf_entity_criteria'])) {
-      $this->criteria = $source_config['brandfolder']['bf_entity_criteria'];
+      $criteria = $source_config['brandfolder']['bf_entity_criteria'];
     }
     // @todo: Expose this in config.
     if ($source instanceof BrandfolderImage) {
-      $this->criteria['allowed']['filetype'] = [
+      $criteria['allowed']['filetype'] = [
         'jpg',
         'png',
         'gif',
@@ -178,6 +179,7 @@ class BrandfolderGatekeeper {
         'webp',
       ];
     }
+    $this->setCriteria($criteria);
   }
 
   /**
@@ -288,11 +290,28 @@ class BrandfolderGatekeeper {
    * @return mixed
    */
   public function fetchAssets(array $query_params = []) {
+    $default_params = [
+      'per' => 100,
+      'page' => 1,
+    ];
+    $query_params = array_merge($default_params, $query_params);
+
     $search_components = !empty($query_params['search']) ? [$query_params['search']] : [];
 
     // Expanded format is currently unnecessary here (see label-specific logic
     // below). Revisit when adding new criteria/config options.
     $all_criteria = $this->getCriteria(FALSE);
+
+    $boolean_criteria = [
+      'approved',
+      'expired',
+      'unpublished',
+    ];
+    foreach ($boolean_criteria as $criterion) {
+      if (isset($all_criteria[$criterion])) {
+        $search_components[] = $criterion . ':' . ($all_criteria[$criterion] ? 'true' : 'false');
+      }
+    }
 
     $key_based_criteria = [
       'collection',
@@ -325,7 +344,7 @@ class BrandfolderGatekeeper {
     // Get all labels that are explicitly allowed, if any, minus any that are
     // also disallowed (there is no sense including those in this part of the
     // query).
-    $allowed_labels = $this->getLabels('list');
+    $allowed_labels = $this->getLabels('list', 'difference');
     if (!empty($allowed_labels)) {
       $quoted_label_names = array_map(function ($label) {
         return '"' . $label->attributes->name . '"';
@@ -441,12 +460,22 @@ class BrandfolderGatekeeper {
    * @param string $format If "tree" (default), return a multi-dimensional
    *  array representing item hierarchy. If "list", return a flattened array.
    *
-   * @return array
-   *   An array keyed by label ID whose values are objects representing nodes in
-   *   the label tree. There is no root node. Each node has a "label" property
+   * @param string $result_set If "all" (default), return all eligible labels.
+   *  If "difference", return only those labels that are explicitly allowed
+   *  minus any that are explicitly disallowed. If "allowed_only", return
+   *  only those labels that are explicitly allowed. If "disallowed_only",
+   *  return only those labels that are explicitly disallowed.
    *
+   * @return array
+   *  If $format is "tree" (default), an array keyed by label ID whose values
+   *  are objects representing nodes in the label tree. There is no root node.
+   *  Each node has a "label" property containing an object filled with label
+   *  attributes, and a "children" property containing an array of child label
+   *  nodes, if any exist.
+   *  If $format is "list," a flat array keyed by label ID whose values are
+   *  objects filled with label properties.
    */
-  public function getLabels($format = 'tree', $result_set = 'difference'): array {
+  public function getLabels(string $format = 'tree', string $result_set = 'all'): array {
     // Start with all labels in the Brandfolder.
     $labels = $this->bf_client->listLabelsInBrandfolder();
 
@@ -454,10 +483,6 @@ class BrandfolderGatekeeper {
     if (empty($labels)) {
 
       return [];
-    }
-
-    if ($result_set === 'all') {
-      return $labels;
     }
 
     // Reduce the list per allowed/disallowed label criteria, as
@@ -534,6 +559,7 @@ class BrandfolderGatekeeper {
 
     foreach ($tree as $id => &$node) {
       $should_item_remain = TRUE;
+      $item = NULL;
       if (isset($node[$item_type])) {
         $item =& $node[$item_type];
         $item_lineage = $item->attributes->path ?? [];
@@ -547,7 +573,7 @@ class BrandfolderGatekeeper {
           $should_item_remain = !in_array($id, $ids_to_exclude) && !count(array_intersect($item_lineage, $ids_to_exclude));
         }
       }
-      if ($should_item_remain) {
+      if ($item && $should_item_remain) {
         if (!is_null($flattened_list)) {
           $flattened_list[$id] = $item;
         }
@@ -607,7 +633,16 @@ class BrandfolderGatekeeper {
    *
    * @param array $criteria
    */
-  public function setCriteria(array $criteria) {
+  public function setCriteria(array $criteria = []) {
+    // Default baseline criteria.
+    // @todo: Consider whether it makes sense to expose this to Drupal config.
+    $defaults = [
+      'approved' => true,
+      'expired' => false,
+      'unpublished' => false,
+    ];
+    $criteria = array_merge($defaults, $criteria);
+
     $this->criteria = $criteria;
   }
 

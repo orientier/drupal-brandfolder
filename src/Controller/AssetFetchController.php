@@ -45,6 +45,8 @@ class AssetFetchController extends ControllerBase {
 
     $tag_key_mapping = isset($all_form_values['brandfolder_controls_tag_key_mapping']) ? json_decode($all_form_values['brandfolder_controls_tag_key_mapping'], TRUE) : [];
 
+    $query_params = [];
+
     // Process user search text and all filters.
     $user_criteria = [
       'collection_key' => [],

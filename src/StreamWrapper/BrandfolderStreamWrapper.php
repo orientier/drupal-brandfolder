@@ -424,26 +424,38 @@ class BrandfolderStreamWrapper implements StreamWrapperInterface {
    * @return bool
    */
   protected function loadFileData($uri): bool {
-    // @todo: static/cache; data other than file size; etc.
-    $query = $this->connection->select('brandfolder_file', 'bf')
-      ->fields('bf', ['filesize'])
-      ->condition('uri', $uri);
+    $success = FALSE;
 
-    if ($query->countQuery()->execute()->fetchField()) {
-      $result = $query->execute();
-      $row = $result->fetch();
-      if (!empty($row->filesize)) {
-        // Set the appropriate items in the _stat array, which is used to
-        // deliver data in response to file-system-esque requests.
-        $this->_stat[7] = $this->_stat['size'] = $row->filesize;
+    // For more robust lookups, extract the Brandfolder attachment ID
+    // from the URI and query against the corresponding column rather than the
+    // URI. URI is a bit more volatile since BF filenames can change. We also
+    // want to return a positive match when the URI is an image style derivative
+    // of a bf:// file.
+    // This will need to be updated if we start supporting asset URIs or
+    // supporting multiple Brandfolders in a single Drupal site.
+    $uri_parts = brandfolder_parse_uri($uri);
+    if ($uri_parts && isset($uri_parts['type']) && $uri_parts['type'] === 'attachment' && !empty($uri_parts['id'])) {
+      $attachment_id = $uri_parts['id'];
+
+      // @todo: static/cache; data other than file size; etc.
+      $query = $this->connection->select('brandfolder_file', 'bf')
+        ->fields('bf', ['filesize'])
+        ->condition('bf_attachment_id', $attachment_id);
+
+      if ($query->countQuery()->execute()->fetchField()) {
+        $result = $query->execute();
+        $row = $result->fetch();
+        if (!empty($row->filesize)) {
+          // Set the appropriate items in the _stat array, which is used to
+          // deliver data in response to file-system-esque requests.
+          $this->_stat[7] = $this->_stat['size'] = $row->filesize;
+        }
+
+        $success = TRUE;
       }
-
-      return TRUE;
     }
-    else {
 
-      return FALSE;
-    }
+    return $success;
   }
 
   /**
