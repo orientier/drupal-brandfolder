@@ -5,7 +5,6 @@ namespace Drupal\brandfolder\File\MimeType;
 use Symfony\Component\Mime\MimeTypesInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\File\MimeType\ExtensionMimeTypeGuesser;
-use Symfony\Component\HttpFoundation\File\MimeType\MimeTypeGuesserInterface as LegacyMimeTypeGuesserInterface;
 use Symfony\Component\Mime\MimeTypeGuesserInterface;
 use Drupal\Core\Database\Connection;
 
