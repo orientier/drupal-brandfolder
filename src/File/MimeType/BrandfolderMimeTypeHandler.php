@@ -2,6 +2,7 @@
 
 namespace Drupal\brandfolder\File\MimeType;
 
+use Symfony\Component\Mime\MimeTypesInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\File\MimeType\ExtensionMimeTypeGuesser;
 use Symfony\Component\HttpFoundation\File\MimeType\MimeTypeGuesserInterface as LegacyMimeTypeGuesserInterface;
@@ -18,7 +19,7 @@ use function brandfolder_parse_uri;
  * not end with a recognized file extension.
  * Also provide mimetype and extension-related utilities.
  */
-class BrandfolderMimeTypeHandler extends ExtensionMimeTypeGuesser implements MimeTypeGuesserInterface, LegacyMimeTypeGuesserInterface {
+class BrandfolderMimeTypeHandler extends ExtensionMimeTypeGuesser implements MimeTypeGuesserInterface, MimeTypesInterface {
 
   /**
    * The database connection.
