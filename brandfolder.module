@@ -1599,3 +1599,29 @@ function brandfolder_entity_embed_media_image_source_field_alter(&$field_name, $
     $field_name = $bf_image_field_name;
   }
 }
+
+/**
+ * Helper function to determine whether a given media entity is sourced from
+ * Brandfolder.
+ *
+ * @param int|\Drupal\media\MediaInterface $media
+ *  Media entity ID or object.
+ *
+ * @return bool
+ */
+function is_media_brandfolder_sourced(int | MediaInterface $media) {
+  if (is_int($media)) {
+    $media = Media::load($media);
+  }
+  if ($media instanceof MediaInterface) {
+    $source = $media->getSource();
+
+    $brandfolder_media_sources = [
+      'brandfolder_image',
+    ];
+
+    return in_array($source->getPluginId(), $brandfolder_media_sources);
+  }
+
+  return FALSE;
+}
