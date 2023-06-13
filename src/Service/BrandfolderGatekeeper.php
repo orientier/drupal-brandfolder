@@ -54,7 +54,7 @@ class BrandfolderGatekeeper {
    *
    * @todo: Consider supporting more complex boolean logic. However, that may be better left to per-site alteration.
    */
-  protected $criteria;
+  protected $criteria = [];
 
   /**
    * The config factory service.
@@ -115,7 +115,6 @@ class BrandfolderGatekeeper {
    * @throws \Exception
    */
   public function __construct(TranslationInterface $string_translation, LoggerChannelFactoryInterface $logger_factory, ConfigFactoryInterface $config_factory) {
-    $this->criteria = [];
     $this->stringTranslation = $string_translation;
     $this->logger = $logger_factory->get('brandfolder');
     $this->configFactory = $config_factory;

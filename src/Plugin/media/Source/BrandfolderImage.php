@@ -102,7 +102,7 @@ class BrandfolderImage extends MediaSourceBase {
    *
    * @var string
    */
-  protected $source_field_name;
+  protected $source_field_name = 'field_brandfolder_attachment_id';
 
   /**
    * Constructs a new class instance.
@@ -129,12 +129,12 @@ class BrandfolderImage extends MediaSourceBase {
    *   The logger factory service.
    * @param \Drupal\Core\Cache\CacheBackendInterface $cache
    *   The cache service.
+   * @param \Drupal\Component\Datetime\TimeInterface $time
+   *   The time service.
    * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
    *   The module handler.
    */
   public function __construct(array $configuration, $plugin_id, $plugin_definition, EntityTypeManagerInterface $entity_type_manager, EntityFieldManagerInterface $entity_field_manager, FieldTypePluginManagerInterface $field_type_manager, ConfigFactoryInterface $config_factory, AccountProxyInterface $account_proxy, UrlGeneratorInterface $url_generator, LoggerChannelFactoryInterface $logger, CacheBackendInterface $cache, TimeInterface $time, ModuleHandlerInterface $module_handler) {
-    $this->source_field_name = 'field_brandfolder_attachment_id';
-
     // Customize some aspects of the plugin definition.
     // @see \Drupal\media\MediaSourceBase
     // Our media thumbnails are the same as the primary image for each media
@@ -155,6 +155,7 @@ class BrandfolderImage extends MediaSourceBase {
     $this->cache = $cache;
     $this->time = $time;
     $this->moduleHandler = $module_handler;
+    parent::__construct($configuration, $plugin_id, $plugin_definition, $entity_type_manager, $entity_field_manager, $field_type_manager, $config_factory);
   }
 
   /**
@@ -632,8 +633,7 @@ class BrandfolderImage extends MediaSourceBase {
       // @todo: Update field description accordingly, disable field, etc.
     }
 
-    $gatekeeper = \Drupal::getContainer()
-      ->get(BrandfolderGatekeeper::class);
+    $gatekeeper = $this->brandfolderGatekeeper;
     $gatekeeper->loadFromMediaSource($this);
     $gatekeeper->buildConfigForm($form);
 

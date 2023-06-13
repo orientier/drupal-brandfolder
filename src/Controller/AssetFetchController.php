@@ -2,6 +2,7 @@
 
 namespace Drupal\brandfolder\Controller;
 
+use Symfony\Component\HttpFoundation\Request;
 use Drupal\brandfolder\Service\BrandfolderGatekeeper;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Form\FormStateInterface;
@@ -16,6 +17,9 @@ use Drupal\Core\Form\FormStateInterface;
  */
 class AssetFetchController extends ControllerBase {
 
+  public function __construct(private BrandfolderGatekeeper $brandfolderGatekeeper)
+  {
+  }
   /**
    * Callback for stub route used in connection with nested AJAX form requests,
    * etc.
@@ -40,7 +44,7 @@ class AssetFetchController extends ControllerBase {
    *
    * @return array
    */
-  public static function assetFetchFormAjaxCallback(array &$form, FormStateInterface $form_state, \Symfony\Component\HttpFoundation\Request $request): array {
+  public static function assetFetchFormAjaxCallback(array &$form, FormStateInterface $form_state, Request $request): array {
     $all_form_values = $form_state->getValues();
 
     $tag_key_mapping = isset($all_form_values['brandfolder_controls_tag_key_mapping']) ? json_decode($all_form_values['brandfolder_controls_tag_key_mapping'], TRUE) : [];

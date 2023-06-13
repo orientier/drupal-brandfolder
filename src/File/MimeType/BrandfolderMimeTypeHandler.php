@@ -18,7 +18,7 @@ use function brandfolder_parse_uri;
  * not end with a recognized file extension.
  * Also provide mimetype and extension-related utilities.
  */
-class BrandfolderMimeTypeHandler extends ExtensionMimeTypeGuesser implements MimeTypeGuesserInterface, MimeTypesInterface {
+class BrandfolderMimeTypeHandler extends ExtensionMimeTypeGuesser implements MimeTypeGuesserInterface {
 
   /**
    * The database connection.

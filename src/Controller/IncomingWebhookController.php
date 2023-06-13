@@ -2,6 +2,7 @@
 
 namespace Drupal\brandfolder\Controller;
 
+use Drupal\Core\Access\AccessResultInterface;
 use Drupal\brandfolder\Event\BrandfolderWebhookEvent;
 use Drupal\Core\Access\AccessResult;
 use Drupal\Core\Controller\ControllerBase;
@@ -34,7 +35,7 @@ class IncomingWebhookController extends ControllerBase implements AccessInterfac
    * @return \Drupal\Core\Access\AccessResultInterface
    *   The access result.
    */
-  public function access(Request $request): \Drupal\Core\Access\AccessResultInterface {
+  public function access(Request $request): AccessResultInterface {
     $valid_payload = FALSE;
     $payload = json_decode($request->getContent(), TRUE);
     if (isset($payload['data']['attributes'])) {

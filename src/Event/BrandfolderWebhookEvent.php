@@ -2,7 +2,7 @@
 
 namespace Drupal\brandfolder\Event;
 
-use Symfony\Component\EventDispatcher\Event;
+use Symfony\Contracts\EventDispatcher\Event;
 
 /**
  * Multipurpose event that will be fired when Drupal receives a webhook

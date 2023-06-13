@@ -7,15 +7,19 @@
 
 namespace Drupal\brandfolder\ProxyClass\File\MimeType {
 
+    use Symfony\Component\Mime\MimeTypeGuesserInterface;
+    use Symfony\Component\Mime\MimeTypesInterface;
+    use Drupal\Core\DependencyInjection\DependencySerializationTrait;
+    use Symfony\Component\DependencyInjection\ContainerInterface;
     /**
      * Provides a proxy class for \Drupal\brandfolder\File\MimeType\BrandfolderMimeTypeGuesser.
      *
      * @see \Drupal\Component\ProxyBuilder
      */
-    class BrandfolderMimeTypeGuesser implements \Symfony\Component\Mime\MimeTypeGuesserInterface, \Symfony\Component\HttpFoundation\File\MimeType\MimeTypeGuesserInterface
+    class BrandfolderMimeTypeGuesser implements MimeTypeGuesserInterface
     {
 
-        use \Drupal\Core\DependencyInjection\DependencySerializationTrait;
+        use DependencySerializationTrait;
 
         /**
          * The id of the original proxied service.
@@ -27,7 +31,7 @@ namespace Drupal\brandfolder\ProxyClass\File\MimeType {
         /**
          * The real proxied service, after it was lazy loaded.
          *
-         * @var \Drupal\brandfolder\File\MimeType\BrandfolderMimeTypeGuesser
+         * @var \Drupal\brandfolder\ProxyClass\File\MimeType\BrandfolderMimeTypeGuesser
          */
         protected $service;
 
@@ -46,7 +50,7 @@ namespace Drupal\brandfolder\ProxyClass\File\MimeType {
          * @param string $drupal_proxy_original_service_id
          *   The service ID of the original service.
          */
-        public function __construct(\Symfony\Component\DependencyInjection\ContainerInterface $container, $drupal_proxy_original_service_id)
+        public function __construct(ContainerInterface $container, $drupal_proxy_original_service_id)
         {
             $this->container = $container;
             $this->drupalProxyOriginalServiceId = $drupal_proxy_original_service_id;

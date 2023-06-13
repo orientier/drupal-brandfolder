@@ -15,7 +15,6 @@ use Drupal\Core\Render\Element;
 use Drupal\Core\Url;
 use Drupal\field\Entity\FieldStorageConfig;
 use Drupal\file\Entity\File;
-use Drupal\Core\Database;
 use Drupal\media\Entity\Media;
 use Drupal\media\MediaInterface;
 use Drupal\media\MediaTypeInterface;
@@ -23,6 +22,9 @@ use Drupal\Core\Entity\EntityMalformedException;
 use Drupal\media_library\MediaLibraryState;
 use Drupal\views\ViewExecutable;
 use Drupal\Core\Form\FormBuilderInterface;
+use Drupal\media\Entity\MediaType;
+use Drupal\Core\Database\Query\Merge;
+use Drupal\Core\Entity\EntityStorageException;
 
 /**
  * Brandfolder helper function. For use in procedural code. De-emphasize this
@@ -90,7 +92,7 @@ function brandfolder_help($route_name, RouteMatchInterface $route_match) {
 /**
  * Implements hook_form_FORM_ID_alter().
  */
-function brandfolder_form_field_config_edit_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id) {
+function brandfolder_form_field_config_edit_form_alter(&$form, FormStateInterface $form_state, $form_id) {
   // If this is a config form for a file-esque field using the Brandfolder
   // URI scheme, disable the file upload directory setting.
   $route_params = \Drupal::routeMatch()->getParameters();
@@ -107,7 +109,7 @@ function brandfolder_form_field_config_edit_form_alter(&$form, \Drupal\Core\Form
 /**
  * Implements hook_form_alter().
  */
-function brandfolder_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id) {
+function brandfolder_form_alter(&$form, FormStateInterface $form_state, $form_id) {
   // If this is a form comprising the main media entity listing in a Media
   // Library context, for a Brandfolder-sourced media type, replace the
   // user-facing form elements with our own browsing experience.
@@ -224,7 +226,7 @@ function brandfolder_views_pre_build(ViewExecutable $view) {
  *
  * @todo: Replace with more elegant and feature-rich browser construct.
  */
-function brandfolder_browser_media_library_form_manipulator(&$form, \Drupal\Core\Form\FormStateInterface $form_state, \Drupal\media\Entity\MediaType $media_type) {
+function brandfolder_browser_media_library_form_manipulator(&$form, FormStateInterface $form_state, MediaType $media_type) {
   $media_source = $media_type->getSource();
   $gatekeeper = \Drupal::getContainer()
     ->get(BrandfolderGatekeeper::class);
@@ -234,7 +236,7 @@ function brandfolder_browser_media_library_form_manipulator(&$form, \Drupal\Core
   $selected_media_entity_ids = [];
   $selection_limit = -1;
   $build_info = $form_state->getBuildInfo();
-  if ($build_info['base_form_id'] == 'views_form_media_library_widget' && isset($build_info['args'][0]) && $build_info['args'][0] instanceof \Drupal\views\ViewExecutable) {
+  if ($build_info['base_form_id'] == 'views_form_media_library_widget' && isset($build_info['args'][0]) && $build_info['args'][0] instanceof ViewExecutable) {
     $view = $build_info['args'][0];
     if (strpos($view->current_display, 'widget') === 0) {
       try {
@@ -959,7 +961,7 @@ function brandfolder_build_labels_select_list($labels, &$select_options) {
  *
  * @throws \GuzzleHttp\Exception\GuzzleException
  */
-function brandfolder_browser_host_form_validator(array &$form, \Drupal\Core\Form\FormStateInterface &$form_state) {
+function brandfolder_browser_host_form_validator(array &$form, FormStateInterface &$form_state) {
   $triggering_element = $form_state->getTriggeringElement();
   // If the submission was triggered by one of our browser controls, the only
   // outcome should be to update the browser contents. We do not care about
@@ -981,7 +983,7 @@ function brandfolder_browser_host_form_validator(array &$form, \Drupal\Core\Form
  *
  * @throws \GuzzleHttp\Exception\GuzzleException
  */
-function brandfolder_browser_selection_converter(array &$form, \Drupal\Core\Form\FormStateInterface &$form_state) {
+function brandfolder_browser_selection_converter(array &$form, FormStateInterface &$form_state) {
   $triggering_element = $form_state->getTriggeringElement();
   // We don't need or want to perform validation when the submission is
   // triggered by one of our browser controls.
@@ -1184,7 +1186,7 @@ function brandfolder_map_attachment_to_file($attachment, $create_new_file = TRUE
           ])
           ->fields(['fid' => $fid])
           ->execute();
-        if ($result != Database\Query\Merge::STATUS_UPDATE) {
+        if ($result != Merge::STATUS_UPDATE) {
           $logger->error('Could not find an existing record in the brandfolder_file table for attachment ID !attachment_id and file ID !fid.', [
             '!fid'      => $fid,
             '!attachment_id' => $attachment_id
@@ -1196,7 +1198,7 @@ function brandfolder_map_attachment_to_file($attachment, $create_new_file = TRUE
           $attachment_id
         ]);
       }
-      catch (\Drupal\Core\Entity\EntityStorageException $e) {
+      catch (EntityStorageException $e) {
         $logger->error('There was an error saving a new file for Brandfolder attachment !attachment_id.', ['!attachment_id' => $attachment_id]);
       }
     }
@@ -1267,7 +1269,7 @@ function brandfolder_map_attachment_to_media_entity($attachment, $media_type_id,
         $media->save();
         $entity_id = $media->id();
       }
-      catch (\Drupal\Core\Entity\EntityStorageException $e) {
+      catch (EntityStorageException $e) {
         $logger->error('There was an error saving a new media entity for Brandfolder attachment !attachment_id.', ['!attachment_id' => $attachment_id]);
       }
       if ($bf_client->verboseLoggingIsEnabled()) {
