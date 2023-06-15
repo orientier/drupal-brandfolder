@@ -1076,8 +1076,6 @@ function template_preprocess_brandfolder_browser_widget(&$variables) {
  * @return bool|int
  *   The file ID on success; FALSE on failure.
  *
- * @throws \GuzzleHttp\Exception\GuzzleException
- *
  * @todo Move to class.
  */
 function brandfolder_map_attachment_to_file($attachment, $create_new_file = TRUE) {
@@ -1181,14 +1179,21 @@ function brandfolder_map_attachment_to_file($attachment, $create_new_file = TRUE
       // Store data in the brandfolder_file table before saving the file, so
       // we can use it to look up things like filesize when the file is being
       // saved.
-      $db->insert('brandfolder_file')
-        ->fields($bf_file_data)
-        ->execute();
+      try {
+        $db->insert('brandfolder_file')
+          ->fields($bf_file_data)
+          ->execute();
+      }
+      catch (\Exception $e) {
+        $logger->error('Could not insert a record into the brandfolder_file table for attachment ID !attachment_id.', ['!attachment_id' => $attachment_id]);
+
+        return FALSE;
+      }
 
       try {
         $file = File::Create($file_data);
         $file->save();
-        $fid = $bf_file_data['fid'] = $file->id();
+        $fid = $file->id();
 
         // Update the brandfolder_file table with the newly created FID.
         $result = $db->merge('brandfolder_file')
@@ -1204,6 +1209,8 @@ function brandfolder_map_attachment_to_file($attachment, $create_new_file = TRUE
             '!fid'      => $fid,
             '!attachment_id' => $attachment_id
           ]);
+
+          return FALSE;
         }
 
         \Drupal::moduleHandler()->invokeAll('brandfolder_file_insert', [
@@ -1213,6 +1220,8 @@ function brandfolder_map_attachment_to_file($attachment, $create_new_file = TRUE
       }
       catch (EntityStorageException $e) {
         $logger->error('There was an error saving a new file for Brandfolder attachment !attachment_id.', ['!attachment_id' => $attachment_id]);
+
+        return FALSE;
       }
     }
   }
@@ -1523,7 +1532,6 @@ function brandfolder_media_presave(MediaInterface $media) {
             if (isset($custom_field_keys[$alt_text_custom_field_id])) {
               $custom_field_name = $custom_field_keys[$alt_text_custom_field_id];
               if (!empty($asset->data->custom_field_values[$custom_field_name])) {
-                // @todo: asset.update webhook action to update this value if it is populated in BF in the future and the Drupal field remains empty.
                 $image_field_data['alt'] = $asset->data->custom_field_values[$custom_field_name];
                 $is_image_update_required = TRUE;
               }

@@ -203,6 +203,7 @@ class WebhookEventSubscriber implements EventSubscriberInterface {
                       }
                     }
                   }
+                  // @todo: Figure out why empty fields that are mapped to a populated BF custom field are not being populated on entity save here. Is media metadata sync queued/tied to cron?
                   $media_entity->save();
                 }
               }
