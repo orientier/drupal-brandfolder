@@ -2,6 +2,7 @@
 
 namespace Drupal\brandfolder\Plugin\media\Source;
 
+use Brandfolder\Brandfolder;
 use Drupal\brandfolder\Service\BrandfolderGatekeeper;
 use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Component\Utility\NestedArray;
@@ -98,6 +99,13 @@ class BrandfolderImage extends MediaSourceBase {
   protected $moduleHandler;
 
   /**
+   * The Brandfolder Gatekeeper service.
+   *
+   * @var \Drupal\brandfolder\Service\BrandfolderGatekeeper
+   */
+  protected $brandfolderGatekeeper;
+
+  /**
    * The inviolable source field name.
    *
    * @var string
@@ -133,8 +141,10 @@ class BrandfolderImage extends MediaSourceBase {
    *   The time service.
    * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
    *   The module handler.
+   * @param \Drupal\brandfolder\Service\BrandfolderGatekeeper $brandfolder_gatekeeper
+   *   The Brandfolder Gatekeeper service.
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, EntityTypeManagerInterface $entity_type_manager, EntityFieldManagerInterface $entity_field_manager, FieldTypePluginManagerInterface $field_type_manager, ConfigFactoryInterface $config_factory, AccountProxyInterface $account_proxy, UrlGeneratorInterface $url_generator, LoggerChannelFactoryInterface $logger, CacheBackendInterface $cache, TimeInterface $time, ModuleHandlerInterface $module_handler) {
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, EntityTypeManagerInterface $entity_type_manager, EntityFieldManagerInterface $entity_field_manager, FieldTypePluginManagerInterface $field_type_manager, ConfigFactoryInterface $config_factory, AccountProxyInterface $account_proxy, UrlGeneratorInterface $url_generator, LoggerChannelFactoryInterface $logger, CacheBackendInterface $cache, TimeInterface $time, ModuleHandlerInterface $module_handler, BrandfolderGatekeeper $brandfolder_gatekeeper) {
     // Customize some aspects of the plugin definition.
     // @see \Drupal\media\MediaSourceBase
     // Our media thumbnails are the same as the primary image for each media
@@ -155,6 +165,7 @@ class BrandfolderImage extends MediaSourceBase {
     $this->cache = $cache;
     $this->time = $time;
     $this->moduleHandler = $module_handler;
+    $this->brandfolderGatekeeper = $brandfolder_gatekeeper;
     parent::__construct($configuration, $plugin_id, $plugin_definition, $entity_type_manager, $entity_field_manager, $field_type_manager, $config_factory);
   }
 
@@ -175,7 +186,8 @@ class BrandfolderImage extends MediaSourceBase {
       $container->get('logger.factory'),
       $container->get('cache.data'),
       $container->get('datetime.time'),
-      $container->get('module_handler')
+      $container->get('module_handler'),
+      $container->get(BrandfolderGatekeeper::class)
     );
   }
 
