@@ -7,6 +7,10 @@ brandfolder-browser:
       css/brandfolder-browser-theme.css: {}
   js:
     js/brandfolder-browser.js: {}
+  dependencies:
+    - core/drupal
+    - core/jquery
+    - core/once
 brandfolder-admin:
   version: 1.x
   css:

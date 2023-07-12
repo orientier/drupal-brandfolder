@@ -1238,6 +1238,7 @@ function brandfolder_map_attachment_to_media_entity($attachment, $media_type_id,
   // Check to see if a media entity of the given type already exists for this
   // BF attachment.
   $results = \Drupal::entityQuery('media')
+    ->accessCheck(FALSE)
     ->condition('bundle', $media_type_id)
     ->condition($bf_media_source_field_name, $attachment_id)
     ->range(0, 1)

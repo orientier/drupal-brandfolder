@@ -46,7 +46,7 @@
       });
       let $bf_browser_assets = $browser_container.find('.brandfolder-asset');
       let $bf_browser_attachments = $browser_container.find('.brandfolder-attachment');
-      $bf_browser_assets.once('brandfolder-browser').on('click', function(event) {
+      $(once('brandfolder-browser', $bf_browser_assets)).on('click', function(event) {
         event.preventDefault();
         let $targeted_asset = $(event.currentTarget);
         let asset_is_active = $targeted_asset.hasClass(asset_active_class);
@@ -66,7 +66,7 @@
           })
         }
       });
-      $bf_browser_attachments.once('brandfolder-browser').on('click', function (event) {
+      $(once('brandfolder-browser', $bf_browser_attachments)).on('click', function (event) {
         event.preventDefault();
         let $targeted_attachment = $(event.currentTarget);
         let previously_selected = $targeted_attachment.hasClass(attachment_selected_class);
@@ -128,7 +128,7 @@
 
       // Basic "close"/"back" handling for active assets.
       let $asset_close_buttons = $browser_container.find('.' + asset_close_button_class);
-      $asset_close_buttons.once('brandfolder-browser').on('click', function (event) {
+      $(once('brandfolder-browser', $asset_close_buttons)).on('click', function (event) {
         event.preventDefault();
         event.stopPropagation();
         let $button = $(event.currentTarget);
