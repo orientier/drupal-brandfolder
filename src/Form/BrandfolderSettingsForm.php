@@ -184,19 +184,107 @@ class BrandfolderSettingsForm extends ConfigFormBase {
       ];
 
       /************************************
+       * Image Optimization
+       ************************************/
+      $form['image_optimization'] = [
+        '#type'  => 'details',
+        '#title' => $this->t('Image Optimization'),
+        '#description' => $this->t('These settings can help reduce image file size. Note that they will be applied to all Brandfolder images throughout your site.'),
+      ];
+
+      $form['image_optimization']['io_auto_webp'] = [
+        '#type'          => 'checkbox',
+        '#title'         => $this->t('Automatically use WEBP format for images if supported'),
+        '#default_value' => (bool) $config->get('io_auto_webp'),
+        '#description' => $this->t('This will deliver a WEBP version of an image if the user\'s browser supports that format.'),
+      ];
+
+      $form['image_optimization']['io_quality'] = [
+        '#type'          => 'number',
+        '#min'           => 1,
+        '#max'           => 100,
+        '#title'         => $this->t('Quality to use for all compressed images'),
+        '#default_value' => $config->get('io_quality') ?? '',
+        '#description' => $this->t('Choose a value between 1 and 100 (default). A lower value will result in smaller image file sizes (and faster image load time) but also less detail/fidelity. You can experiment to find something that reduces image sizes without too much obvious degradation. Note: this will not be applied to SVG images.'),
+      ];
+
+
+      /************************************
+       * Advanced
+       ************************************/
+      $form['advanced'] = [
+        '#type'  => 'details',
+        '#title' => $this->t('Advanced Settings'),
+      ];
+
+      $form['advanced']['verbose_log_mode'] = [
+        '#type'          => 'checkbox',
+        '#title'         => $this->t('Detailed logging'),
+        '#default_value' => $config->get('verbose_log_mode'),
+        '#description'   => $this->t('Enable this setting to create log entries for all Brandfolder API queries, incoming webhooks, etc. This can be useful for troubleshooting, but should probably only be enabled for short periods lest it overwhelm your logs.'),
+      ];
+
+      $form['#attached']['library'][] = 'brandfolder/brandfolder-admin';
+
+      if ($config->get('verbose_log_mode')) {
+        foreach ($bf->getLogData() as $log_entry) {
+          $this->logger('brandfolder')->debug($log_entry);
+        }
+        $bf->clearLogData();
+      }
+
+
+      /************************************
        * Sample Images
        ************************************/
       // Display some images from the selected Brandfolder/collection if
       // applicable.
+
+
+      $form['sample_image_width'] = [
+        '#type'          => 'number',
+        '#min'           => 16,
+        '#max'           => 1920,
+        '#title'         => $this->t('Sample image width'),
+        '#default_value' => $config->get('sample_image_width') ?? 400,
+        '#description' => $this->t('Optionally adjust the width of the sample images below, for testing. The default is 400px.'),
+      ];
+
+
+      $params = [
+        'fields' => 'cdn_url',
+        'sort_by' => 'updated_at',
+        'order' => 'desc',
+      ];
       if ($preview_collection_id) {
-        $assets = $bf->listAssets([], $preview_collection_id);
+        $assets = $bf->listAssets($params, $preview_collection_id);
       }
       else {
-        $assets = $bf->listAssets();
+        $assets = $bf->listAssets($params);
       }
       if ($assets) {
-        $thumbnails = array_map(function ($asset) {
-          return '<img src="' . $asset->attributes->thumbnail_url . '">';
+        $sample_image_width = $config->get('sample_image_width') ?? 400;
+        $cdn_url_param_string = "width=$sample_image_width";
+        // Apply image optimization settings to the sample images so users can
+        // do some basic testing.
+        if ($config->get('io_auto_webp')) {
+          $cdn_url_param_string .= '&auto=webp';
+        }
+        if ($config->get('io_quality')) {
+          $cdn_url_param_string .= '&quality=' . $config->get('io_quality');
+        }
+        $thumbnails = array_map(function ($asset) use ($cdn_url_param_string) {
+          $output = '';
+          $url = $asset->attributes->cdn_url;
+          if ($url) {
+            // Strip any query string from the URL.
+            // @todo: Decide whether/how to merge params (which should take priority in which circumstances, etc.).
+            $url = preg_replace('/^([^\?]+)\?.*$/', '$1', $url);
+            $url .= '?' . $cdn_url_param_string;
+            $output .= "<img src=\"$url\">";
+          }
+
+          return $output;
         }, $assets->data);
 
         $form['sample_pics'] = [
@@ -206,30 +294,6 @@ class BrandfolderSettingsForm extends ConfigFormBase {
           '#weight' => 999,
         ];
       }
-    }
-
-    /************************************
-     * Advanced
-     ************************************/
-    $form['advanced'] = [
-      '#type'  => 'details',
-      '#title' => $this->t('Advanced Settings'),
-    ];
-
-    $form['advanced']['verbose_log_mode'] = [
-      '#type'          => 'checkbox',
-      '#title'         => $this->t('Detailed logging'),
-      '#default_value' => $config->get('verbose_log_mode'),
-      '#description'   => $this->t('Enable this setting to create log entries for all Brandfolder API queries, incoming webhooks, etc. This can be useful for troubleshooting, but should probably only be enabled for short periods lest it overwhelm your logs.'),
-    ];
-
-    $form['#attached']['library'][] = 'brandfolder/brandfolder-admin';
-
-    if ($config->get('verbose_log_mode')) {
-      foreach ($bf->getLogData() as $log_entry) {
-        $this->logger('brandfolder')->debug($log_entry);
-      }
-      $bf->clearLogData();
     }
 
     return parent::buildForm($form, $form_state);
@@ -321,6 +385,10 @@ class BrandfolderSettingsForm extends ConfigFormBase {
     $config->set('alt_text_custom_field', $alt_text_custom_field);
 
     $config->set('verbose_log_mode', $form_state->getValue('verbose_log_mode'));
+
+    $config->set('io_auto_webp', $form_state->getValue('io_auto_webp'));
+    $config->set('io_quality', $form_state->getValue('io_quality'));
+    $config->set('sample_image_width', $form_state->getValue('sample_image_width'));
 
     $config->save();
 
