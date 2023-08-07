@@ -133,11 +133,32 @@ function brandfolder_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $fo
       }
       // Limit users' ability to interact with the auto-managed BF Image field.
       // @see brandfolder_process_image_widget_for_internal_field().
-      if (isset($form['bf_image']) && isset($form['bf_image']['widget'])) {
-        $widget_deltas = Element::children($form['bf_image']['widget']);
-        foreach ($widget_deltas as $delta) {
-          $form['bf_image']['widget'][$delta]['#process'][] = 'brandfolder_process_image_widget_for_internal_field';
+      if (isset($form['bf_image'])) {
+        if (isset($form['bf_image']['widget'][0])) {
+          $form['bf_image']['widget'][0]['#process'][] = 'brandfolder_process_image_widget_for_internal_field';
         }
+        // Show the image width and height values and give users an option to
+        // swap them if they appear to be inverted.
+        $form['bf_image']['image_width'] = [
+          '#type' => 'number',
+          '#title' => t('Image width'),
+          '#disabled' => TRUE,
+          '#default_value' => $form['bf_image']['widget'][0]['#default_value']['width'],
+        ];
+        $form['bf_image']['image_height'] = [
+          '#type' => 'number',
+          '#title' => t('Image height'),
+          '#disabled' => TRUE,
+          '#default_value' => $form['bf_image']['widget'][0]['#default_value']['height'],
+        ];
+        $form['bf_image']['transpose_image_width_and_height'] = [
+          '#type' => 'checkbox',
+          '#title' => t('Swap image width and height'),
+          '#description' => t('If it looks like the width and height values are inverted, check this box to switch them. There is a known issue when Brandfolder processes images from certain cameras in certain orientations. If the image appears "squished" or "stretched" in the preview, try checking this box.'),
+          '#default_value' => FALSE,
+        ];
+        array_unshift($form['actions']['submit']['#submit'], 'brandfolder_image_media_entity_form_submit');
+        array_unshift($form['#submit'], 'brandfolder_image_media_entity_form_submit');
       }
     }
   }
@@ -175,6 +196,63 @@ function brandfolder_process_image_widget_for_internal_field($element, FormState
   }
 
   return $element;
+}
+
+/**
+ * Supplementary submit handler for BrandfolderImage-sourced media entity edit
+ * forms.
+ *
+ * @param $form
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ *
+ * @return void
+ */
+function brandfolder_image_media_entity_form_submit(&$form, FormStateInterface $form_state) {
+  // If the user has checked the "Transpose image width and height" checkbox,
+  // swap the width and height values in the image field and in our BF registry
+  // table.
+  if ($form_state->getValue('transpose_image_width_and_height')) {
+    $logger = \Drupal::logger('brandfolder');
+    $bf_attachment_id_item = $form_state->getValue('field_brandfolder_attachment_id');
+    if (is_array($bf_attachment_id_item) && isset($bf_attachment_id_item[0]['value'])) {
+      $bf_attachment_id = $bf_attachment_id_item[0]['value'];
+      $bf_image = $form_state->getValue('bf_image');
+      if (!empty($bf_image)) {
+        $height = $bf_image[0]['height'];
+        $width = $bf_image[0]['width'];
+        if ($width > 0 && $height > 0) {
+          // Swap the width and height values in the image field.
+          $bf_image[0]['height'] = $width;
+          $bf_image[0]['width'] = $height;
+          $form_state->setValue('bf_image', $bf_image);
+          // Update brandfolder_file table to swap width and height fields
+          // there as well.
+          $db = \Drupal::database();
+          $result = $db->merge('brandfolder_file')
+            ->key([
+              'bf_attachment_id' => $bf_attachment_id,
+            ])
+            ->fields([
+              'height' => $width,
+              'width'  => $height,
+            ])
+            ->execute();
+          if ($result != Database\Query\Merge::STATUS_UPDATE) {
+              $logger->error('Tried to transpose image width and height but could not find an existing record in the brandfolder_file table for attachment ID !attachment_id.', [
+                '!attachment_id' => $bf_attachment_id
+              ]);
+          }
+        }
+        else {
+          $logger->error('Tried to transpose image width and height but could not find a valid width and height for attachment ID !attachment_id. Width: !width. Height: !height.', [
+              '!attachment_id' => $bf_attachment_id,
+              '!width' => $width,
+              '!height' => $height,
+            ]);
+        }
+      }
+    }
+  }
 }
 
 /**
@@ -1466,7 +1544,7 @@ function brandfolder_file_delete($file) {
 /**
  * Implements hook_ENTITY_TYPE_presave().
  *
- * @throws EntityMalformedException
+ * @throws EntityMalformedException|\Drupal\Core\TypedData\Exception\MissingDataException
  */
 function brandfolder_media_presave(MediaInterface $media) {
   $source = $media->getSource();
