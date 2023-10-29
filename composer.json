@@ -25,7 +25,6 @@
     ],
     "minimum-stability": "dev",
     "require": {
-        "brandfolder/brandfolder-sdk-php": "dev-main",
-        "symfony/mime": "6.2.10"
+        "brandfolder/brandfolder-sdk-php": "dev-main"
     }
 }
