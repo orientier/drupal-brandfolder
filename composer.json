@@ -23,9 +23,8 @@
         "role": "Tester"
       }
     ],
-    "minimum-stability": "dev",
     "require": {
-        "brandfolder/brandfolder-sdk-php": "1.x-dev",
+        "brandfolder/brandfolder-sdk-php": "^3.0",
         "symfony/mime": "^5.0"
     }
 }
