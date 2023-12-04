@@ -24,6 +24,6 @@
       }
     ],
     "require": {
-        "brandfolder/brandfolder-sdk-php": "^3.0",
+        "brandfolder/brandfolder-sdk-php": "^3.0"
     }
 }
