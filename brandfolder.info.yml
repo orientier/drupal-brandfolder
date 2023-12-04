@@ -1,9 +1,8 @@
 name: 'Brandfolder'
 type: module
 description: 'Integrates Drupal with the Brandfolder Digital Asset Management platform.'
-core_version_requirement: ^8.7.7 || ^9 || ^10
+core_version_requirement: ^10
 package: 'Brandfolder'
 configure: brandfolder.brandfolder_settings_form
 dependencies:
   - drupal:media
-#  - entity_browser:entity_browser (>= 8.x-2.x)
