@@ -27,20 +27,22 @@ use Drupal\Core\Database\Query\Merge;
 use Drupal\Core\Entity\EntityStorageException;
 
 /**
- * Brandfolder helper function. For use in procedural code. De-emphasize this
- * in favor of services, etc.
+ * Helper function for use in procedural code. De-emphasize this in favor of
+ * services, etc.
  *
- * Helper function to get a Brandfolder object that can be used to interact with
- * the Brandfolder API.
+ * Get a Brandfolder object that can be used to interact with the
+ * Brandfolder API.
  *
  * @param string|null $stored_key_type
+ *  The type of key to use when retrieving an API key stored in module
+ *  configuration. Options are 'admin', 'collaborator', and 'guest' (default).
  * @param string|null $custom_api_key
  *   If provided, an API key to use when connecting to Brandfolder. If not
- *   provided, the default API key set in the module configuration will be used.
+ *   provided, an API key set in the module configuration will be used.
  *
- * @return bool|object
- *   A \Brandfolder\Brandfolder object for interacting with the Brandfolder SDK,
- *   or FALSE on failure.
+ * @return Brandfolder|false
+ *  A \Brandfolder\Brandfolder instance for interacting with the Brandfolder
+ *  SDK, or FALSE on failure.
  */
 function brandfolder_api(?string $stored_key_type = 'guest', string $custom_api_key = NULL) {
   $config = \Drupal::config('brandfolder.settings');
@@ -60,9 +62,12 @@ function brandfolder_api(?string $stored_key_type = 'guest', string $custom_api_
   elseif (!is_null($custom_api_key)) {
     $api_key = $custom_api_key;
   }
+  if (empty($api_key)) {
 
-  // Set Brandfolder and collection based on module config if present (NULL
-  // otherwise).
+    return FALSE;
+  }
+
+  // Set Brandfolder based on module config if present (NULL otherwise).
   $brandfolder_id = \Drupal::config('brandfolder.settings')->get('brandfolder_id');
 
   $bf = new Brandfolder($api_key, $brandfolder_id);
@@ -78,15 +83,16 @@ function brandfolder_api(?string $stored_key_type = 'guest', string $custom_api_
  * Implements hook_help().
  */
 function brandfolder_help($route_name, RouteMatchInterface $route_match) {
+  $output = '';
+
   switch ($route_name) {
     // Main module help for the Brandfolder module.
     case 'help.page.brandfolder':
-      $output = '';
       $output .= '<h3>' . t('About') . '</h3>';
       $output .= '<p>' . t('Allows Brandfolder assets to be used by Drupal\'s Media/image/file systems.') . '</p>';
-
-      return $output;
   }
+
+  return $output;
 }
 
 /**
@@ -132,11 +138,32 @@ function brandfolder_form_alter(&$form, FormStateInterface $form_state, $form_id
       }
       // Limit users' ability to interact with the auto-managed BF Image field.
       // @see brandfolder_process_image_widget_for_internal_field().
-      if (isset($form['bf_image']) && isset($form['bf_image']['widget'])) {
-        $widget_deltas = Element::children($form['bf_image']['widget']);
-        foreach ($widget_deltas as $delta) {
-          $form['bf_image']['widget'][$delta]['#process'][] = 'brandfolder_process_image_widget_for_internal_field';
+      if (isset($form['bf_image'])) {
+        if (isset($form['bf_image']['widget'][0])) {
+          $form['bf_image']['widget'][0]['#process'][] = 'brandfolder_process_image_widget_for_internal_field';
         }
+        // Show the image width and height values and give users an option to
+        // swap them if they appear to be inverted.
+        $form['bf_image']['image_width'] = [
+          '#type' => 'number',
+          '#title' => t('Image width'),
+          '#disabled' => TRUE,
+          '#default_value' => $form['bf_image']['widget'][0]['#default_value']['width'],
+        ];
+        $form['bf_image']['image_height'] = [
+          '#type' => 'number',
+          '#title' => t('Image height'),
+          '#disabled' => TRUE,
+          '#default_value' => $form['bf_image']['widget'][0]['#default_value']['height'],
+        ];
+        $form['bf_image']['transpose_image_width_and_height'] = [
+          '#type' => 'checkbox',
+          '#title' => t('Swap image width and height'),
+          '#description' => t('If it looks like the width and height values are inverted, check this box to switch them. There is a known issue when Brandfolder processes images from certain cameras in certain orientations. If the image appears "squished" or "stretched" in the preview, try checking this box.'),
+          '#default_value' => FALSE,
+        ];
+        array_unshift($form['actions']['submit']['#submit'], 'brandfolder_image_media_entity_form_submit');
+        array_unshift($form['#submit'], 'brandfolder_image_media_entity_form_submit');
       }
     }
   }
@@ -174,6 +201,63 @@ function brandfolder_process_image_widget_for_internal_field($element, FormState
   }
 
   return $element;
+}
+
+/**
+ * Supplementary submit handler for BrandfolderImage-sourced media entity edit
+ * forms.
+ *
+ * @param $form
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ *
+ * @return void
+ */
+function brandfolder_image_media_entity_form_submit(&$form, FormStateInterface $form_state) {
+  // If the user has checked the "Transpose image width and height" checkbox,
+  // swap the width and height values in the image field and in our BF registry
+  // table.
+  if ($form_state->getValue('transpose_image_width_and_height')) {
+    $logger = \Drupal::logger('brandfolder');
+    $bf_attachment_id_item = $form_state->getValue('field_brandfolder_attachment_id');
+    if (is_array($bf_attachment_id_item) && isset($bf_attachment_id_item[0]['value'])) {
+      $bf_attachment_id = $bf_attachment_id_item[0]['value'];
+      $bf_image = $form_state->getValue('bf_image');
+      if (!empty($bf_image)) {
+        $height = $bf_image[0]['height'];
+        $width = $bf_image[0]['width'];
+        if ($width > 0 && $height > 0) {
+          // Swap the width and height values in the image field.
+          $bf_image[0]['height'] = $width;
+          $bf_image[0]['width'] = $height;
+          $form_state->setValue('bf_image', $bf_image);
+          // Update brandfolder_file table to swap width and height fields
+          // there as well.
+          $db = \Drupal::database();
+          $result = $db->merge('brandfolder_file')
+            ->key([
+              'bf_attachment_id' => $bf_attachment_id,
+            ])
+            ->fields([
+              'height' => $width,
+              'width'  => $height,
+            ])
+            ->execute();
+          if ($result != Database\Query\Merge::STATUS_UPDATE) {
+              $logger->error('Tried to transpose image width and height but could not find an existing record in the brandfolder_file table for attachment ID !attachment_id.', [
+                '!attachment_id' => $bf_attachment_id
+              ]);
+          }
+        }
+        else {
+          $logger->error('Tried to transpose image width and height but could not find a valid width and height for attachment ID !attachment_id. Width: !width. Height: !height.', [
+              '!attachment_id' => $bf_attachment_id,
+              '!width' => $width,
+              '!height' => $height,
+            ]);
+        }
+      }
+    }
+  }
 }
 
 /**
@@ -264,6 +348,13 @@ function brandfolder_browser_media_library_form_manipulator(&$form, FormStateInt
   $context_string = implode('-', $context);
   brandfolder_browser_init($form, $form_state, $gatekeeper, $selected_bf_attachment_ids, [], $selection_limit, $context_string);
 
+  // Completely replace standard validation with our own custom
+  // validators/processors.
+  $form['#validate'] = [
+    'brandfolder_browser_to_media_library_selection_converter',
+    'brandfolder_browser_host_form_validator',
+  ];
+
   // Relocate the BF browser element, using it to replace the standard Media
   // Library output entirely.
   $main_bf_browser_element = $form['brandfolder_browser'];
@@ -286,7 +377,6 @@ function brandfolder_browser_media_library_form_manipulator(&$form, FormStateInt
  *  This should be -1 if there is no limit.
  * @param string|null $context_id
  *
- * @throws \GuzzleHttp\Exception\GuzzleException
  * @todo: Relocate and make pluggable. See also brandfolder_browser_controls().
  */
 function brandfolder_browser_init(&$form, FormStateInterface $form_state, BrandfolderGatekeeper $gatekeeper, array $disabled_attachment_ids = [], array $selected_attachment_ids = [], int $selection_limit = -1, string $context_id = NULL) {
@@ -300,7 +390,7 @@ function brandfolder_browser_init(&$form, FormStateInterface $form_state, Brandf
     $bf_asset_list = brandfolder_format_asset_list($assets, $disabled_attachment_ids, $selected_attachment_ids);
   }
 
-  brandfolder_browser_core($form, $form_state, $gatekeeper->getCriteria(), $bf_asset_list, $selection_limit, $context_id);
+  brandfolder_browser_core($form, $form_state, $gatekeeper, $bf_asset_list, $selection_limit, $context_id);
 
   $form['disabled_bf_attachment_ids'] = [
     '#type' => 'hidden',
@@ -319,13 +409,6 @@ function brandfolder_browser_init(&$form, FormStateInterface $form_state, Brandf
   ];
 
   $form['#attached']['library'][] = 'brandfolder/brandfolder-browser';
-
-  // Completely replace standard validation with our own custom
-  // validators/processors.
-  $form['#validate'] = [
-    'brandfolder_browser_selection_converter',
-    'brandfolder_browser_host_form_validator',
-  ];
 }
 
 /**
@@ -334,7 +417,7 @@ function brandfolder_browser_init(&$form, FormStateInterface $form_state, Brandf
  *
  * @param array $form
  * @param \Drupal\Core\Form\FormStateInterface $form_state
- * @param array $gatekeeper_criteria
+ * @param \Drupal\brandfolder\Service\BrandfolderGatekeeper $gatekeeper
  * @param string $bf_asset_list
  * @param int $selection_limit
  *  This should be -1 if there is no limit.
@@ -342,7 +425,7 @@ function brandfolder_browser_init(&$form, FormStateInterface $form_state, Brandf
  *
  * @todo: Relocate and make pluggable. See also brandfolder_browser_controls().
  */
-function brandfolder_browser_core(array &$form, FormStateInterface $form_state, array $gatekeeper_criteria, string $bf_asset_list, int $selection_limit = -1, string $context_id = NULL) {
+function brandfolder_browser_core(array &$form, FormStateInterface $form_state, BrandfolderGatekeeper $gatekeeper, string $bf_asset_list, int $selection_limit = -1, string $context_id = NULL) {
   $bf_browser_id = $form_state->getValue('brandfolder_browser_id');
   if (empty($bf_browser_id)) {
     $all_input = $form_state->getUserInput();
@@ -384,9 +467,6 @@ function brandfolder_browser_core(array &$form, FormStateInterface $form_state, 
     ],
   ];
 
-  $gatekeeper = \Drupal::getContainer()
-    ->get(BrandfolderGatekeeper::class);
-  $gatekeeper->setCriteria($gatekeeper_criteria);
   $controls = brandfolder_browser_controls($gatekeeper, $bf_browser_id, $form, $form_state);
   $form['brandfolder_browser']['brandfolder_browser_controls'] += $controls;
 
@@ -395,6 +475,8 @@ function brandfolder_browser_core(array &$form, FormStateInterface $form_state, 
                     $bf_asset_list
                   </div>",
   ];
+
+  $gatekeeper_criteria = $gatekeeper->getCriteria(FALSE);
 
   $form['brandfolder_browser']['bf_gatekeeper_criteria'] = [
     '#type' => 'hidden',
@@ -498,36 +580,42 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
 
   $all_user_input = $form_state->getUserInput();
 
-  // These AJAX requests will always post to the $form['#action'] URL. Ensure
-  // that this URL has certain query params so that these AJAX submissions are
-  // handled properly.
-  // @see This core issue and related discussion: https://www.drupal.org/project/drupal/issues/2504115.
-  $ajax_form_request_param = FormBuilderInterface::AJAX_FORM_REQUEST;
-  try {
-    $url = Url::fromUserInput($form['#action']);
-    $url->mergeOptions(['query' => [$ajax_form_request_param => 1, 'form_id' => $form['#form_id']]]);
-    $url = $url->toString();
+  if (isset($form['#action'])) {
+    // These AJAX requests will always post to the $form['#action'] URL, if one
+    // exists. Ensure that our URL has certain query params so that the AJAX
+    // submissions are handled properly.
+    // @see This core issue and related discussion: https://www.drupal.org/project/drupal/issues/2504115.
+    $ajax_form_request_param = FormBuilderInterface::AJAX_FORM_REQUEST;
+    try {
+      $url = Url::fromUserInput($form['#action']);
+      $url->mergeOptions([
+        'query' => [
+          $ajax_form_request_param => 1,
+          'form_id'                => $form['#form_id']
+        ]
+      ]);
+      $url = $url->toString();
+    } catch (\InvalidArgumentException $e) {
+      $url = $form['#action'];
+      if (!(strpos($url, '?') > 0)) {
+        $url .= '?';
+      }
+      else {
+        $url .= '&';
+      }
+      $params = [];
+      if (!(strpos($url, FormBuilderInterface::AJAX_FORM_REQUEST) > 0)) {
+        $params[] = "{$ajax_form_request_param}=1";
+      }
+      if (!(strpos($url, 'form_id') > 0)) {
+        $params[] = "form_id={$form['#form_id']}";
+      }
+      if (count($params) > 0) {
+        $url .= implode('&', $params);
+      }
+    }
+    $form['#action'] = $url;
   }
-  catch (\InvalidArgumentException $e) {
-    $url = $form['#action'];
-    if (!(strpos($url, '?') > 0)) {
-      $url .= '?';
-    }
-    else {
-      $url .= '&';
-    }
-    $params = [];
-    if (!(strpos($url, FormBuilderInterface::AJAX_FORM_REQUEST) > 0)) {
-      $params[] = "{$ajax_form_request_param}=1";
-    }
-    if (!(strpos($url, FormBuilderInterface::AJAX_FORM_REQUEST) > 0)) {
-      $params[] = "form_id={$form['#form_id']}";
-    }
-    if (count($params) > 0) {
-      $url .= implode('&', $params);
-    }
-  }
-  $form['#action'] = $url;
 
   $ajax_defaults = [
     'callback' => [
@@ -539,8 +627,10 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
       'type' => 'throbber',
       'message' => t('Searching...'),
     ],
-    'url' => $url,
   ];
+  if (isset($url)) {
+    $ajax_defaults['url'] = $url;
+  }
 
   $attribute_defaults = [
     'class' => [
@@ -630,8 +720,10 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
 
   // Get all possible labels. If there are more than one, allow users to
   // filter by label.
-  $allowed_labels = $gatekeeper->getLabels();
-  if (count($allowed_labels) > 1) {
+  $allowed_labels_tree = $gatekeeper->getLabels();
+  $label_options = [];
+  brandfolder_build_labels_select_list($allowed_labels_tree, $label_options);
+  if (count($label_options) > 1) {
     $controls['labels'] = [
       '#type'        => 'fieldset',
       //    '#title' => t('Labels'),
@@ -644,8 +736,6 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
         ],
       ],
     ];
-    $label_options = [];
-    brandfolder_build_labels_select_list($allowed_labels, $label_options);
     $attributes = $attribute_defaults;
     $attributes['size'] = min(count($label_options), 10);
     $controls['labels']['brandfolder_controls_labels'] = [
@@ -953,46 +1043,54 @@ function brandfolder_build_labels_select_list($labels, &$select_options) {
 }
 
 /**
+ * Check to see whether a form submission was triggered by one of our
+ * Brandfolder browser controls (e.g. search, filters, etc.).
+ *
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ *
+ * @return bool
+ */
+function is_form_submission_triggered_by_bf_browser_controls(FormStateInterface $form_state): bool {
+  $triggering_element = $form_state->getTriggeringElement();
+  if (isset($triggering_element['#attributes']['class'])) {
+    $classes = $triggering_element['#attributes']['class'];
+    if (is_array($classes) && in_array('brandfolder-browser-control', $classes)) {
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+/**
  * Form validation handler to be applied to forms containing a Brandfolder
  * Browser, after other validation handlers have executed.
  *
  * @param array $form
  * @param \Drupal\Core\Form\FormStateInterface $form_state
- *
- * @throws \GuzzleHttp\Exception\GuzzleException
  */
 function brandfolder_browser_host_form_validator(array &$form, FormStateInterface &$form_state) {
-  $triggering_element = $form_state->getTriggeringElement();
   // If the submission was triggered by one of our browser controls, the only
   // outcome should be to update the browser contents. We do not care about
   // other validation logic/errors.
-  if (isset($triggering_element['#attributes']['class'])) {
-    $classes = $triggering_element['#attributes']['class'];
-    if (is_array($classes) && in_array('brandfolder-browser-control', $classes)) {
-      $form_state->clearErrors();
-    }
+  if (is_form_submission_triggered_by_bf_browser_controls($form_state)) {
+    $form_state->clearErrors();
   }
 }
 
 /**
  * Helper function to translate Brandfolder browser selections to Drupal form
- * values. To be used as a form validation handler.
+ * values in a Media Library context. To be used as a form validation handler.
  *
  * @param array $form
  * @param \Drupal\Core\Form\FormStateInterface $form_state
- *
- * @throws \GuzzleHttp\Exception\GuzzleException
  */
-function brandfolder_browser_selection_converter(array &$form, FormStateInterface &$form_state) {
-  $triggering_element = $form_state->getTriggeringElement();
+function brandfolder_browser_to_media_library_selection_converter(array &$form, FormStateInterface &$form_state) {
   // We don't need or want to perform validation when the submission is
   // triggered by one of our browser controls.
-  if (isset($triggering_element['#attributes']['class'])) {
-    $classes = $triggering_element['#attributes']['class'];
-    if (is_array($classes) && in_array('brandfolder-browser-control', $classes)) {
+  if (is_form_submission_triggered_by_bf_browser_controls($form_state)) {
 
-      return;
-    }
+    return;
   }
 
   $selected_media_entities = [];
@@ -1000,7 +1098,7 @@ function brandfolder_browser_selection_converter(array &$form, FormStateInterfac
   $selected_attachment_list = $form_state->getValue('selected_bf_attachment_ids');
   if (!empty($selected_attachment_list)) {
     $selected_attachments = explode(',', $selected_attachment_list);
-    // Media Library context.
+    // Determine the relevant media type from the form ID.
     if (preg_match('/^views_form_media_library_widget_(.+)$/', $form['#form_id'], $matches)) {
       $media_type_id = $matches[1];
       $selected_media_entities = array_map(function ($attachment_id) use ($media_type_id) {
@@ -1008,7 +1106,6 @@ function brandfolder_browser_selection_converter(array &$form, FormStateInterfac
       }, $selected_attachments);
       $selected_media_entities_list = implode(',', $selected_media_entities);
     }
-    // @todo: Other contexts.
   }
   $media_select_form_values = array_combine($selected_media_entities, $selected_media_entities);
   $form_state->setValue('media_library_select_form', $media_select_form_values);
@@ -1062,8 +1159,6 @@ function template_preprocess_brandfolder_browser_widget(&$variables) {
  *
  * @return bool|int
  *   The file ID on success; FALSE on failure.
- *
- * @throws \GuzzleHttp\Exception\GuzzleException
  *
  * @todo Move to class.
  */
@@ -1168,14 +1263,21 @@ function brandfolder_map_attachment_to_file($attachment, $create_new_file = TRUE
       // Store data in the brandfolder_file table before saving the file, so
       // we can use it to look up things like filesize when the file is being
       // saved.
-      $db->insert('brandfolder_file')
-        ->fields($bf_file_data)
-        ->execute();
+      try {
+        $db->insert('brandfolder_file')
+          ->fields($bf_file_data)
+          ->execute();
+      }
+      catch (\Exception $e) {
+        $logger->error('Could not insert a record into the brandfolder_file table for attachment ID !attachment_id.', ['!attachment_id' => $attachment_id]);
+
+        return FALSE;
+      }
 
       try {
         $file = File::Create($file_data);
         $file->save();
-        $fid = $bf_file_data['fid'] = $file->id();
+        $fid = $file->id();
 
         // Update the brandfolder_file table with the newly created FID.
         $result = $db->merge('brandfolder_file')
@@ -1191,6 +1293,8 @@ function brandfolder_map_attachment_to_file($attachment, $create_new_file = TRUE
             '!fid'      => $fid,
             '!attachment_id' => $attachment_id
           ]);
+
+          return FALSE;
         }
 
         \Drupal::moduleHandler()->invokeAll('brandfolder_file_insert', [
@@ -1200,6 +1304,8 @@ function brandfolder_map_attachment_to_file($attachment, $create_new_file = TRUE
       }
       catch (EntityStorageException $e) {
         $logger->error('There was an error saving a new file for Brandfolder attachment !attachment_id.', ['!attachment_id' => $attachment_id]);
+
+        return FALSE;
       }
     }
   }
@@ -1222,9 +1328,6 @@ function brandfolder_map_attachment_to_file($attachment, $create_new_file = TRUE
  *
  * @return bool|int
  *   The media entity ID on success; FALSE on failure.
- *
- * @throws \GuzzleHttp\Exception\GuzzleException
- *
  */
 function brandfolder_map_attachment_to_media_entity($attachment, $media_type_id, $create_new_entity = TRUE) {
   $entity_id = FALSE;
@@ -1238,10 +1341,10 @@ function brandfolder_map_attachment_to_media_entity($attachment, $media_type_id,
   // Check to see if a media entity of the given type already exists for this
   // BF attachment.
   $results = \Drupal::entityQuery('media')
-    ->accessCheck(FALSE)
     ->condition('bundle', $media_type_id)
     ->condition($bf_media_source_field_name, $attachment_id)
     ->range(0, 1)
+    ->accessCheck(FALSE)
     ->execute();
 
   if (!empty($results)) {
@@ -1393,15 +1496,17 @@ function brandfolder_parse_cdn_url($cdn_url) {
 function brandfolder_parse_uri(string $uri) {
   $return = FALSE;
 
-  if (preg_match("/^bf:\/\/(([^\/]+)\/(as|at)\/([\w\-]+)\/([^\?]*)(\?(.*))?)$/", $uri, $matches)) {
-    $return = [
-      'cdn_id' => $matches[2] ?? '',
-      'id' => $matches[4] ?? '',
-      'filename' => $matches[5] ?? '',
-      'query' => $matches[7] ?? '',
+  if (preg_match("/^bf:\/\/(styles\/(?P<image_style>[^\/]+)\/bf\/)?((?P<cdn_id>[^\/]+)\/(?P<type_id>as|at)\/(?P<id>[\w\-]+)\/(?P<filename>[^\?]*)(\?(?P<query>.*))?)$/", $uri, $matches)) {
+    $defaults = [
+      'image_style' => '',
+      'cdn_id' => '',
+      'type_id' => 'at',
+      'id' => '',
+      'filename' => '',
+      'query' => '',
     ];
-    $type_component = $matches[3] ?? '';
-    $return['type'] = ($type_component == 'as') ? 'asset' : 'attachment';
+    $return = array_intersect_key($matches, $defaults) + $defaults;
+    $return['type'] = ($return['type_id'] === 'as') ? 'asset' : 'attachment';
   }
 
   return $return;
@@ -1445,7 +1550,7 @@ function brandfolder_file_delete($file) {
 /**
  * Implements hook_ENTITY_TYPE_presave().
  *
- * @throws EntityMalformedException
+ * @throws EntityMalformedException|\Drupal\Core\TypedData\Exception\MissingDataException
  */
 function brandfolder_media_presave(MediaInterface $media) {
   $source = $media->getSource();
@@ -1511,7 +1616,6 @@ function brandfolder_media_presave(MediaInterface $media) {
             if (isset($custom_field_keys[$alt_text_custom_field_id])) {
               $custom_field_name = $custom_field_keys[$alt_text_custom_field_id];
               if (!empty($asset->data->custom_field_values[$custom_field_name])) {
-                // @todo: asset.update webhook action to update this value if it is populated in BF in the future and the Drupal field remains empty.
                 $image_field_data['alt'] = $asset->data->custom_field_values[$custom_field_name];
                 $is_image_update_required = TRUE;
               }
@@ -1551,6 +1655,7 @@ function brandfolder_media_presave(MediaInterface $media) {
     $gatekeeper->loadFromMediaSource($source);
     $valid = $gatekeeper->validateBrandfolderEntities(['attachments' => [$bf_attachment_id]]);
     if (!$valid) {
+      \Drupal::messenger()->addError('The asset you selected does not appear to be allowed here. Please contact an administrator for assistance.');
       $msg = $gatekeeper->getMessage();
       $logger->error($msg);
       throw new EntityMalformedException($msg);
@@ -1572,3 +1677,43 @@ function brandfolder_media_presave(MediaInterface $media) {
 //    // elsewhere]...
 //  }
 //}
+
+/**
+ * Implements hook_entity_embed_media_image_source_field_alter().
+ *
+ * Tell the Entity Embed module what field to use as an image "source" field
+ * when dealing with BrandfolderImage media entities.
+ */
+function brandfolder_entity_embed_media_image_source_field_alter(&$field_name, $media) {
+  $source = $media->getSource();
+  $bf_image_field_name = 'bf_image';
+  if ($source instanceof BrandfolderImage && $media->hasField($bf_image_field_name)) {
+    $field_name = $bf_image_field_name;
+  }
+}
+
+/**
+ * Helper function to determine whether a given media entity is sourced from
+ * Brandfolder.
+ *
+ * @param int|\Drupal\media\MediaInterface $media
+ *  Media entity ID or object.
+ *
+ * @return bool
+ */
+function is_media_brandfolder_sourced(int | MediaInterface $media) {
+  if (is_int($media)) {
+    $media = Media::load($media);
+  }
+  if ($media instanceof MediaInterface) {
+    $source = $media->getSource();
+
+    $brandfolder_media_sources = [
+      'brandfolder_image',
+    ];
+
+    return in_array($source->getPluginId(), $brandfolder_media_sources);
+  }
+
+  return FALSE;
+}

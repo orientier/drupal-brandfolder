@@ -5,12 +5,10 @@ namespace Drupal\brandfolder\Service;
 use Drupal\brandfolder\Plugin\media\Source\BrandfolderImage;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
-use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\StringTranslation\TranslationInterface;
 use Drupal\media\MediaSourceInterface;
 use Brandfolder\Brandfolder;
-use GuzzleHttp\Exception\GuzzleException;
 
 /**
  * Helps determine which Brandfolder entities should be available in a given
@@ -163,14 +161,15 @@ class BrandfolderGatekeeper {
    * @param MediaSourceInterface $source
    */
   public function loadFromMediaSource(MediaSourceInterface $source) {
+    $criteria = [];
     $source_config = $source->getConfiguration();
     // @todo: Build on this.
     if (!empty($source_config['brandfolder']['bf_entity_criteria'])) {
-      $this->criteria = $source_config['brandfolder']['bf_entity_criteria'];
+      $criteria = $source_config['brandfolder']['bf_entity_criteria'];
     }
     // @todo: Expose this in config.
     if ($source instanceof BrandfolderImage) {
-      $this->criteria['allowed']['filetype'] = [
+      $criteria['allowed']['filetype'] = [
         'jpg',
         'png',
         'gif',
@@ -179,6 +178,7 @@ class BrandfolderGatekeeper {
         'webp',
       ];
     }
+    $this->setCriteria($criteria);
   }
 
   /**
@@ -224,11 +224,12 @@ class BrandfolderGatekeeper {
         }
       }
     }
+    $all_criteria = $this->getCriteria();
     // Check each remaining entity against all specified criteria.
     foreach ($processing_queue as $bf_entity_type => $bf_entities) {
       foreach ($bf_entities as $bf_entity_id => $bf_entity_data) {
         $bf_entity_is_valid = TRUE;
-        foreach ($this->criteria['allowed'] as $criteria_family => $criteria) {
+        foreach ($all_criteria['allowed'] as $criteria_family => $criteria) {
           // Check all criteria families except filetype.
           // @todo: Consider file type/extension validation here.
           if (!empty($criteria) && $criteria_family != 'filetype') {
@@ -241,7 +242,7 @@ class BrandfolderGatekeeper {
           }
         }
         if ($bf_entity_is_valid) {
-          foreach ($this->criteria['disallowed'] as $criteria_family => $criteria) {
+          foreach ($all_criteria['disallowed'] as $criteria_family => $criteria) {
             if (!empty($criteria)) {
               $disqualifying_attributes = array_intersect($criteria, $bf_entity_data[$criteria_family]);
               if (count($disqualifying_attributes) > 0) {
@@ -286,25 +287,45 @@ class BrandfolderGatekeeper {
    * @param array $query_params
    *
    * @return mixed
-   * @throws \GuzzleHttp\Exception\GuzzleException
    */
   public function fetchAssets(array $query_params = []) {
+    $default_params = [
+      'per' => 100,
+      'page' => 1,
+    ];
+    $query_params = array_merge($default_params, $query_params);
+
     $search_components = !empty($query_params['search']) ? [$query_params['search']] : [];
+
+    // Expanded format is currently unnecessary here (see label-specific logic
+    // below). Revisit when adding new criteria/config options.
+    $all_criteria = $this->getCriteria(FALSE);
+
+    $boolean_criteria = [
+      'approved',
+      'expired',
+      'unpublished',
+    ];
+    foreach ($boolean_criteria as $criterion) {
+      if (isset($all_criteria[$criterion])) {
+        $search_components[] = $criterion . ':' . ($all_criteria[$criterion] ? 'true' : 'false');
+      }
+    }
 
     $key_based_criteria = [
       'collection',
       'section',
     ];
     foreach ($key_based_criteria as $criterion) {
-      if (!empty($this->criteria['allowed'][$criterion])) {
-        $criteria = $this->criteria['allowed'][$criterion];
+      if (!empty($all_criteria['allowed'][$criterion])) {
+        $criteria = $all_criteria['allowed'][$criterion];
         array_walk($criteria, function (&$item) {
           $item = "\"$item\"";
         });
         $search_components[] = "{$criterion}_key:(" . implode(' OR ', $criteria) . ')';
       }
-      if (!empty($this->criteria['disallowed'][$criterion])) {
-        $criteria = $this->criteria['disallowed'][$criterion];
+      if (!empty($all_criteria['disallowed'][$criterion])) {
+        $criteria = $all_criteria['disallowed'][$criterion];
         array_walk($criteria, function (&$item) {
           $item = "\"$item\"";
         });
@@ -312,28 +333,34 @@ class BrandfolderGatekeeper {
       }
     }
 
-    // Brandfolder only supports label searches by human-readable name, rather
-    // than key/ID. Therefore, map the ID/key-based criteria to the
-    // corresponding names.
+    // Labels.
+    // Note: remember that assets in Brandfolder can belong to multiple labels.
+    // Note: Brandfolder only supports label searches by human-readable
+    // name, rather than by key/ID, so we need to map the ID/key-based criteria
+    // to the corresponding names.
     // @todo: Update if/when Brandfolder adds support for key-based search.
-    $label_ids_and_names = $this->bf_client->listLabelsInBrandfolder( NUll, TRUE);
-    if (!empty($this->criteria['allowed']['label'])) {
-      $criteria = array_intersect_key($label_ids_and_names, $this->criteria['allowed']['label']);
-      array_walk($criteria, function (&$criterion) {
-        $criterion = "\"$criterion\"";
-      });
-      $search_components[] = "label:(" . implode(' OR ', $criteria) . ')';
+
+    // Get all labels that are explicitly allowed, if any, minus any that are
+    // also disallowed (there is no sense including those in this part of the
+    // query).
+    $allowed_labels = $this->getLabels('list', 'difference');
+    if (!empty($allowed_labels)) {
+      $quoted_label_names = array_map(function ($label) {
+        return '"' . $label->attributes->name . '"';
+      }, $allowed_labels);
+      $search_components[] = "label:(" . implode(' OR ', $quoted_label_names) . ')';
     }
-    if (!empty($this->criteria['disallowed']['label'])) {
-      $criteria = array_intersect_key($label_ids_and_names, $this->criteria['disallowed']['label']);
-      array_walk($criteria, function (&$criterion) {
-        $criterion = "\"$criterion\"";
-      });
-      $search_components[] = "NOT label:(" . implode(' OR ', $criteria) . ')';
+    // Get only those labels that are explicitly disallowed, if any.
+    $disallowed_labels = $this->getLabels('list', 'disallowed_only');
+    if (!empty($disallowed_labels)) {
+      $quoted_label_names = array_map(function ($label) {
+        return '"' . $label->attributes->name . '"';
+      }, $disallowed_labels);
+      $search_components[] = "NOT label:(" . implode(' OR ', $quoted_label_names) . ')';
     }
 
-    if (!empty($this->criteria['allowed']['filetype'])) {
-      $extension_list = $this->criteria['allowed']['filetype'];
+    if (!empty($all_criteria['allowed']['filetype'])) {
+      $extension_list = $all_criteria['allowed']['filetype'];
       array_walk($extension_list, function (&$criterion) {
         $criterion = "\"$criterion\"";
       });
@@ -365,34 +392,35 @@ class BrandfolderGatekeeper {
    *   An array keyed by collection ID whose values are collection names.
    */
   public function getCollections(): array {
-    try {
-      // Start with all collections in the Brandfolder.
-      $collections = $this->bf_client->getCollectionsInBrandfolder();
+    // Start with all collections in the Brandfolder.
+    $collections = $this->bf_client->getCollectionsInBrandfolder();
 
-      $bf_config = $this->configFactory->get('brandfolder.settings');
-      if ($bf_config->get('verbose_log_mode')) {
-        foreach ($this->bf_client->getLogData() as $log_entry) {
-          $this->logger->debug($log_entry);
-        }
-        $this->bf_client->clearLogData();
+    $bf_config = $this->configFactory->get('brandfolder.settings');
+    if ($bf_config->get('verbose_log_mode')) {
+      foreach ($this->bf_client->getLogData() as $log_entry) {
+        $this->logger->debug($log_entry);
       }
-
-      // Return empty array if no collections exist or some error has occurred.
-      if (empty($collections)) {
-
-        return [];
-      }
-      // Reduce the list per allowed/disallowed collection criteria, as
-      // applicable.
-      if (!empty($this->criteria['allowed']['collection'])) {
-        $collections = array_intersect_key($collections, $this->criteria['allowed']['collection']);
-      }
-      if (!empty($this->criteria['disallowed']['collection'])) {
-        $collections = array_diff_key($collections, $this->criteria['disallowed']['collection']);
-      }
+      $this->bf_client->clearLogData();
     }
-    catch (GuzzleException $e) {
-      $collections = [];
+
+    // Return empty array if no collections exist or some error has occurred.
+    if (empty($collections)) {
+
+      return [];
+    }
+
+    // Change $should_expand to TRUE once we support nested collections.
+    // Also consider only retrieving collection criteria rather than all
+    // criteria.
+    $all_criteria = $this->getCriteria(FALSE);
+
+    // Reduce the list per allowed/disallowed collection criteria, as
+    // applicable.
+    if (!empty($all_criteria['allowed']['collection'])) {
+      $collections = array_intersect_key($collections, $all_criteria['allowed']['collection']);
+    }
+    if (!empty($all_criteria['disallowed']['collection'])) {
+      $collections = array_diff_key($collections, $all_criteria['disallowed']['collection']);
     }
 
     return $collections;
@@ -405,68 +433,157 @@ class BrandfolderGatekeeper {
    *   An array keyed by section ID whose values are section names.
    */
   public function getSections(): array {
-    try {
-      // Start with all sections in the Brandfolder.
-      $sections = $this->bf_client->listSectionsInBrandfolder(NULL, [], TRUE);
-      // Return empty array if no sections exist or some error has occurred.
-      if (empty($sections)) {
+    // Start with all sections in the Brandfolder.
+    $sections = $this->bf_client->listSectionsInBrandfolder(NULL, [], TRUE);
+    // Return empty array if no sections exist or some error has occurred.
+    if (empty($sections)) {
 
-        return [];
-      }
-      // Reduce the list per allowed/disallowed section criteria, as
-      // applicable.
-      if (!empty($this->criteria['allowed']['section'])) {
-        $sections = array_intersect_key($sections, $this->criteria['allowed']['section']);
-      }
-      if (!empty($this->criteria['disallowed']['section'])) {
-        $sections = array_diff_key($sections, $this->criteria['disallowed']['section']);
-      }
+      return [];
     }
-    catch (GuzzleException $e) {
-      $sections = [];
+    // Reduce the list per allowed/disallowed section criteria, as
+    // applicable.
+    if (!empty($this->criteria['allowed']['section'])) {
+      $sections = array_intersect_key($sections, $this->criteria['allowed']['section']);
+    }
+    if (!empty($this->criteria['disallowed']['section'])) {
+      $sections = array_diff_key($sections, $this->criteria['disallowed']['section']);
     }
 
     return $sections;
   }
 
   /**
-   * Get a list of all valid labels.
+   * Get a (potentially multidimensional) array containing all valid labels,
+   * or a forcibly-flattened version thereof.
+   *
+   * @param string $format If "tree" (default), return a multi-dimensional
+   *  array representing item hierarchy. If "list", return a flattened array.
+   *
+   * @param string $result_set If "all" (default), return all eligible labels.
+   *  If "difference", return only those labels that are explicitly allowed
+   *  minus any that are explicitly disallowed. If "allowed_only", return
+   *  only those labels that are explicitly allowed. If "disallowed_only",
+   *  return only those labels that are explicitly disallowed.
    *
    * @return array
-   *   An array keyed by label ID whose values are label names.
+   *  If $format is "tree" (default), an array keyed by label ID whose values
+   *  are objects representing nodes in the label tree. There is no root node.
+   *  Each node has a "label" property containing an object filled with label
+   *  attributes, and a "children" property containing an array of child label
+   *  nodes, if any exist.
+   *  If $format is "list," a flat array keyed by label ID whose values are
+   *  objects filled with label properties.
    */
-  public function getLabels(): array {
-    try {
-      // Start with all labels in the Brandfolder.
-      $labels = $this->bf_client->listLabelsInBrandfolder();
-      // Return empty array if no labels exist or some error has occurred.
-      if (empty($labels)) {
+  public function getLabels(string $format = 'tree', string $result_set = 'all'): array {
+    // Start with all labels in the Brandfolder.
+    $labels = $this->bf_client->listLabelsInBrandfolder();
+
+    // Return empty array if no labels exist or some error has occurred.
+    if (empty($labels)) {
+
+      return [];
+    }
+
+    // Reduce the list per allowed/disallowed label criteria, as
+    // applicable.
+    // Note: The current logic is for selected labels to also include any of
+    // their nested, descendant labels. Users should be able to achieve most
+    // desired outcomes by using a combination of allowed and disallowed
+    // labels.
+    $allowed_label_ids = $this->criteria['allowed']['label'] ?? [];
+    $disallowed_label_ids = $this->criteria['disallowed']['label'] ?? [];
+    $ids_to_include = [];
+    $ids_to_exclude = [];
+    if ($result_set === 'difference') {
+      if (empty($allowed_label_ids)) {
 
         return [];
       }
-      // Reduce the list per allowed/disallowed label criteria, as
-      // applicable.
-      // @todo: Test with nested labels. The current setup requires explicit whitelisting of all descendants (i.e. choices do not cascade).
-      if (!empty($this->criteria['allowed']['label'])) {
-        array_walk_recursive($labels, function(&$value, $key, $allowed_labels) {
-          if ($key === 'children') {
-            $value = array_intersect_key($value, $allowed_labels);
-          }
-        }, $this->criteria['allowed']['label']);
-      }
-      if (!empty($this->criteria['disallowed']['label'])) {
-        array_walk_recursive($labels, function(&$value, $key, $allowed_labels) {
-          if ($key === 'children') {
-            $value = array_diff_key($value, $allowed_labels);
-          }
-        }, $this->criteria['allowed']['label']);
-      }
+      $ids_to_include = $allowed_label_ids;
+      $ids_to_exclude = $disallowed_label_ids;
     }
-    catch (GuzzleException $e) {
-      $labels = [];
+    elseif ($result_set === 'allowed_only') {
+      if (empty($allowed_label_ids)) {
+
+        return [];
+      }
+      $ids_to_include = $allowed_label_ids;
+      $ids_to_exclude = [];
+    }
+    elseif ($result_set === 'disallowed_only') {
+      if (empty($disallowed_label_ids)) {
+
+        return [];
+      }
+      $ids_to_include = $disallowed_label_ids;
+      $ids_to_exclude = [];
+    }
+    if ($format === 'list') {
+      $flat_list = [];
+      $this->pruneTree($labels, 'label', $ids_to_include, $ids_to_exclude, $flat_list);
+
+      return $flat_list;
+    }
+    else {
+      $this->pruneTree($labels, 'label', $ids_to_include, $ids_to_exclude);
     }
 
     return $labels;
+  }
+
+  /**
+   * Prune a tree of hierarchical Brandfolder entities
+   *  (e.g. labels, maybe collections, etc.) to only include allowed items and
+   *  their descendants, and to exclude any disallowed items and their
+   *  descendants. Also provide a flattened list of the surviving items if
+   *  desired.
+   *
+   * @param array $tree
+   * @param string $item_type The name of the key in each node that contains the
+   *  data item (e.g. 'label' or 'collection').
+   * @param array|NULL $ids_to_include
+   * @param array|NULL $ids_to_exclude
+   * @param array|NULL $flattened_list An array to be populated with a
+   *  flattened list of all surviving items from the tree.
+   *
+   * @return void
+   */
+  protected function pruneTree(array &$tree, string $item_type, array $ids_to_include = NULL, array $ids_to_exclude = NULL, array &$flattened_list = NULL) {
+    // If our only objective is to prune the tree (not flatten it), and there
+    // are no whitelisted/blacklisted IDs, then there's nothing to do.
+    if (is_null($flattened_list) && empty($ids_to_include) && empty($ids_to_exclude)) {
+
+      return;
+    }
+
+    foreach ($tree as $id => &$node) {
+      $should_item_remain = TRUE;
+      $item = NULL;
+      if (isset($node[$item_type])) {
+        $item =& $node[$item_type];
+        $item_lineage = $item->attributes->path ?? [];
+        if (!empty($ids_to_include)) {
+          // Note: lineage would include the item's own ID, but we still check
+          // it explicitly so this will work more broadly (for items that may not
+          // have a path attribute).
+          $should_item_remain = in_array($id, $ids_to_include) || count(array_intersect($item_lineage, $ids_to_include));
+        }
+        if ($should_item_remain && !empty($ids_to_exclude)) {
+          $should_item_remain = !in_array($id, $ids_to_exclude) && !count(array_intersect($item_lineage, $ids_to_exclude));
+        }
+      }
+      if ($item && $should_item_remain) {
+        if (!is_null($flattened_list)) {
+          $flattened_list[$id] = $item;
+        }
+        if (!empty($node['children'])) {
+          $this->pruneTree($node['children'], $item_type, $ids_to_include, $ids_to_exclude, $flattened_list);
+        }
+      }
+      else {
+        unset($tree[$id]);
+      }
+    }
   }
 
   /**
@@ -480,12 +597,34 @@ class BrandfolderGatekeeper {
   }
 
   /**
-   * Get all specified criteria.
+   * Retrieve and process the criteria for eligible Brandfolder entities.
+   *
+   * @param bool $should_expand Whether to expand the basic criteria to include
+   *  inferred/calculated criteria (e.g. to include nested items whose parents
+   *  are listed in the basic criteria).
    *
    * @return array
+   *
+   * @see $this->criteria
+   *
+   * @todo: Consider adding params to specify more limited criteria to return - e.g. $type ['all', 'label', 'collection', ...].
    */
-  public function getCriteria(): array {
-    return $this->criteria ?? [];
+  public function getCriteria($should_expand = TRUE) {
+    $criteria = $this->criteria ?? [];
+
+    if ($should_expand) {
+      // Expand labels lists to include all descendants of the specified labels.
+      if (!empty($criteria['allowed']['label'])) {
+        $all_labels = $this->getLabels('list', 'allowed_only');
+        $criteria['allowed']['label'] = array_keys($all_labels);
+      }
+      if (!empty($criteria['disallowed']['label'])) {
+        $all_labels = $this->getLabels('list', 'disallowed_only');
+        $criteria['disallowed']['label'] = array_keys($all_labels);;
+      }
+    }
+
+    return $criteria;
   }
 
   /**
@@ -493,7 +632,16 @@ class BrandfolderGatekeeper {
    *
    * @param array $criteria
    */
-  public function setCriteria(array $criteria) {
+  public function setCriteria(array $criteria = []) {
+    // Default baseline criteria.
+    // @todo: Consider whether it makes sense to expose this to Drupal config.
+    $defaults = [
+      'approved' => true,
+      'expired' => false,
+      'unpublished' => false,
+    ];
+    $criteria = array_merge($defaults, $criteria);
+
     $this->criteria = $criteria;
   }
 
@@ -504,9 +652,13 @@ class BrandfolderGatekeeper {
    * @param array $form
    */
   public function buildConfigForm(&$form) {
-    // @todo: Additional config such as allowed labels, sub-collection differentiation, etc.
+    // @todo: Additional config such as allowed tags, sub-collection differentiation, etc.
     $collections_list = $this->bf_client->getCollectionsInBrandfolder();
     $sections_list = $this->bf_client->listSectionsInBrandfolder(NULL, [], TRUE);
+    $labels = $this->bf_client->listLabelsInBrandfolder();
+    $label_options = [];
+    brandfolder_build_labels_select_list($labels, $label_options);
+
     $form['brandfolder'] = [
       '#type'  => 'fieldset',
       '#title' => 'Brandfolder',
@@ -535,6 +687,13 @@ class BrandfolderGatekeeper {
       '#multiple'      => TRUE,
       '#default_value' => $this->criteria['allowed']['section'] ?? [],
     ];
+    $form['brandfolder']['bf_entity_criteria']['allowed']['label'] = [
+      '#type'          => 'select',
+      '#title'         => $this->t('Labels'),
+      '#options'       => $label_options,
+      '#multiple'      => TRUE,
+      '#default_value' => $this->criteria['allowed']['label'] ?? [],
+    ];
     $form['brandfolder']['bf_entity_criteria']['disallowed'] = [
       '#type'        => 'fieldset',
       '#title'       => $this->t('Disallowed'),
@@ -553,6 +712,13 @@ class BrandfolderGatekeeper {
       '#options'       => $sections_list,
       '#multiple'      => TRUE,
       '#default_value' => $this->criteria['disallowed']['section'] ?? [],
+    ];
+    $form['brandfolder']['bf_entity_criteria']['disallowed']['label'] = [
+      '#type'          => 'select',
+      '#title'         => $this->t('Labels'),
+      '#options'       => $label_options,
+      '#multiple'      => TRUE,
+      '#default_value' => $this->criteria['disallowed']['label'] ?? [],
     ];
   }
 

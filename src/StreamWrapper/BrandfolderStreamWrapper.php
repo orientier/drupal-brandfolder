@@ -8,6 +8,7 @@ use Drupal\Core\Database\Connection;
 use Drupal\Core\Url;
 use Drupal\image\Entity\ImageStyle;
 use Psr\Log\LoggerInterface;
+use Drupal\brandfolder\File\MimeType\BrandfolderMimeTypeHandler;
 
 /**
  * Drupal stream wrapper implementation for Brandfolder.
@@ -235,38 +236,9 @@ class BrandfolderStreamWrapper implements StreamWrapperInterface {
    * Determine the mime type for a given URI.
    */
   public static function getMimeType($uri, $mapping = NULL): string {
+    $mimetype_handler = new BrandfolderMimeTypeHandler(\Drupal::Service('module_handler'), \Drupal::database());
 
-    // Load the default mime type map.
-    if (!isset(self::$mimeTypeMapping)) {
-      include_once DRUPAL_ROOT . '/includes/file.mimetypes.inc';
-      self::$mimeTypeMapping = file_mimetype_mapping();
-    }
-
-    // If a mapping wasn't specified, use the default map.
-    if ($mapping == NULL) {
-      $mapping = self::$mimeTypeMapping;
-    }
-
-    $extension = '';
-    $file_parts = explode('.', basename($uri));
-
-    // Remove the first part: a full filename should not match an extension.
-    array_shift($file_parts);
-
-    // Iterate over the file parts, trying to find a match.
-    // For my.awesome.image.jpeg, we try:
-    // - jpeg
-    // - image.jpeg
-    // - awesome.image.jpeg.
-    while ($additional_part = array_pop($file_parts)) {
-      $extension = strtolower($additional_part . ($extension ? '.' . $extension : ''));
-      if (isset($mapping['extensions'][$extension])) {
-        return $mapping['mimetypes'][$mapping['extensions'][$extension]];
-      }
-    }
-
-    // No mime type matches, so return the default.
-    return 'application/octet-stream';
+    return $mimetype_handler->guessMimeType($uri);
   }
 
   /**
@@ -307,6 +279,8 @@ class BrandfolderStreamWrapper implements StreamWrapperInterface {
    *   A URL string.
    */
   public function getExternalUrl(): string {
+    $config = \Drupal::configFactory()->get('brandfolder.settings');
+
     // The current approach is to store most of the URL information right in the
     // URI, so we do not need to perform any additional lookups against the
     // BF API or Drupal DB. Thus, a typical URI looks something like
@@ -411,7 +385,19 @@ class BrandfolderStreamWrapper implements StreamWrapperInterface {
     }
     $url_options['query'] = $query_params;
 
-    // @todo: Allow alteration, with params ($url, $url_options, $image_style).
+    $mimetype = $this->getMimeType($this->getUri());
+    // Functionality for non-SVG images.
+    if (!empty($mimetype) && str_starts_with($mimetype, 'image/') && $mimetype != 'image/svg+xml') {
+      if ($config->get('io_auto_webp')) {
+        $url_options['query']['auto'] = 'webp';
+      }
+      if (!empty($config->get('io_quality'))) {
+        $url_options['query']['quality'] = $config->get('io_quality');
+      }
+    }
+
+    // Allow other modules to alter the URL.
+    \Drupal::moduleHandler()->alter('brandfolder_file_url', $url, $url_options, $image_style);
 
     return Url::fromUri($url, $url_options)->toString();
   }
@@ -424,26 +410,38 @@ class BrandfolderStreamWrapper implements StreamWrapperInterface {
    * @return bool
    */
   protected function loadFileData($uri): bool {
-    // @todo: static/cache; data other than file size; etc.
-    $query = $this->connection->select('brandfolder_file', 'bf')
-      ->fields('bf', ['filesize'])
-      ->condition('uri', $uri);
+    $success = FALSE;
 
-    if ($query->countQuery()->execute()->fetchField()) {
-      $result = $query->execute();
-      $row = $result->fetch();
-      if (!empty($row->filesize)) {
-        // Set the appropriate items in the _stat array, which is used to
-        // deliver data in response to file-system-esque requests.
-        $this->_stat[7] = $this->_stat['size'] = $row->filesize;
+    // For more robust lookups, extract the Brandfolder attachment ID
+    // from the URI and query against the corresponding column rather than the
+    // URI. URI is a bit more volatile since BF filenames can change. We also
+    // want to return a positive match when the URI is an image style derivative
+    // of a bf:// file.
+    // This will need to be updated if we start supporting asset URIs or
+    // supporting multiple Brandfolders in a single Drupal site.
+    $uri_parts = brandfolder_parse_uri($uri);
+    if ($uri_parts && isset($uri_parts['type']) && $uri_parts['type'] === 'attachment' && !empty($uri_parts['id'])) {
+      $attachment_id = $uri_parts['id'];
+
+      // @todo: static/cache; data other than file size; etc.
+      $query = $this->connection->select('brandfolder_file', 'bf')
+        ->fields('bf', ['filesize'])
+        ->condition('bf_attachment_id', $attachment_id);
+
+      if ($query->countQuery()->execute()->fetchField()) {
+        $result = $query->execute();
+        $row = $result->fetch();
+        if (!empty($row->filesize)) {
+          // Set the appropriate items in the _stat array, which is used to
+          // deliver data in response to file-system-esque requests.
+          $this->_stat[7] = $this->_stat['size'] = $row->filesize;
+        }
+
+        $success = TRUE;
       }
-
-      return TRUE;
     }
-    else {
 
-      return FALSE;
-    }
+    return $success;
   }
 
   /**

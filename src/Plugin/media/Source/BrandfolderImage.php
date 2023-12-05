@@ -113,6 +113,13 @@ class BrandfolderImage extends MediaSourceBase {
   protected $source_field_name = 'field_brandfolder_attachment_id';
 
   /**
+   * An array of metadata attributes corresponding to custom fields in
+   * Brandfolder. Array keys are metadata attribute identifiers; array values
+   * are human-readable labels.
+   */
+  protected $custom_field_metadata_options;
+
+  /**
    * Constructs a new class instance.
    *
    * @param array $configuration
@@ -166,7 +173,6 @@ class BrandfolderImage extends MediaSourceBase {
     $this->time = $time;
     $this->moduleHandler = $module_handler;
     $this->brandfolderGatekeeper = $brandfolder_gatekeeper;
-    parent::__construct($configuration, $plugin_id, $plugin_definition, $entity_type_manager, $entity_field_manager, $field_type_manager, $config_factory);
   }
 
   /**
@@ -224,12 +230,49 @@ class BrandfolderImage extends MediaSourceBase {
       }
     });
 
+    $fields += $this->getCustomFieldMetadataOptions();
+
+    return $fields;
+  }
+
+  /**
+   * Get an array of metadata attributes corresponding to custom fields in
+   * Brandfolder. Array keys are metadata attribute identifiers; array values
+   * are human-readable labels.
+   *
+   * @return array
+   */
+  protected function getCustomFieldMetadataOptions() {
+    // Use a cached dataset if available.
+    if (!is_null($this->custom_field_metadata_options)) {
+
+      return $this->custom_field_metadata_options;
+    }
+
+    $fields = [];
+
+    // Allow any BF custom field to be treated as metadata.
+    $custom_fields = $this->brandfolderClient->listCustomFields(NULL, FALSE, TRUE);
+
+    // Special handling for alt text.
     $config = $this->configFactory->get('brandfolder.settings');
     $alt_text_custom_field_id = $config->get('alt_text_custom_field');
     if (!empty($alt_text_custom_field_id)) {
-      $fields['alt_text'] = $this->t('Alt-Text (from Brandfolder custom field)');
-      // @todo: Allow admins to specify BF custom fields other than alt-text?
+      // Place this before other custom fields because it's more important.
+      $fields['alt_text'] = $this->t('Custom field: Alt-Text');
+      // Avoid redundancy while maintaining backward compatibility.
+      if (isset($custom_fields[$alt_text_custom_field_id])) {
+        unset($custom_fields[$alt_text_custom_field_id]);
+      }
     }
+
+    foreach ($custom_fields as $field_id => $field_name) {
+      $fields["bf_custom_field_$field_id"] = $this->t('Brandfolder custom field: @name', ['@name' => $field_name]);
+    }
+
+    // Cache this dataset to avoid multiple API calls and processing when
+    // dealing with multiple metadata values during the same request.
+    $this->custom_field_metadata_options = $fields;
 
     return $fields;
   }
@@ -280,7 +323,6 @@ class BrandfolderImage extends MediaSourceBase {
       ],
     ];
   }
-
 
   /**
    * {@inheritdoc}
@@ -432,7 +474,6 @@ class BrandfolderImage extends MediaSourceBase {
     $asset_dependent_attributes = [
       'name',
       'description',
-      'alt_text',
       'default_name',
       //      'tags', ??
     ];
@@ -448,11 +489,10 @@ class BrandfolderImage extends MediaSourceBase {
       'asset_updated_datetime_milliseconds'=> 'Y-m-d\TH:i:s.v',
     ];
     $datetime_attribute_names = array_keys($datetime_attributes_and_formats);
-    $asset_dependent_attributes = array_merge($asset_dependent_attributes, $datetime_attribute_names);
 
-    $custom_field_attributes = [
-      'alt_text'
-    ];
+    $custom_field_metadata_options = $this->getCustomFieldMetadataOptions();
+    $custom_field_attributes = array_keys($custom_field_metadata_options);
+    $asset_dependent_attributes = array_merge($asset_dependent_attributes, $datetime_attribute_names, $custom_field_attributes);
 
     $asset = FALSE;
     if (in_array($attribute_name, $asset_dependent_attributes)) {
@@ -563,22 +603,22 @@ class BrandfolderImage extends MediaSourceBase {
           $config = $this->configFactory->get('brandfolder.settings');
           $alt_text_custom_field_id = $config->get('alt_text_custom_field');
           if (!empty($alt_text_custom_field_id)) {
-            // Look up the current name associated with the given custom field
-            // key ID.
-            if ($custom_field_keys = $this->brandfolderClient->listCustomFields(NULL, FALSE, TRUE)) {
-              if (isset($custom_field_keys[$alt_text_custom_field_id])) {
-                $custom_field_name = $custom_field_keys[$alt_text_custom_field_id];
-                if (!empty($asset->data->custom_field_values[$custom_field_name])) {
-                  $alt_text = $asset->data->custom_field_values[$custom_field_name];
-                }
-              }
+            if (!empty($asset->data->custom_field_values_by_id[$alt_text_custom_field_id])) {
+              $alt_text = $asset->data->custom_field_values_by_id[$alt_text_custom_field_id];
             }
           }
         }
+
         return $alt_text;
 
-      //        default:
-      //          return isset($this->metadata[$bf_attachment_id][$name]) ? $this->metadata[$bf_attachment_id][$name] : FALSE;
+      default:
+        if (preg_match('/^bf_custom_field_(.+)$/', $attribute_name, $matches)) {
+          $custom_field_id = $matches[1];
+          if (!empty($asset->data->custom_field_values_by_id[$custom_field_id])) {
+
+            return $asset->data->custom_field_values_by_id[$custom_field_id];
+          }
+        }
     }
 
     return FALSE;
@@ -607,14 +647,10 @@ class BrandfolderImage extends MediaSourceBase {
    * {@inheritdoc}
    */
   public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
-    $bf_connection_error = FALSE;
+
     if ($this->brandfolderClient) {
-      try {
-        $this->brandfolderClient->listAssets();
-      }
-      catch (\Exception $exception) {
-        $bf_connection_error = TRUE;
-      }
+      $test_result = $this->brandfolderClient->listAssets(['per' => 1]);
+      $bf_connection_error = $test_result === FALSE;
     }
     else {
       $bf_connection_error = TRUE;

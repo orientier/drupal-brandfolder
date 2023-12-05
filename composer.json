@@ -23,8 +23,7 @@
         "role": "Tester"
       }
     ],
-    "minimum-stability": "dev",
     "require": {
-        "brandfolder/brandfolder-sdk-php": "dev-main"
+        "brandfolder/brandfolder-sdk-php": "^3.0"
     }
 }
