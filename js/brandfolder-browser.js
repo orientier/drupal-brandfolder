@@ -1,4 +1,4 @@
-(function ($, Drupal) {
+(function ($, Drupal, once) {
   Drupal.behaviors.BrandfolderBrowser = {
     attach: function attach(context) {
       // console.error('Debug');
@@ -166,4 +166,4 @@
     //   }
     // }
   };
-})(jQuery, Drupal);
+})(jQuery, Drupal, once);

@@ -54,10 +54,6 @@ function brandfolder_api(?string $stored_key_type = 'guest', string $custom_api_
   ];
   if (in_array($stored_key_type, $api_key_types)) {
     $api_key = $config->get("api_keys.$stored_key_type");
-    if (empty($api_key)) {
-
-      return FALSE;
-    }
   }
   elseif (!is_null($custom_api_key)) {
     $api_key = $custom_api_key;

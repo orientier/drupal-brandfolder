@@ -17,9 +17,6 @@ use Drupal\Core\Form\FormStateInterface;
  */
 class AssetFetchController extends ControllerBase {
 
-  public function __construct(private BrandfolderGatekeeper $brandfolderGatekeeper)
-  {
-  }
   /**
    * Callback for stub route used in connection with nested AJAX form requests,
    * etc.

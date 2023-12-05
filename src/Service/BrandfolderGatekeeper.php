@@ -620,7 +620,7 @@ class BrandfolderGatekeeper {
       }
       if (!empty($criteria['disallowed']['label'])) {
         $all_labels = $this->getLabels('list', 'disallowed_only');
-        $criteria['disallowed']['label'] = array_keys($all_labels);;
+        $criteria['disallowed']['label'] = array_keys($all_labels);
       }
     }
 
