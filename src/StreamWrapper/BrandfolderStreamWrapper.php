@@ -248,7 +248,7 @@ class BrandfolderStreamWrapper implements StreamWrapperInterface {
    *   A string containing the path to the file to open.
    * @param string $mode
    *   The file mode ("r", "wb" etc.).
-   * @param bitmask $options
+   * @param int $options
    *   A bit mask of STREAM_USE_PATH and STREAM_REPORT_ERRORS.
    * @param string &$opened_url
    *   A string containing the path actually opened.
@@ -300,11 +300,13 @@ class BrandfolderStreamWrapper implements StreamWrapperInterface {
     $default_file_extension = 'jpg';
 
     $scheme_prefix = 'bf://';
-    $uri_sans_scheme = substr($this->getUri(), strlen($scheme_prefix));
-    $extension_pattern = '/\.([^\.\?]+)(\?[^\?]*)?$/';
+    $file_uri = $this->getUri();
+    $uri_sans_scheme = substr($file_uri, strlen($scheme_prefix));
+    $extension_pattern = '/\.([^.?]+)(\?[^?]*)?$/';
     $result = preg_match($extension_pattern, $uri_sans_scheme, $matches);
     $extension = $result ? strtolower($matches[1]) : $default_file_extension;
     $query_params = [];
+    $image_style = NULL;
 
     // Handle image styles.
     $image_style_unsupported_extensions = [
@@ -325,18 +327,18 @@ class BrandfolderStreamWrapper implements StreamWrapperInterface {
           // handle compatible effects and add corresponding Smart CDN URL
           // transformation params to the image object.
           // @todo: Test scenarios with stacked effects; try to provide more robust pass-through support for non BF images.
-          $full_uri = "bf://$uri_sans_scheme";
+          $file_uri = "{$scheme_prefix}{$uri_sans_scheme}";
           // Note: we will always use the BF image toolkit for BF images, without
           // making BF the default sitewide toolkit.
           // @see \Drupal\brandfolder\Image\BrandfolderImageFactory.
-          $image = \Drupal::service('image.factory')->get($full_uri);
+          $image = \Drupal::service('image.factory')->get($file_uri);
           if ($image->isValid()) {
             $effects = $image_style->getEffects();
             foreach ($effects as $effect) {
               if (!$effect->applyEffect($image)) {
                 $this->logger->error('Could not apply the image effect :effect_name to the Brandfolder image :uri.', [
                   ':effect_name' => $effect->label(),
-                  ':uri'         => $full_uri,
+                  ':uri'         => $file_uri,
                 ]);
               }
             }
@@ -362,12 +364,12 @@ class BrandfolderStreamWrapper implements StreamWrapperInterface {
       'tiff',
       'bmp',
     ];
+    $url = "{$this->baseUrl}/{$uri_sans_scheme}";
     // @todo: More sophisticated/granular handling for various file types.
     if ($default_static_image_format && $extension != $default_static_image_format && in_array($extension, $convertable_image_extensions)) {
-      $uri_sans_scheme = preg_replace($extension_pattern, ".$default_static_image_format$2", $uri_sans_scheme);
+      $url = preg_replace($extension_pattern, ".$default_static_image_format$2", $url);
     }
 
-    $url = "{$this->baseUrl}/{$uri_sans_scheme}";
     // Remove any query params from the original URL and add them to the query
     // params array.
     $url_components = parse_url($url);
@@ -397,7 +399,11 @@ class BrandfolderStreamWrapper implements StreamWrapperInterface {
     }
 
     // Allow other modules to alter the URL.
-    \Drupal::moduleHandler()->alter('brandfolder_file_url', $url, $url_options, $image_style);
+    $context = [
+      'uri'         => $file_uri,
+      'image_style' => $image_style,
+    ];
+    \Drupal::moduleHandler()->alter('brandfolder_file_url', $url, $url_options, $context);
 
     return Url::fromUri($url, $url_options)->toString();
   }
