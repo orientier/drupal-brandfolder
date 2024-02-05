@@ -9,8 +9,8 @@ brandfolder-browser:
     js/brandfolder-browser.js: {}
   dependencies:
     - core/drupal
-    - core/jquery
     - core/once
+    - core/drupalSettings
 brandfolder-admin:
   version: 1.x
   css:

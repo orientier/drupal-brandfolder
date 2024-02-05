@@ -2,10 +2,12 @@
 
 namespace Drupal\brandfolder\Controller;
 
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Drupal\brandfolder\Service\BrandfolderGatekeeper;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Component\Serialization\Json;
 
 //use Drupal\Core\Ajax\AppendCommand;
 //use Drupal\Core\Url;
@@ -18,19 +20,134 @@ use Drupal\Core\Form\FormStateInterface;
 class AssetFetchController extends ControllerBase {
 
   /**
-   * Callback for stub route used in connection with nested AJAX form requests,
-   * etc.
-   *
-   * @return array
-   *
-   * @todo: Remove this after confirming we won't need it for any AJAX callbacks.
+   * API callback for asset fetch requests from Brandfolder browsers.
    */
-  public function assetFetchStubRouteHandler() : array {
-    $output = [
-      '#markup' => $this->t('Fetching assets...'),
+  public function bfBrowserFetchAssets(Request $request) : JsonResponse {
+    $data = [];
+    $content = $request->getContent();
+    if (!empty($content)) {
+      $data = Json::decode($content);
+    }
+
+    // @todo: Config option, or centralized default.
+    $assets_per_page = 100;
+    // Default to fetching the first page, unless the user has requested
+    // another page.
+    $page_to_fetch = $data['requestedPage'] ?? 1;
+    $query_params = [
+      'per' => $assets_per_page,
+      'page' => $page_to_fetch,
     ];
 
-    return $output;
+    // @todo
+    $tag_key_mapping = $data['tagKeyMapping'] ?? [];
+
+    // Process user search text and all filters.
+    $user_criteria = [
+      'collection_key' => [],
+      'section_key' => [],
+      'aspect' => [],
+      'filetype' => [],
+      'tags' => [],
+    ];
+    if (!empty($data['userInput'])) {
+      foreach (array_keys($user_criteria) as $criterion_type) {
+        if (!empty($data['userInput'][$criterion_type])) {
+          $criterion = $data['userInput'][$criterion_type];
+          if ($criterion_type == 'tags') {
+            if (isset($tag_key_mapping[$criterion])) {
+              $user_criteria[$criterion_type][] = $tag_key_mapping[$criterion];
+            }
+            continue;
+          }
+          $user_criteria[$criterion_type][] = $criterion;
+        }
+      }
+    }
+    $search_query_components = [];
+    $user_search_query = $data['userInput']['searchText'] ?? '';
+    if (!empty($user_search_query)) {
+      $search_query_components[] = $user_search_query;
+    }
+    foreach ($user_criteria as $criterion => $allowed_values) {
+      if (count($allowed_values) > 0) {
+        array_walk($allowed_values, function(&$value) {
+          $value = "\"$value\"";
+        });
+        if ($criterion == 'tags' && $data['userInput']['tagFilterMode'] == 'all') {
+          $separator = ' AND ';
+        }
+        else {
+          $separator = ' OR ';
+        }
+        $search_query_components[] = "$criterion:(" . implode($separator, $allowed_values) . ')';
+      }
+    }
+    // Labels.
+    if (!empty($data['userInput']['labels'])) {
+      // Translate label IDs to their latest names (caching isn't good enough
+      // here), since Brandfolder doesn't seem to support searching for assets
+      // by label ID/key.
+      $bf = brandfolder_api();
+      $bf_config = \Drupal::config('brandfolder.settings');
+      if ($bf_config->get('verbose_log_mode')) {
+        $bf->enableVerboseLogging();
+      }
+      $label_id_name_mapping = $bf->listLabelsInBrandfolder(NULL, TRUE);
+      if ($bf_config->get('verbose_log_mode')) {
+        $logger = \Drupal::logger('brandfolder');
+        foreach ($bf->getLogData() as $log_entry) {
+          $logger->debug($log_entry);
+        }
+        $bf->clearLogData();
+      }
+      $selected_label_names = array_intersect_key($label_id_name_mapping, $data['userInput']['labels']);
+      array_walk($selected_label_names, function(&$value) {
+        $value = "\"$value\"";
+      });
+      $search_query_components[] = "labels:(" . implode(' OR ', $selected_label_names) . ')';
+    }
+
+    // Upload recency.
+    if (!empty($data['userInput']['uploadDate'])) {
+      $upload_date_input = $data['userInput']['uploadDate'];
+      if ($upload_date_input != 'all') {
+        $search_query_components[] = "created_at:>now-$upload_date_input";
+      }
+    }
+
+    // Assemble the search query string.
+    if (!empty($search_query_components)) {
+      array_walk($search_query_components, function(&$subquery) {
+        $subquery = "($subquery)";
+      });
+      $query_params['search'] = implode(' AND ', $search_query_components);
+    }
+
+    // Sorting.
+    $query_params['sort_by'] = $data['userInput']['sortCriterion'] ?? 'created_at';
+    $query_params['order'] = $data['userInput']['sortOrder'] ?? 'desc';
+
+    $gatekeeper = \Drupal::getContainer()
+      ->get(BrandfolderGatekeeper::class);
+    if (!empty($data['bfGatekeeperCriteria'])) {
+      $gatekeeper->setCriteria($data['bfGatekeeperCriteria']);
+    }
+    $query_params['include'] = 'attachments';
+
+    $result = $gatekeeper->fetchAssets($query_params);
+
+    if ($result) {
+      $data = [
+        'assets' => $result->data,
+        'meta'   => $result->meta,
+      ];
+    }
+    else {
+      $data = FALSE;
+    }
+
+    return new JsonResponse($data);
   }
 
   /**
@@ -38,6 +155,7 @@ class AssetFetchController extends ControllerBase {
    *
    * @param array $form
    * @param \Drupal\Core\Form\FormStateInterface $form_state
+   * @param \Symfony\Component\HttpFoundation\Request $request
    *
    * @return array
    */
@@ -46,7 +164,24 @@ class AssetFetchController extends ControllerBase {
 
     $tag_key_mapping = isset($all_form_values['brandfolder_controls_tag_key_mapping']) ? json_decode($all_form_values['brandfolder_controls_tag_key_mapping'], TRUE) : [];
 
-    $query_params = [];
+    $assets_per_page = 100;
+    // Default to fetching the first page, unless the user has requested
+    // another page.
+    $page_to_fetch = 1;
+    $triggering_element = $form_state->getTriggeringElement();
+    if ($triggering_element) {
+      $triggering_element_name = $triggering_element['#name'];
+      if (str_starts_with($triggering_element_name, 'brandfolder_pagination_page_selector_')) {
+        $requested_page = $form_state->getValue($triggering_element_name);
+        if ($requested_page) {
+          $page_to_fetch = $requested_page;
+        }
+      }
+    }
+    $query_params = [
+      'per' => $assets_per_page,
+      'page' => $page_to_fetch,
+    ];
 
     // Process user search text and all filters.
     $user_criteria = [
@@ -187,6 +322,12 @@ class AssetFetchController extends ControllerBase {
                     $bf_asset_list
                   </div>",
     ];
+
+    if ($assets->meta) {
+      $bf_assets_metadata = $assets->meta;
+      $bf_assets_metadata->items_per_page = $assets_per_page;
+      $parent['brandfolder_browser_pagination'] = brandfolder_browser_pagination($bf_assets_metadata, $form_state->getValue('brandfolder_browser_id'), $form);
+    }
 
     return $parent;
   }

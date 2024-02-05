@@ -6,10 +6,10 @@ brandfolder.brandfolder_settings_form:
   requirements:
     _permission: 'administer brandfolder settings'
 
-brandfolder.asset_fetch_stub_route:
-  path: '/brandfolder-asset-fetch-stub'
+brandfolder.asset_fetch:
+  path: '/brandfolder-asset-fetch'
   defaults:
-    _controller: '\Drupal\brandfolder\Controller\AssetFetchController::assetFetchStubRouteHandler'
+    _controller: '\Drupal\brandfolder\Controller\AssetFetchController::bfBrowserFetchAssets'
   requirements:
     _permission: 'read brandfolder assets'
 

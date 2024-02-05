@@ -281,7 +281,7 @@ function brandfolder_views_pre_render(ViewExecutable $view) {
  */
 function brandfolder_views_pre_build(ViewExecutable $view) {
   // If this is a Media Library view pertaining to a Brandfolder-sourced media
-  // type, remove view header and footer, as they are not part of our custom
+  // type, disable any exposed form, as it is not part of our custom
   // browsing experience.
   if ($view->storage->id() == 'media_library') {
     if (isset($view->args[0])) {
@@ -376,17 +376,44 @@ function brandfolder_browser_media_library_form_manipulator(&$form, FormStateInt
  * @todo: Relocate and make pluggable. See also brandfolder_browser_controls().
  */
 function brandfolder_browser_init(&$form, FormStateInterface $form_state, BrandfolderGatekeeper $gatekeeper, array $disabled_attachment_ids = [], array $selected_attachment_ids = [], int $selection_limit = -1, string $context_id = NULL) {
-  $bf_asset_list = t('No Brandfolder assets found.');
-  $query_params = [
-    'include' => 'attachments'
-  ];
-  // @todo: Pagination.
-  $assets = $gatekeeper->fetchAssets($query_params);
-  if ($assets && !empty($assets->data)) {
-    $bf_asset_list = brandfolder_format_asset_list($assets, $disabled_attachment_ids, $selected_attachment_ids);
+
+  $bf_browser_id = $form_state->getValue('brandfolder_browser_id');
+  if (empty($bf_browser_id)) {
+    $all_input = $form_state->getUserInput();
+    if (!empty($all_input['brandfolder_browser_id'])) {
+      $bf_browser_id = $all_input['brandfolder_browser_id'];
+    }
+    else {
+      $id_components = [
+        'brandfolder_browser'
+      ];
+      if ($context_id) {
+        $id_components[] = $context_id;
+      }
+      $bf_browser_id = Html::getUniqueId(implode('-', $id_components));
+    }
   }
 
-  brandfolder_browser_core($form, $form_state, $gatekeeper, $bf_asset_list, $selection_limit, $context_id);
+  $form['brandfolder_browser'] = [
+    '#type' => 'container',
+    '#collabsible' => FALSE,
+    '#markup' => "<div class=\"brandfolder-browser-container\" data-bf-browser-id=\"{$bf_browser_id}\">[[BF Browser]]</div>",
+    '#attached' => [
+      'library' => [
+        'brandfolder/brandfolder-browser',
+      ],
+      'drupalSettings' => [
+        'brandfolderBrowser' => [
+          $bf_browser_id => [
+              'selection_limit' => $selection_limit,
+              'gatekeeper_criteria' => $gatekeeper->getCriteria(FALSE),
+              'disabled_attachment_ids' => $disabled_attachment_ids,
+              'selected_attachment_ids' => $selected_attachment_ids,
+          ],
+        ],
+      ],
+    ],
+  ];
 
   $form['disabled_bf_attachment_ids'] = [
     '#type' => 'hidden',
@@ -403,8 +430,6 @@ function brandfolder_browser_init(&$form, FormStateInterface $form_state, Brandf
     ],
     '#default_value' => implode(',', $selected_attachment_ids),
   ];
-
-  $form['#attached']['library'][] = 'brandfolder/brandfolder-browser';
 }
 
 /**
@@ -418,10 +443,11 @@ function brandfolder_browser_init(&$form, FormStateInterface $form_state, Brandf
  * @param int $selection_limit
  *  This should be -1 if there is no limit.
  * @param string|null $context_id
+ * @param object|null $bf_assets_metadata
  *
  * @todo: Relocate and make pluggable. See also brandfolder_browser_controls().
  */
-function brandfolder_browser_core(array &$form, FormStateInterface $form_state, BrandfolderGatekeeper $gatekeeper, string $bf_asset_list, int $selection_limit = -1, string $context_id = NULL) {
+function brandfolder_browser_core(array &$form, FormStateInterface $form_state, BrandfolderGatekeeper $gatekeeper, string $bf_asset_list, int $selection_limit = -1, string $context_id = NULL, object $bf_assets_metadata = NULL) {
   $bf_browser_id = $form_state->getValue('brandfolder_browser_id');
   if (empty($bf_browser_id)) {
     $all_input = $form_state->getUserInput();
@@ -472,12 +498,85 @@ function brandfolder_browser_core(array &$form, FormStateInterface $form_state, 
                   </div>",
   ];
 
+  if ($bf_assets_metadata) {
+    $form['brandfolder_browser']['brandfolder_browser_pagination'] = brandfolder_browser_pagination($bf_assets_metadata, $bf_browser_id, $form);
+  }
+
   $gatekeeper_criteria = $gatekeeper->getCriteria(FALSE);
 
   $form['brandfolder_browser']['bf_gatekeeper_criteria'] = [
     '#type' => 'hidden',
     '#value' => json_encode($gatekeeper_criteria),
   ];
+}
+
+function brandfolder_browser_pagination($assets_metadata, $bf_browser_id, $form) {
+
+  $pagination = [
+    '#type' => 'container',
+    '#attributes' => [
+      'class' => [
+        'brandfolder-browser__pagination',
+      ],
+    ],
+  ];
+
+  $ajax_defaults = [
+    'callback' => [
+      'Drupal\brandfolder\Controller\AssetFetchController',
+      'assetFetchFormAjaxCallback',
+    ],
+    'wrapper' => $bf_browser_id,
+    'progress' => [
+      'type' => 'throbber',
+      'message' => t('Fetching assets...'),
+    ],
+  ];
+  if (isset($form['#action'])) {
+    $url = brandfolder_get_browser_form_action_url($form);
+    $ajax_defaults['url'] = $url;
+  }
+
+  if ($assets_metadata->total_count) {
+    $first_asset_number = ($assets_metadata->current_page - 1) * $assets_metadata->items_per_page + 1;
+    $pagination['assets_summary'] = [
+      '#markup' => '<p>' . t('Showing @start-@end of @total assets', [
+        '@start' => $first_asset_number,
+        '@end' => $assets_metadata->next_page ? $first_asset_number + $assets_metadata->items_per_page - 1 : $assets_metadata->total_count,
+        '@total' => $assets_metadata->total_count,
+      ]) . '</p>',
+    ];
+    if ($assets_metadata->total_pages > 1) {
+      $pagination['pages_summary'] = [
+        '#markup' => '<p>' . t('Showing page @page of @pages', [
+          '@page'  => $assets_metadata->current_page,
+          '@pages' => $assets_metadata->total_pages,
+        ]) . '</p>',
+      ];
+      if ($assets_metadata->prev_page) {
+        $name = 'brandfolder_pagination_page_selector_previous';
+        $pagination[$name] = [
+          '#type' => 'button',
+          '#title' => t('Previous page'),
+          '#name' => $name,
+          '#ajax' => $ajax_defaults,
+          '#value' => $assets_metadata->prev_page,
+        ];
+      }
+      if ($assets_metadata->next_page) {
+        $name = 'brandfolder_pagination_page_selector_next';
+        $pagination[$name] = [
+          '#type' => 'button',
+          '#title' => t('Next page'),
+          '#name' => $name,
+          '#ajax' => $ajax_defaults,
+          '#value' => $assets_metadata->next_page,
+        ];
+      }
+    }
+  }
+
+  return $pagination;
 }
 
 /**
@@ -561,6 +660,51 @@ function brandfolder_format_asset_list(object $assets, array $disabled_attachmen
 }
 
 /**
+ * Helper function to build a URL to use for Brandfolder browser forms.
+ *
+ * @param array $form
+ *
+ * @return \Drupal\Core\GeneratedUrl|string
+ */
+function brandfolder_get_browser_form_action_url(array $form): \Drupal\Core\GeneratedUrl|string {
+  // Form AJAX requests will always post to the $form['#action'] URL, if one
+  // exists. Ensure that our URL has certain query params so that the AJAX
+  // submissions are handled properly.
+  // @see This core issue and related discussion: https://www.drupal.org/project/drupal/issues/2504115.
+  $ajax_form_request_param = FormBuilderInterface::AJAX_FORM_REQUEST;
+  try {
+    $url = Url::fromUserInput($form['#action']);
+    $url->mergeOptions([
+      'query' => [
+        $ajax_form_request_param => 1,
+        'form_id'                => $form['#form_id']
+      ]
+    ]);
+    $url = $url->toString();
+  } catch (\InvalidArgumentException $e) {
+    $url = $form['#action'];
+    if (!(strpos($url, '?') > 0)) {
+      $url .= '?';
+    }
+    else {
+      $url .= '&';
+    }
+    $params = [];
+    if (!(strpos($url, FormBuilderInterface::AJAX_FORM_REQUEST) > 0)) {
+      $params[] = "{$ajax_form_request_param}=1";
+    }
+    if (!(strpos($url, 'form_id') > 0)) {
+      $params[] = "form_id={$form['#form_id']}";
+    }
+    if (count($params) > 0) {
+      $url .= implode('&', $params);
+    }
+  }
+
+  return $url;
+}
+
+/**
  * Helper function to generate form elements to allow users to search for,
  * filter, sort, etc. assets in a Brandfolder browser context.
  *
@@ -576,43 +720,6 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
 
   $all_user_input = $form_state->getUserInput();
 
-  if (isset($form['#action'])) {
-    // These AJAX requests will always post to the $form['#action'] URL, if one
-    // exists. Ensure that our URL has certain query params so that the AJAX
-    // submissions are handled properly.
-    // @see This core issue and related discussion: https://www.drupal.org/project/drupal/issues/2504115.
-    $ajax_form_request_param = FormBuilderInterface::AJAX_FORM_REQUEST;
-    try {
-      $url = Url::fromUserInput($form['#action']);
-      $url->mergeOptions([
-        'query' => [
-          $ajax_form_request_param => 1,
-          'form_id'                => $form['#form_id']
-        ]
-      ]);
-      $url = $url->toString();
-    } catch (\InvalidArgumentException $e) {
-      $url = $form['#action'];
-      if (!(strpos($url, '?') > 0)) {
-        $url .= '?';
-      }
-      else {
-        $url .= '&';
-      }
-      $params = [];
-      if (!(strpos($url, FormBuilderInterface::AJAX_FORM_REQUEST) > 0)) {
-        $params[] = "{$ajax_form_request_param}=1";
-      }
-      if (!(strpos($url, 'form_id') > 0)) {
-        $params[] = "form_id={$form['#form_id']}";
-      }
-      if (count($params) > 0) {
-        $url .= implode('&', $params);
-      }
-    }
-    $form['#action'] = $url;
-  }
-
   $ajax_defaults = [
     'callback' => [
       'Drupal\brandfolder\Controller\AssetFetchController',
@@ -624,8 +731,9 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
       'message' => t('Searching...'),
     ],
   ];
-  if (isset($url)) {
-    $ajax_defaults['url'] = $url;
+  if (isset($form['#action'])) {
+    $url = brandfolder_get_browser_form_action_url($form);
+    $form['#action'] = $ajax_defaults['url'] = $url;
   }
 
   $attribute_defaults = [
