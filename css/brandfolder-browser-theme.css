@@ -47,16 +47,16 @@
 }
 .brandfolder-browser .brandfolder-attachment:hover,
 .brandfolder-browser .brandfolder-attachment--selected {
-  background: #efefef;
+  background: #cbf9d6;
 }
 .brandfolder-browser .brandfolder-attachment--selected {
-  border-left-color: #a9a9a9;
+  border-left-color: #88eb8c;
 }
 .brandfolder-browser .brandfolder-attachment:hover {
   cursor: pointer;
 }
 .brandfolder-browser .brandfolder-attachment--selected:hover {
-  background: #dedede;
+  background: #cbf9d6ee;
 }
 .brandfolder-browser .brandfolder-attachment--disabled,
 .brandfolder-browser .brandfolder-attachment--disabled:hover,
