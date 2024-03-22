@@ -75,7 +75,7 @@ class IncomingWebhookController extends ControllerBase implements AccessInterfac
       $bf_event_type = $payload['data']['attributes']['event_type'];
       // Fire/dispatch events so Drupal modules can act on this webhook.
       $dispatcher = \Drupal::service('event_dispatcher');
-      $dispatcher->dispatch($bf_event_type, new BrandfolderWebhookEvent($payload['data']));
+      $dispatcher->dispatch(new BrandfolderWebhookEvent($payload['data']), $bf_event_type);
     }
 
     return new Response($this->t('Webhook handling complete.'), Response::HTTP_OK);
