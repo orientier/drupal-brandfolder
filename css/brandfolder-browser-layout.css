@@ -155,7 +155,7 @@
 }
 
 .brandfolder-browser .brandfolder-asset.brandfolder-asset--active {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   max-width: 100%;
@@ -164,7 +164,7 @@
   box-sizing: border-box;
   z-index: 1;
   display: flex;
-  padding: 1rem 1rem 1rem 3rem;
+  padding: 80px 1rem 1rem 3rem;
   margin: 0;
 }
 
@@ -177,11 +177,11 @@
 .brandfolder-browser .brandfolder-asset.brandfolder-asset--active .brandfolder-asset__close_button {
   position: absolute;
   z-index: 2;
-  top: 0;
+  top: 80px;
   left: 0;
   width: 2rem;
   font-size: 2rem;
-  padding-right: 0.5em;
+  padding: 0 0.5rem 0.25rem;
 }
 
 .brandfolder-browser .brandfolder-asset.brandfolder-asset--active .brandfolder-asset__overview,

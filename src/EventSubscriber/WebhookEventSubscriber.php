@@ -19,9 +19,9 @@ class WebhookEventSubscriber implements EventSubscriberInterface {
    */
   public static function getSubscribedEvents(): array {
     return [
-//      BrandfolderWebhookEvent::ASSET_CREATE => 'assetCreate',
+      //      BrandfolderWebhookEvent::ASSET_CREATE => 'assetCreate',
       BrandfolderWebhookEvent::ASSET_UPDATE => 'assetUpdate',
-//      BrandfolderWebhookEvent::ASSET_DELETE => 'assetDelete',
+      //      BrandfolderWebhookEvent::ASSET_DELETE => 'assetDelete',
     ];
   }
 
@@ -30,9 +30,9 @@ class WebhookEventSubscriber implements EventSubscriberInterface {
    *
    * @param \Drupal\brandfolder\Event\BrandfolderWebhookEvent $event
    */
-//  public function assetCreate(BrandfolderWebhookEvent $event) {
-//
-//  }
+  //  public function assetCreate(BrandfolderWebhookEvent $event) {
+  //
+  //  }
 
   /**
    * React to a Brandfolder asset being updated.
@@ -178,6 +178,7 @@ class WebhookEventSubscriber implements EventSubscriberInterface {
             $field_mapping = $media_type->getFieldMap();
             if (!empty($field_mapping)) {
               $media_entity_ids = \Drupal::entityQuery('media')
+                ->accessCheck(FALSE)
                 ->condition('bundle', $media_type_id)
                 // Exclude anything we've already resaved above.
                 ->condition('mid', $updated_media_entity_ids, 'NOT IN')
@@ -218,8 +219,8 @@ class WebhookEventSubscriber implements EventSubscriberInterface {
    *
    * @param \Drupal\brandfolder\Event\BrandfolderWebhookEvent $event
    */
-//  public function assetDelete(BrandfolderWebhookEvent $event) {
-//
-//  }
+  //  public function assetDelete(BrandfolderWebhookEvent $event) {
+  //
+  //  }
 
 }

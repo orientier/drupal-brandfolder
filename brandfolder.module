@@ -230,26 +230,24 @@ function brandfolder_image_media_entity_form_submit(&$form, FormStateInterface $
           // there as well.
           $db = \Drupal::database();
           $result = $db->merge('brandfolder_file')
-            ->key([
-              'bf_attachment_id' => $bf_attachment_id,
-            ])
+            ->key('bf_attachment_id', $bf_attachment_id)
             ->fields([
               'height' => $width,
               'width'  => $height,
             ])
             ->execute();
-          if ($result != Database\Query\Merge::STATUS_UPDATE) {
-              $logger->error('Tried to transpose image width and height but could not find an existing record in the brandfolder_file table for attachment ID !attachment_id.', [
-                '!attachment_id' => $bf_attachment_id
-              ]);
+          if ($result != Merge::STATUS_UPDATE) {
+            $logger->error('Tried to transpose image width and height but could not find an existing record in the brandfolder_file table for attachment ID !attachment_id.', [
+              '!attachment_id' => $bf_attachment_id
+            ]);
           }
         }
         else {
           $logger->error('Tried to transpose image width and height but could not find a valid width and height for attachment ID !attachment_id. Width: !width. Height: !height.', [
-              '!attachment_id' => $bf_attachment_id,
-              '!width' => $width,
-              '!height' => $height,
-            ]);
+            '!attachment_id' => $bf_attachment_id,
+            '!width' => $width,
+            '!height' => $height,
+          ]);
         }
       }
     }
