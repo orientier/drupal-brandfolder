@@ -1,0 +1,16 @@
+{#
+/**
+ * @file
+ * Default theme implementation for a Brandfolder Browser.
+ *
+ * Available variables:
+ * - bf_browser_id: HTML attributes for the containing element.
+ * - browser_format: String prescribing a partifular display format (e.g.
+ *    "full" or "inline").
+ * - browser_settings: Array of optional settings for the browser.
+ *
+ * @ingroup themeable
+ */
+#}
+{{ attach_library('brandfolder/brandfolder-browser') }}
+<brandfolder-browser bf-browser-id="{{ bf_browser_id }}" format="{{ browser_format }}" settings="{{ browser_settings | json_encode }}"></brandfolder-browser>

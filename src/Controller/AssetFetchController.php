@@ -23,24 +23,37 @@ class AssetFetchController extends ControllerBase {
    * API callback for asset fetch requests from Brandfolder browsers.
    */
   public function bfBrowserFetchAssets(Request $request) : JsonResponse {
-    $data = [];
+    $request_data = [];
     $content = $request->getContent();
     if (!empty($content)) {
-      $data = Json::decode($content);
+      $request_data = Json::decode($content);
     }
+
+    $required_data = [
+      'bfBrowserId',
+      // @todo: Change this to gatekeeper_id. Set up a mechanism for assigning unique IDs to gatekeeper instances and storing in persistent temp storage (\Drupal\Core\TempStore\SharedTempStore).
+      'bfGatekeeperCriteria',
+    ];
+    foreach ($required_data as $required_key) {
+      if (empty($request_data[$required_key])) {
+        return new JsonResponse(FALSE);
+      }
+    }
+
+    // @todo: Check bf_browser_id and gatekeeper_id against temp data store to see if they're valid.
 
     // @todo: Config option, or centralized default.
     $assets_per_page = 100;
     // Default to fetching the first page, unless the user has requested
     // another page.
-    $page_to_fetch = $data['requestedPage'] ?? 1;
+    $page_to_fetch = $request_data['requestedPage'] ?? 1;
     $query_params = [
       'per' => $assets_per_page,
       'page' => $page_to_fetch,
     ];
 
     // @todo
-    $tag_key_mapping = $data['tagKeyMapping'] ?? [];
+    $tag_key_mapping = $request_data['tagKeyMapping'] ?? [];
 
     // Process user search text and all filters.
     $user_criteria = [
@@ -50,10 +63,10 @@ class AssetFetchController extends ControllerBase {
       'filetype' => [],
       'tags' => [],
     ];
-    if (!empty($data['userInput'])) {
+    if (!empty($request_data['userInput'])) {
       foreach (array_keys($user_criteria) as $criterion_type) {
-        if (!empty($data['userInput'][$criterion_type])) {
-          $criterion = $data['userInput'][$criterion_type];
+        if (!empty($request_data['userInput'][$criterion_type])) {
+          $criterion = $request_data['userInput'][$criterion_type];
           if ($criterion_type == 'tags') {
             if (isset($tag_key_mapping[$criterion])) {
               $user_criteria[$criterion_type][] = $tag_key_mapping[$criterion];
@@ -65,7 +78,7 @@ class AssetFetchController extends ControllerBase {
       }
     }
     $search_query_components = [];
-    $user_search_query = $data['userInput']['searchText'] ?? '';
+    $user_search_query = $request_data['userInput']['searchText'] ?? '';
     if (!empty($user_search_query)) {
       $search_query_components[] = $user_search_query;
     }
@@ -74,7 +87,7 @@ class AssetFetchController extends ControllerBase {
         array_walk($allowed_values, function(&$value) {
           $value = "\"$value\"";
         });
-        if ($criterion == 'tags' && $data['userInput']['tagFilterMode'] == 'all') {
+        if ($criterion == 'tags' && $request_data['userInput']['tagFilterMode'] == 'all') {
           $separator = ' AND ';
         }
         else {
@@ -84,7 +97,7 @@ class AssetFetchController extends ControllerBase {
       }
     }
     // Labels.
-    if (!empty($data['userInput']['labels'])) {
+    if (!empty($request_data['userInput']['labels'])) {
       // Translate label IDs to their latest names (caching isn't good enough
       // here), since Brandfolder doesn't seem to support searching for assets
       // by label ID/key.
@@ -101,7 +114,7 @@ class AssetFetchController extends ControllerBase {
         }
         $bf->clearLogData();
       }
-      $selected_label_names = array_intersect_key($label_id_name_mapping, $data['userInput']['labels']);
+      $selected_label_names = array_intersect_key($label_id_name_mapping, $request_data['userInput']['labels']);
       array_walk($selected_label_names, function(&$value) {
         $value = "\"$value\"";
       });
@@ -109,8 +122,8 @@ class AssetFetchController extends ControllerBase {
     }
 
     // Upload recency.
-    if (!empty($data['userInput']['uploadDate'])) {
-      $upload_date_input = $data['userInput']['uploadDate'];
+    if (!empty($request_data['userInput']['uploadDate'])) {
+      $upload_date_input = $request_data['userInput']['uploadDate'];
       if ($upload_date_input != 'all') {
         $search_query_components[] = "created_at:>now-$upload_date_input";
       }
@@ -125,29 +138,27 @@ class AssetFetchController extends ControllerBase {
     }
 
     // Sorting.
-    $query_params['sort_by'] = $data['userInput']['sortCriterion'] ?? 'created_at';
-    $query_params['order'] = $data['userInput']['sortOrder'] ?? 'desc';
+    $query_params['sort_by'] = $request_data['userInput']['sortCriterion'] ?? 'created_at';
+    $query_params['order'] = $request_data['userInput']['sortOrder'] ?? 'desc';
 
     $gatekeeper = \Drupal::getContainer()
       ->get(BrandfolderGatekeeper::class);
-    if (!empty($data['bfGatekeeperCriteria'])) {
-      $gatekeeper->setCriteria($data['bfGatekeeperCriteria']);
-    }
+    // Note: this is a required param, and we've already checked for its
+    // presence.
+    $gatekeeper->setCriteria($request_data['bfGatekeeperCriteria']);
     $query_params['include'] = 'attachments';
 
     $result = $gatekeeper->fetchAssets($query_params);
 
+    $response_data = FALSE;
     if ($result) {
-      $data = [
+      $response_data = [
         'assets' => $result->data,
         'meta'   => $result->meta,
       ];
     }
-    else {
-      $data = FALSE;
-    }
 
-    return new JsonResponse($data);
+    return new JsonResponse($response_data);
   }
 
   /**

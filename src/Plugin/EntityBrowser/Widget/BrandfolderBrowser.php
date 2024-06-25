@@ -162,7 +162,15 @@ class BrandfolderBrowser extends WidgetBase {
       $selection_limit = $validators['cardinality']['cardinality'];
     }
 
-    brandfolder_browser_init($form, $form_state, $gatekeeper, $selected_bf_attachment_ids, [], $selection_limit, $context_string);
+    $entity_browser_id = $this->configuration['entity_browser_id'];
+    $entity_browser = \Drupal::service('entity_type.manager')->getStorage('entity_browser')->load($entity_browser_id);
+    $bf_browser_format = $entity_browser->display == 'iframe' ? 'full' : NULL;
+    $bf_browser_settings = [];
+    if ($entity_browser->display_configuration['height']) {
+      $bf_browser_settings['height'] = $entity_browser->display_configuration['height'];
+    }
+
+    brandfolder_browser_init($form, $form_state, $gatekeeper, $selected_bf_attachment_ids, [], $selection_limit, $context_string, $bf_browser_format, $bf_browser_settings);
 
     return $form;
   }

@@ -363,17 +363,19 @@ function brandfolder_browser_media_library_form_manipulator(&$form, FormStateInt
  * core BF browsing experience.
  *
  * @param array $form
- * @param \Drupal\Core\Form\FormStateInterface $form_state
- * @param \Drupal\brandfolder\Service\BrandfolderGatekeeper $gatekeeper
+ * @param FormStateInterface $form_state
+ * @param BrandfolderGatekeeper $gatekeeper
  * @param array $disabled_attachment_ids
  * @param array $selected_attachment_ids
  * @param int $selection_limit
  *  This should be -1 if there is no limit.
  * @param string|null $context_id
+ * @param string $browser_format
+ * @param array $bf_browser_settings
  *
  * @todo: Relocate and make pluggable. See also brandfolder_browser_controls().
  */
-function brandfolder_browser_init(&$form, FormStateInterface $form_state, BrandfolderGatekeeper $gatekeeper, array $disabled_attachment_ids = [], array $selected_attachment_ids = [], int $selection_limit = -1, string $context_id = NULL) {
+function brandfolder_browser_init(&$form, FormStateInterface $form_state, BrandfolderGatekeeper $gatekeeper, array $disabled_attachment_ids = [], array $selected_attachment_ids = [], int $selection_limit = -1, string $context_id = NULL, $browser_format = 'inline', $bf_browser_settings = []) {
 
   $bf_browser_id = $form_state->getValue('brandfolder_browser_id');
   if (empty($bf_browser_id)) {
@@ -382,35 +384,39 @@ function brandfolder_browser_init(&$form, FormStateInterface $form_state, Brandf
       $bf_browser_id = $all_input['brandfolder_browser_id'];
     }
     else {
-      $id_components = [
-        'brandfolder_browser'
-      ];
-      if ($context_id) {
-        $id_components[] = $context_id;
-      }
-      $bf_browser_id = Html::getUniqueId(implode('-', $id_components));
+      $uuid_service = \Drupal::service('uuid');
+      $bf_browser_id = $uuid_service->generate();
     }
   }
 
   $form['brandfolder_browser'] = [
-    '#type' => 'container',
-    '#collabsible' => FALSE,
-    '#markup' => "<div class=\"brandfolder-browser-container\" data-bf-browser-id=\"{$bf_browser_id}\">[[BF Browser]]</div>",
-    '#attached' => [
-      'library' => [
-        'brandfolder/brandfolder-browser',
-      ],
-      'drupalSettings' => [
-        'brandfolderBrowser' => [
-          $bf_browser_id => [
-              'selection_limit' => $selection_limit,
-              'gatekeeper_criteria' => $gatekeeper->getCriteria(FALSE),
-              'disabled_attachment_ids' => $disabled_attachment_ids,
-              'selected_attachment_ids' => $selected_attachment_ids,
-          ],
-        ],
-      ],
-    ],
+//    '#type' => 'container',
+//    '#collabsible' => FALSE,
+//    '#markup' => "<div class=\"brandfolder-browser-container\" data-bf-browser-id=\"{$bf_browser_id}\"></div>",
+//    '#markup' => "<div class=\"bf-browser-container\"><brandfolder-browser bf-browser-id=\"{$bf_browser_id}\"></brandfolder-browser></div>",
+//    '#attached' => [
+////      'library' => [
+////        'brandfolder/brandfolder-browser',
+////      ],
+//      'drupalSettings' => [
+//        'brandfolderBrowser' => [
+//          $bf_browser_id => [
+//              'selection_limit' => $selection_limit,
+//              // @todo: Change this to gatekeeper_id. Set up a mechanism for assigning unique IDs to gatekeeper instances and storing in persistent temp storage (\Drupal\Core\TempStore\SharedTempStore).
+//              'gatekeeper_criteria' => $gatekeeper->getCriteria(FALSE),
+//              'disabled_attachment_ids' => $disabled_attachment_ids,
+//              'selected_attachment_ids' => $selected_attachment_ids,
+//          ],
+//        ],
+//      ],
+//    ],
+    '#theme' => 'brandfolder_browser',
+    '#bf_browser_id' => $bf_browser_id,
+    '#browser_format' => $browser_format,
+    '#browser_settings' => $bf_browser_settings,
+//    '#prefix' => "<div class=\"brandfolder-browser-container\" data-bf-browser-id=\"$bf_browser_id\">",
+//    '#prefix' => "<div class=\"brandfolder-browser-container\">",
+//    '#suffix' => "</div>",
   ];
 
   $form['disabled_bf_attachment_ids'] = [
@@ -1219,8 +1225,15 @@ function brandfolder_browser_to_media_library_selection_converter(array &$form, 
  */
 function brandfolder_theme() {
   return [
-    'brandfolder_browser_widget' => [
-      'render element' => 'element',
+    //    'brandfolder_browser_widget' => [
+    //      'render element' => 'element',
+    //    ],
+    'brandfolder_browser' => [
+      'variables' => [
+        'bf_browser_id' => NULL,
+        'browser_format' => NULL,
+        'browser_settings' => NULL,
+      ],
     ],
   ];
 }
@@ -1244,6 +1257,13 @@ function template_preprocess_brandfolder_browser_widget(&$variables) {
     $variables['data'][$child] = $element[$child];
   }
 }
+
+//function brandfolder_preprocess_html(&$variables) {
+//  $original_path = \Drupal::request()->query->get('original_path');
+//  if ($original_path && preg_match('/entity-embed\/dialog/', $original_path)) {
+//    $variables['attributes']['class'][] = 'bf-context--modal';
+//  }
+//}
 
 /**
  * Given a Brandfolder attachment, return a Drupal file ID.
