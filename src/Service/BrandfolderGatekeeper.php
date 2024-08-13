@@ -434,7 +434,7 @@ class BrandfolderGatekeeper {
    */
   public function getSections(): array {
     // Start with all sections in the Brandfolder.
-    $sections = $this->bf_client->listSectionsInBrandfolder(NULL, [], TRUE);
+    $sections = $this->bf_client->listAllSectionNamesInBrandfolder();
     // Return empty array if no sections exist or some error has occurred.
     if (empty($sections)) {
 
@@ -654,7 +654,7 @@ class BrandfolderGatekeeper {
   public function buildConfigForm(&$form) {
     // @todo: Additional config such as allowed tags, sub-collection differentiation, etc.
     $collections_list = $this->bf_client->getCollectionsInBrandfolder();
-    $sections_list = $this->bf_client->listSectionsInBrandfolder(NULL, [], TRUE);
+    $sections_list = $this->bf_client->listAllSectionNamesInBrandfolder();
     $labels = $this->bf_client->listLabelsInBrandfolder();
     $label_options = [];
     brandfolder_build_labels_select_list($labels, $label_options);
