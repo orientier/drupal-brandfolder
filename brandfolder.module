@@ -10,7 +10,7 @@ use Drupal\brandfolder\Plugin\media\Source\BrandfolderImage;
 use Drupal\Component\Utility\Html;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Routing\RouteMatchInterface;
-use Brandfolder\Brandfolder;
+use Brandfolder\BrandfolderClient;
 use Drupal\Core\Render\Element;
 use Drupal\Core\Url;
 use Drupal\field\Entity\FieldStorageConfig;
@@ -30,8 +30,7 @@ use Drupal\Core\Entity\EntityStorageException;
  * Helper function for use in procedural code. De-emphasize this in favor of
  * services, etc.
  *
- * Get a Brandfolder object that can be used to interact with the
- * Brandfolder API.
+ * Get a Brandfolder API client.
  *
  * @param string|null $stored_key_type
  *  The type of key to use when retrieving an API key stored in module
@@ -40,9 +39,9 @@ use Drupal\Core\Entity\EntityStorageException;
  *   If provided, an API key to use when connecting to Brandfolder. If not
  *   provided, an API key set in the module configuration will be used.
  *
- * @return Brandfolder|false
- *  A \Brandfolder\Brandfolder instance for interacting with the Brandfolder
- *  SDK, or FALSE on failure.
+ * @return BrandfolderClient|false
+ *  A \Brandfolder\BrandfolderClient instance for interacting with the
+ *  Brandfolder API, or FALSE on failure.
  */
 function brandfolder_api(?string $stored_key_type = 'guest', string $custom_api_key = NULL) {
   $config = \Drupal::config('brandfolder.settings');
@@ -66,7 +65,7 @@ function brandfolder_api(?string $stored_key_type = 'guest', string $custom_api_
   // Set Brandfolder based on module config if present (NULL otherwise).
   $brandfolder_id = \Drupal::config('brandfolder.settings')->get('brandfolder_id');
 
-  $bf = new Brandfolder($api_key, $brandfolder_id);
+  $bf = new BrandfolderClient($api_key, $brandfolder_id);
 
   if ($config->get('verbose_log_mode')) {
     $bf->enableVerboseLogging();
@@ -1016,7 +1015,7 @@ function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string 
  */
 function brandfolder_build_labels_select_list($labels, &$select_options) {
   foreach ($labels as $id => $data) {
-    $label = $data['label'];
+    $label = $data->label;
     // Add this label to the list, indented according to depth.
     $display_value = '';
     $label_depth = $label->attributes->depth;
@@ -1030,8 +1029,8 @@ function brandfolder_build_labels_select_list($labels, &$select_options) {
     $select_options[$label->id] = $display_value;
 
     // Recurse through any children/descendants.
-    if (isset($data['children']) && is_array($data['children'])) {
-      brandfolder_build_labels_select_list($data['children'], $select_options);
+    if (isset($data->children) && is_array($data->children)) {
+      brandfolder_build_labels_select_list($data->children, $select_options);
     }
   }
 }
