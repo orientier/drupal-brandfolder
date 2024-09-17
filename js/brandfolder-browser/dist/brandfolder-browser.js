@@ -4,9 +4,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-import { LitElement, html, css } from 'lit';
-import { Task } from '@lit/task';
-import { customElement, property, state, query } from 'lit/decorators.js';
+import { css, html, LitElement } from 'lit';
+import { Task, TaskStatus } from '@lit/task';
+import { customElement, property, state } from 'lit/decorators.js';
 // Import all subcomponents and class dependencies so we can compile
 // everything into a single JS file with this file as the sole entry point.
 import './brandfolder-asset-base';
@@ -34,20 +34,21 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
          *    in the host window/frame/document.
          */
         this.format = 'inline';
+        // /**
+        //  * A generic settings object with key-value pairs. Initialized as a
+        //  * JSON string.
+        //  */
+        // @property({type: String, attribute: 'settings'})
+        // settings: BfBrowserSettings | string | null = null
         /**
-         * A generic settings object with key-value pairs. Initialized as a
-         * JSON string.
-         */
-        this.settings = null;
-        /**
-         * A stringified object of criteria for determining which assets may be
+         * An object of criteria for determining which assets may be
          * accessed via this browser.
          */
-        this.bfGatekeeperCriteria = JSON.stringify({ disallowed: [] });
+        this.bfGatekeeperCriteria = { allowed: {}, disallowed: {} };
         /**
-         * User-provided search query text.
+         * The number of assets to fetch per page.
          */
-        this._searchText = null;
+        this.assetsPerPage = 100;
         /**
          * Active asset.
          */
@@ -57,31 +58,79 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
          */
         this._assetList = [];
         /**
-         * The number of assets to fetch per page.
+         * An object with properties corresponding to user-facing controls, with
+         * any corresponding user-supplied values.
          */
-        this.assetsPerPage = 100;
+        this._userInput = null;
+        /**
+         * An object with data sufficient to build user-facing controls.
+         */
+        this._controlSchema = null;
         /**
          * An object containing metadata about the latest asset search/fetch,
          * including total items, total pages, current page, etc.
          */
         this._assetFetchMeta = null;
         /**
+         * Callback executed when the element is removed from the document.
+         */
+        // override disconnectedCallback() {
+        //   if (this.format === 'inline') {
+        //     window.removeEventListener('resize', this._calibrateHeight)
+        //   }
+        //   super.disconnectedCallback()
+        // }
+        /**
+         * Callback executed when the element is updated.
+         */
+        // override updated(_changedProperties: Map<string | number | symbol, unknown>) {
+        //   if (this.format === 'inline') {
+        //     // After fetching and rendering new assets, determine whether the
+        //     // browser's height should be constrained in order to achieve
+        //     // the best UX within the containing context.
+        //     if (_changedProperties.has('_assetList')) {
+        //       this._calibrateHeight()
+        //     }
+        //   }
+        // }
+        /**
          * Set the browser's height based on context.
          */
-        this._calibrateHeight = () => {
-            console.log('Calibrating height...');
-            this.style.setProperty('--bf-browser-height', '100%');
-            const heightConstraint = this._determineHeightConstraint();
-            if (heightConstraint) {
-                this.style.setProperty('--bf-browser-height', `${heightConstraint}px`);
-            }
-        };
+        // private _calibrateHeight = () => {
+        //   console.log('Calibrating height...')
+        //   this.style.setProperty('--bf-browser-height', '100%')
+        //   const heightConstraint = this._determineHeightConstraint()
+        //   if (heightConstraint) {
+        //     this.style.setProperty('--bf-browser-height', `${heightConstraint}px`)
+        //   }
+        // }
         /**
-         * Async task for fetching assets from Brandfolder via Drupal backend.
+         * Determine the height to which the browser should be constrained in order to
+         * achieve the best UX within the containing elements.
          */
-        this._assetFetchTask = new Task(this, {
+        // private _determineHeightConstraint() {
+        //   // Ascend the DOM tree to find the first ancestor with a height that is
+        //   // less than this element's "natural" height. If one is found, use its
+        //   // height as the constraint.
+        //   const thisHeight = this.getBoundingClientRect().height
+        //   let ancestor = this.parentElement
+        //   while (ancestor) {
+        //     const ancestorHeight = ancestor.getBoundingClientRect().height
+        //     if (ancestorHeight < thisHeight) {
+        //       return ancestorHeight
+        //     }
+        //     ancestor = ancestor.parentElement
+        //   }
+        //
+        //   return null
+        // }
+        /**
+         * Async task for communicating with the Drupal backend (to submit user input,
+         * fetch assets from Brandfolder, etc.).
+         */
+        this._browserUpdateTask = new Task(this, {
             task: async ([requestedPage], { signal, }) => {
-                const response = await fetch(`/brandfolder-asset-fetch`, {
+                const response = await fetch(`https://emmanuel.orien.tier/brandfolder-browser-update?XDEBUG_SESSION_START=PHPSTORM`, {
                     signal,
                     method: 'POST',
                     headers: {
@@ -89,10 +138,7 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
                     },
                     body: JSON.stringify({
                         bfBrowserId: this.bfBrowserId,
-                        bfGatekeeperCriteria: JSON.parse(this.bfGatekeeperCriteria),
-                        userInput: {
-                            searchText: this._searchText,
-                        },
+                        userInput: this?._userInput,
                         requestedPage,
                     }),
                 });
@@ -110,6 +156,9 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
                 if (responseBody?.meta) {
                     this._assetFetchMeta = responseBody.meta;
                 }
+                if (responseBody?.controlSchema) {
+                    this._controlSchema = responseBody.controlSchema;
+                }
                 return responseBody;
             },
             autoRun: false,
@@ -126,7 +175,6 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
          */
         this._attachmentSelectionHandler = (e) => {
             // @todo: Manage selection limits, maintain a tray showing all selected items, etc.
-            console.log('Attachment selected:', e);
             const attachmentId = e.detail.attachmentId;
             if (!attachmentId?.length) {
                 return;
@@ -150,78 +198,49 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
         };
         this.addEventListener('bfAssetDetailClose', this._assetDetailCloseHandler);
         this.addEventListener('bfAttachmentSelection', this._attachmentSelectionHandler);
+        this.addEventListener('bfBrowserControlsSubmission', this._controlsSubmissionHandler);
     }
     /**
      * Callback executed when the element is added to the document.
      */
     connectedCallback() {
         super.connectedCallback();
-        // Perform an initial asset fetch (requesting the first page of results).
-        this._assetFetchTask.run([1]);
+        // Perform an initial data fetch (requesting the first page of assets).
+        this._browserUpdateTask.run([1]).then();
         // Convert settings attribute from JSON string to object.
-        // @todo: Pull this from a browser-ID-keyed registry in Drupal settings if possible.
-        if (this.settings && typeof this.settings === 'string') {
-            this.settings = JSON.parse(this.settings);
-        }
-        if (this.format === 'inline') {
-            // We might need to adjust the browser height when the window is resized
-            // (e.g. when the browser lives within a modal that occupies a certain
-            // percentage of the viewport).
-            window.addEventListener('resize', this._calibrateHeight);
-        }
-        else if (this.format === 'full') {
-            if (typeof this.settings === 'object' && this.settings?.height) {
-                this.style.height = `${this.settings.height}px`;
-            }
-        }
-    }
-    /**
-     * Callback executed when the element is removed from the document.
-     */
-    disconnectedCallback() {
-        if (this.format === 'inline') {
-            window.removeEventListener('resize', this._calibrateHeight);
-        }
-        super.disconnectedCallback();
-    }
-    /**
-     * Callback executed when the element is updated.
-     */
-    updated(_changedProperties) {
-        if (this.format === 'inline') {
-            // After fetching and rendering new assets, determine whether the
-            // browser's height should be constrained in order to achieve
-            // the best UX within the containing context.
-            if (_changedProperties.has('_assetList')) {
-                this._calibrateHeight();
-            }
-        }
-    }
-    /**
-     * Determine the height to which the browser should be constrained in order to
-     * achieve the best UX within the containing elements.
-     */
-    _determineHeightConstraint() {
-        // Ascend the DOM tree to find the first ancestor with a height that is
-        // less than this element's "natural" height. If one is found, use its
-        // height as the constraint.
-        const thisHeight = this.getBoundingClientRect().height;
-        let ancestor = this.parentElement;
-        while (ancestor) {
-            const ancestorHeight = ancestor.getBoundingClientRect().height;
-            if (ancestorHeight < thisHeight) {
-                return ancestorHeight;
-            }
-            ancestor = ancestor.parentElement;
-        }
-        return null;
+        // if (this.settings && typeof this.settings === 'string') {
+        //   this.settings = JSON.parse(this.settings)
+        // }
+        // console.log('BrandfolderBrowser connectedCallback')
+        // if (this.format === 'inline') {
+        //   // We might need to adjust the browser height when the window is resized
+        //   // (e.g. when the browser lives within a modal that occupies a certain
+        //   // percentage of the viewport).
+        //   window.addEventListener('resize', this._calibrateHeight)
+        // } else if (this.format === 'full') {
+        //   if (typeof this.settings === 'object' && this.settings?.height) {
+        //     this.style.height = `${this.settings.height}px`
+        //   }
+        // }
     }
     /**
      * Submit the search/filter/sort form.
      */
-    _submitSearchAndFilter() {
-        this._searchText = this.searchTextInput.value;
-        this._assetFetchTask.run([1]);
+    _controlsSubmissionHandler(e) {
+        // const target = e.target as HTMLFormElement
+        // @todo: Check to see whether the user engaged with the Submit button or Reset button, and act accordingly.
+        // Check to see if the user has made any changes to the form, and only
+        // submit if they have.
+        // @todo: Initialize this._userInput with a value equivalent to that of an empty form submission.
+        if (JSON.stringify(this._userInput) !== JSON.stringify(e.detail.userInput)) {
+            this._assetList = [];
+            this._assetFetchMeta = null;
+            this._userInput = e.detail.userInput;
+            this._browserUpdateTask.run([1]).then();
+        }
+        else {
+            // @todo: If there's no need to fetch new data, do a little flash/flourish of some sort to signal a near-instantaneous update.
+        }
     }
     /**
      * Handle asset selection. When a user selects an asset preview, display
@@ -240,20 +259,21 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
     render() {
         return html `
       <div class="brandfolder-browser__inner">
-        <div class="search-and-filter">
-          <input type="text" class="search-text-input" aria-label="Search" />
-          <button @click=${this._submitSearchAndFilter}>Submit</button>
+        <div class="brandfolder-browser__controls-container">
+          <brandfolder-browser-controls .controlSchema="${this._controlSchema}" />
         </div>
         <div class="main-content">
           <div class="asset-list">
-            ${this._assetList.map((asset) => html `
-                <brandfolder-asset-preview
-                  @click="${this._assetSelectionHandler}"
-                  bf-asset-id=${asset.id}
-                  .asset=${asset}
-                />
-              `)}
-            ${this._assetFetchTask.render({
+            ${this._assetList?.length > 0 ?
+            this._assetList.map((asset) => html `
+                  <brandfolder-asset-preview
+                    @click="${this._assetSelectionHandler}"
+                    bf-asset-id=${asset.id}
+                    .asset=${asset}
+                  />
+                `)
+            : (this._browserUpdateTask.status === TaskStatus.COMPLETE ? html `<p>No assets found.</p>` : '')}
+            ${this._browserUpdateTask.render({
             pending: () => html `<p>Fetching assets...</p>`,
             error: (e) => {
                 console.error(e);
@@ -276,7 +296,7 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
                   </p>
                   <div class="load-more">
                     <button
-                      @click=${() => this._assetFetchTask.run([
+                      @click=${() => this._browserUpdateTask.run([
                 this._assetFetchMeta?.next_page,
             ])}
                     >
@@ -369,14 +389,11 @@ __decorate([
     property({ type: String, attribute: 'format' })
 ], BrandfolderBrowser.prototype, "format", void 0);
 __decorate([
-    property({ type: String, attribute: 'settings' })
-], BrandfolderBrowser.prototype, "settings", void 0);
-__decorate([
-    property({ type: String, attribute: 'bf-gatekeeper-criteria' })
+    property({ type: Object, attribute: null })
 ], BrandfolderBrowser.prototype, "bfGatekeeperCriteria", void 0);
 __decorate([
-    state()
-], BrandfolderBrowser.prototype, "_searchText", void 0);
+    property({ type: Number, attribute: false })
+], BrandfolderBrowser.prototype, "assetsPerPage", void 0);
 __decorate([
     state()
 ], BrandfolderBrowser.prototype, "_activeAsset", void 0);
@@ -384,14 +401,14 @@ __decorate([
     state()
 ], BrandfolderBrowser.prototype, "_assetList", void 0);
 __decorate([
-    property({ type: Number, attribute: false })
-], BrandfolderBrowser.prototype, "assetsPerPage", void 0);
+    state()
+], BrandfolderBrowser.prototype, "_userInput", void 0);
+__decorate([
+    state()
+], BrandfolderBrowser.prototype, "_controlSchema", void 0);
 __decorate([
     state()
 ], BrandfolderBrowser.prototype, "_assetFetchMeta", void 0);
-__decorate([
-    query('.search-text-input')
-], BrandfolderBrowser.prototype, "searchTextInput", void 0);
 BrandfolderBrowser = __decorate([
     customElement('brandfolder-browser')
 ], BrandfolderBrowser);

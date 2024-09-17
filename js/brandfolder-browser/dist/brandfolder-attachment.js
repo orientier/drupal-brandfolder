@@ -42,7 +42,7 @@ let BrandfolderAttachment = class BrandfolderAttachment extends LitElement {
         }
     }
     _attachmentSelectionHandler() {
-        // @todo: Internal state stacking selected status, and UI indicating it.
+        // @todo: Internal state tracking selected status, and UI indicating it.
         const options = {
             detail: { attachmentId: this.attachmentId },
             bubbles: true,

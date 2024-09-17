@@ -1,0 +1,72 @@
+.brandfolder-browser .brandfolder-asset .brandfolder-asset__thumb {
+  max-width: 100%;
+  object-fit: scale-down;
+}
+
+.brandfolder-browser .brandfolder-asset .brandfolder-asset__info {
+  display: none;
+  background: rgba(0,0,0,0.5);
+  color: #ffffff;
+  overflow-wrap: break-word;
+}
+
+.brandfolder-browser .brandfolder-asset:hover {
+  cursor: pointer;
+  /*transform: scale(1.05);*/
+}
+
+.brandfolder-browser .brandfolder-asset:hover figcaption {
+  display: block;
+}
+
+.brandfolder-browser .brandfolder-asset.brandfolder-asset--active {
+  background: #fff;
+}
+
+.brandfolder-browser .brandfolder-asset.brandfolder-asset--active:hover {
+  cursor: auto;
+}
+
+.brandfolder-browser .brandfolder-asset.brandfolder-asset--active .brandfolder-asset__info,
+.brandfolder-browser .brandfolder-asset.brandfolder-asset--active:hover .brandfolder-asset__info {
+  background: transparent;
+  color: #000;
+}
+
+.brandfolder-browser .brandfolder-asset.brandfolder-asset--active .brandfolder-asset__close_button:hover {
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.brandfolder-browser .brandfolder-asset.brandfolder-asset--active .bf-asset-metadata--description {
+  font-style: italic;
+}
+
+.brandfolder-browser .brandfolder-attachment {
+  border: 2px solid transparent;
+}
+.brandfolder-browser .brandfolder-attachment:hover,
+.brandfolder-browser .brandfolder-attachment--selected {
+  background: #cbf9d6;
+}
+.brandfolder-browser .brandfolder-attachment--selected {
+  border-left-color: #88eb8c;
+}
+.brandfolder-browser .brandfolder-attachment:hover {
+  cursor: pointer;
+}
+.brandfolder-browser .brandfolder-attachment--selected:hover {
+  background: #cbf9d6ee;
+}
+.brandfolder-browser .brandfolder-attachment--disabled,
+.brandfolder-browser .brandfolder-attachment--disabled:hover,
+.brandfolder-browser.selection-limit-reached .brandfolder-attachment:not(.brandfolder-attachment--selected),
+.brandfolder-browser.selection-limit-reached .brandfolder-attachment:not(.brandfolder-attachment--selected):hover {
+  cursor: not-allowed;
+  background: #efefef;
+}
+.brandfolder-browser .brandfolder-attachment--disabled img,
+.brandfolder-browser .brandfolder-attachment--disabled:hover img,
+.brandfolder-browser.selection-limit-reached .brandfolder-attachment:not(.brandfolder-attachment--selected) img {
+  filter: saturate(0);
+}

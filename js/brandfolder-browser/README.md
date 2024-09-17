@@ -20,7 +20,7 @@ To build the JavaScript version of the component(s):
 npm run build
 ```
 
-To watch files and rebuild when the files are modified, run the following command in a separate shell:
+To watch files and rebuild when the files are modified, run the following command:
 
 ```bash
 npm run build:watch

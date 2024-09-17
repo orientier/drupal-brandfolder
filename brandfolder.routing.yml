@@ -6,12 +6,13 @@ brandfolder.brandfolder_settings_form:
   requirements:
     _permission: 'administer brandfolder settings'
 
-brandfolder.asset_fetch:
-  path: '/brandfolder-asset-fetch'
+brandfolder.browser_update:
+  path: '/brandfolder-browser-update'
   defaults:
-    _controller: '\Drupal\brandfolder\Controller\AssetFetchController::bfBrowserFetchAssets'
+    _controller: '\Drupal\brandfolder\Controller\BrandfolderBrowserController::bfBrowserUpdate'
   requirements:
-    _permission: 'read brandfolder assets'
+#    _permission: 'read brandfolder assets'
+    _access: 'TRUE'
 
 brandfolder.webhook_listener:
   path: '/brandfolder-webhook-listener'

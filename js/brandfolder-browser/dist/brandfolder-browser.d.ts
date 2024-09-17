@@ -1,10 +1,18 @@
 import { LitElement } from 'lit';
+import './brandfolder-browser-controls';
 import './brandfolder-asset-base';
 import './brandfolder-asset-detail';
 import './brandfolder-asset-preview';
 import './brandfolder-attachment';
-type BfBrowserSettings = {
-    height: number;
+type bfGatekeeperCriteriaBase = {
+    collection?: string[];
+    section?: string[];
+    label?: string[];
+    filetype?: string[];
+};
+type bfGatekeeperCriteria = {
+    allowed: bfGatekeeperCriteriaBase;
+    disallowed: bfGatekeeperCriteriaBase;
 };
 /**
  * An interface for viewing/searching/filtering/selecting assets and attachments
@@ -24,19 +32,14 @@ export declare class BrandfolderBrowser extends LitElement {
      */
     format: string;
     /**
-     * A generic settings object with key-value pairs. Initialized as a
-     * JSON string.
-     */
-    settings: BfBrowserSettings | string | null;
-    /**
-     * A stringified object of criteria for determining which assets may be
+     * An object of criteria for determining which assets may be
      * accessed via this browser.
      */
-    bfGatekeeperCriteria: string;
+    bfGatekeeperCriteria: bfGatekeeperCriteria;
     /**
-     * User-provided search query text.
+     * The number of assets to fetch per page.
      */
-    private _searchText;
+    assetsPerPage: number;
     /**
      * Active asset.
      */
@@ -46,18 +49,19 @@ export declare class BrandfolderBrowser extends LitElement {
      */
     private _assetList;
     /**
-     * The number of assets to fetch per page.
+     * An object with properties corresponding to user-facing controls, with
+     * any corresponding user-supplied values.
      */
-    assetsPerPage: number;
+    private _userInput;
+    /**
+     * An object with data sufficient to build user-facing controls.
+     */
+    private _controlSchema;
     /**
      * An object containing metadata about the latest asset search/fetch,
      * including total items, total pages, current page, etc.
      */
     private _assetFetchMeta;
-    /**
-     * Create a reference to the search text input element.
-     */
-    searchTextInput: HTMLInputElement;
     /**
      * Constructor.
      */
@@ -69,28 +73,25 @@ export declare class BrandfolderBrowser extends LitElement {
     /**
      * Callback executed when the element is removed from the document.
      */
-    disconnectedCallback(): void;
     /**
      * Callback executed when the element is updated.
      */
-    updated(_changedProperties: Map<string | number | symbol, unknown>): void;
     /**
      * Set the browser's height based on context.
      */
-    private _calibrateHeight;
     /**
      * Determine the height to which the browser should be constrained in order to
      * achieve the best UX within the containing elements.
      */
-    private _determineHeightConstraint;
     /**
-     * Async task for fetching assets from Brandfolder via Drupal backend.
+     * Async task for communicating with the Drupal backend (to submit user input,
+     * fetch assets from Brandfolder, etc.).
      */
-    private _assetFetchTask;
+    private _browserUpdateTask;
     /**
      * Submit the search/filter/sort form.
      */
-    private _submitSearchAndFilter;
+    private _controlsSubmissionHandler;
     /**
      * Handle asset selection. When a user selects an asset preview, display
      * the asset's detail view.

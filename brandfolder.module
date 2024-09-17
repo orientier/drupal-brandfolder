@@ -345,7 +345,7 @@ function brandfolder_browser_media_library_form_manipulator(&$form, FormStateInt
   // validators/processors.
   $form['#validate'] = [
     'brandfolder_browser_to_media_library_selection_converter',
-    'brandfolder_browser_host_form_validator',
+//    'brandfolder_browser_host_form_validator',
   ];
 
   // Relocate the BF browser element, using it to replace the standard Media
@@ -388,34 +388,21 @@ function brandfolder_browser_init(&$form, FormStateInterface $form_state, Brandf
     }
   }
 
+  $bf_browser_data = [
+    'selection_limit' => $selection_limit,
+    'gatekeeper_criteria' => $gatekeeper->getCriteria(FALSE),
+    'disabled_attachment_ids' => $disabled_attachment_ids,
+    'selected_attachment_ids' => $selected_attachment_ids,
+  ];
+  $shared_tempstore = \Drupal::service('tempstore.shared');
+  $bf_browser_shared_storage = $shared_tempstore->get('brandfolder_browser_data');
+  $bf_browser_shared_storage->set($bf_browser_id, $bf_browser_data);
+
   $form['brandfolder_browser'] = [
-//    '#type' => 'container',
-//    '#collabsible' => FALSE,
-//    '#markup' => "<div class=\"brandfolder-browser-container\" data-bf-browser-id=\"{$bf_browser_id}\"></div>",
-//    '#markup' => "<div class=\"bf-browser-container\"><brandfolder-browser bf-browser-id=\"{$bf_browser_id}\"></brandfolder-browser></div>",
-//    '#attached' => [
-////      'library' => [
-////        'brandfolder/brandfolder-browser',
-////      ],
-//      'drupalSettings' => [
-//        'brandfolderBrowser' => [
-//          $bf_browser_id => [
-//              'selection_limit' => $selection_limit,
-//              // @todo: Change this to gatekeeper_id. Set up a mechanism for assigning unique IDs to gatekeeper instances and storing in persistent temp storage (\Drupal\Core\TempStore\SharedTempStore).
-//              'gatekeeper_criteria' => $gatekeeper->getCriteria(FALSE),
-//              'disabled_attachment_ids' => $disabled_attachment_ids,
-//              'selected_attachment_ids' => $selected_attachment_ids,
-//          ],
-//        ],
-//      ],
-//    ],
     '#theme' => 'brandfolder_browser',
     '#bf_browser_id' => $bf_browser_id,
     '#browser_format' => $browser_format,
     '#browser_settings' => $bf_browser_settings,
-//    '#prefix' => "<div class=\"brandfolder-browser-container\" data-bf-browser-id=\"$bf_browser_id\">",
-//    '#prefix' => "<div class=\"brandfolder-browser-container\">",
-//    '#suffix' => "</div>",
   ];
 
   $form['disabled_bf_attachment_ids'] = [
@@ -614,6 +601,7 @@ function brandfolder_format_asset_list(object $assets, array $disabled_attachmen
         .           "<h3 class=\"brandfolder-asset__attachment-list-heading\">" . t('Attachments') . "</h3>"
         .           "<ul class=\"brandfolder-asset__attachment-list\">";
 
+      // @todo: Add this functionality to new browser.
       // Exclude unsupported attachment types (which would be returned if
       // their parent asset has other attachments that are of a supported type).
       // @todo: Sync with media type config.
@@ -1149,25 +1137,25 @@ function brandfolder_build_labels_select_list($labels, &$select_options) {
   }
 }
 
-/**
- * Check to see whether a form submission was triggered by one of our
- * Brandfolder browser controls (e.g. search, filters, etc.).
- *
- * @param \Drupal\Core\Form\FormStateInterface $form_state
- *
- * @return bool
- */
-function is_form_submission_triggered_by_bf_browser_controls(FormStateInterface $form_state): bool {
-  $triggering_element = $form_state->getTriggeringElement();
-  if (isset($triggering_element['#attributes']['class'])) {
-    $classes = $triggering_element['#attributes']['class'];
-    if (is_array($classes) && in_array('brandfolder-browser-control', $classes)) {
-      return TRUE;
-    }
-  }
-
-  return FALSE;
-}
+///**
+// * Check to see whether a form submission was triggered by one of our
+// * Brandfolder browser controls (e.g. search, filters, etc.).
+// *
+// * @param \Drupal\Core\Form\FormStateInterface $form_state
+// *
+// * @return bool
+// */
+//function is_form_submission_triggered_by_bf_browser_controls(FormStateInterface $form_state): bool {
+//  $triggering_element = $form_state->getTriggeringElement();
+//  if (isset($triggering_element['#attributes']['class'])) {
+//    $classes = $triggering_element['#attributes']['class'];
+//    if (is_array($classes) && in_array('brandfolder-browser-control', $classes)) {
+//      return TRUE;
+//    }
+//  }
+//
+//  return FALSE;
+//}
 
 /**
  * Form validation handler to be applied to forms containing a Brandfolder
@@ -1176,14 +1164,14 @@ function is_form_submission_triggered_by_bf_browser_controls(FormStateInterface 
  * @param array $form
  * @param \Drupal\Core\Form\FormStateInterface $form_state
  */
-function brandfolder_browser_host_form_validator(array &$form, FormStateInterface &$form_state) {
-  // If the submission was triggered by one of our browser controls, the only
-  // outcome should be to update the browser contents. We do not care about
-  // other validation logic/errors.
-  if (is_form_submission_triggered_by_bf_browser_controls($form_state)) {
-    $form_state->clearErrors();
-  }
-}
+//function brandfolder_browser_host_form_validator(array &$form, FormStateInterface &$form_state) {
+//  // If the submission was triggered by one of our browser controls, the only
+//  // outcome should be to update the browser contents. We do not care about
+//  // other validation logic/errors.
+//  if (is_form_submission_triggered_by_bf_browser_controls($form_state)) {
+//    $form_state->clearErrors();
+//  }
+//}
 
 /**
  * Helper function to translate Brandfolder browser selections to Drupal form
@@ -1195,10 +1183,10 @@ function brandfolder_browser_host_form_validator(array &$form, FormStateInterfac
 function brandfolder_browser_to_media_library_selection_converter(array &$form, FormStateInterface &$form_state) {
   // We don't need or want to perform validation when the submission is
   // triggered by one of our browser controls.
-  if (is_form_submission_triggered_by_bf_browser_controls($form_state)) {
-
-    return;
-  }
+//  if (is_form_submission_triggered_by_bf_browser_controls($form_state)) {
+//
+//    return;
+//  }
 
   $selected_media_entities = [];
   $selected_media_entities_list = '';
@@ -1679,9 +1667,9 @@ function brandfolder_media_presave(MediaInterface $media) {
     $logger = \Drupal::logger('brandfolder');
     $bf_attachment_id = $source->getSourceFieldValue($media);
 
-    // Create an image field on BrandfolderImage-sourced media types if one does
-    // not already exist. If one does exist, see if it could benefit from
-    // Brandfolder metadata.
+    // Create an image field on media entities of a BrandfolderImage-sourced
+    // type if one does not already exist. If one does exist, see if it could
+    // benefit from Brandfolder metadata.
     $imageItem = $media->get('bf_image');
     $image_field_data = ($imageItem && $imageItem->count() > 0) ? $imageItem->first()->getValue() : [];
     $is_image_update_required = FALSE;
@@ -1790,7 +1778,7 @@ function brandfolder_media_presave(MediaInterface $media) {
 //function brandfolder_media_delete($media) {
 //  // If this was a Brandfolder-related media entity, remove associated
 //  // auto-generated files.
-//  // @todo: Decide whether we want to do this. Users may explicitly want to keep those files or at least not expect this behavior. We could prompt users upon media deletion, and/or or provide a global config option dictating cascading delete behavior.
+//  // @todo: Decide whether we want to do this. Users may explicitly want to keep those files or at least not expect this behavior. We could prompt users upon media deletion, and/or provide a global config option dictating cascading delete behavior.
 //  $source = $media->getSource();
 //  // @todo: Support other BF source types if/when those are added.
 //  if ($source instanceof BrandfolderImage) {
