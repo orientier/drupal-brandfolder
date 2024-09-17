@@ -191,6 +191,8 @@ class BrandfolderGatekeeper {
    *  arrays of Brandfolder entity IDs/keys for each type.
    *
    * @return bool
+   *
+   * @todo: Determine whether this validation is really necessary. If so, review uses and look at appropriate user-facing messaging on validation failure.
    */
   public function validateBrandfolderEntities(array $bf_entities) {
     $this->all_bf_entities = $bf_entities;
@@ -476,6 +478,7 @@ class BrandfolderGatekeeper {
    */
   public function getLabels(string $format = 'tree', string $result_set = 'all'): array {
     // Start with all labels in the Brandfolder.
+    // @todo: Cache this so we only need one of these calls per gatekeeper instance.
     $labels = $this->bf_client->listLabelsInBrandfolder();
 
     // Return empty array if no labels exist or some error has occurred.
@@ -559,8 +562,8 @@ class BrandfolderGatekeeper {
     foreach ($tree as $id => &$node) {
       $should_item_remain = TRUE;
       $item = NULL;
-      if (isset($node[$item_type])) {
-        $item =& $node[$item_type];
+      if (isset($node->{$item_type})) {
+        $item =& $node->{$item_type};
         $item_lineage = $item->attributes->path ?? [];
         if (!empty($ids_to_include)) {
           // Note: lineage would include the item's own ID, but we still check
@@ -576,8 +579,8 @@ class BrandfolderGatekeeper {
         if (!is_null($flattened_list)) {
           $flattened_list[$id] = $item;
         }
-        if (!empty($node['children'])) {
-          $this->pruneTree($node['children'], $item_type, $ids_to_include, $ids_to_exclude, $flattened_list);
+        if (!empty($node->children)) {
+          $this->pruneTree($node->children, $item_type, $ids_to_include, $ids_to_exclude, $flattened_list);
         }
       }
       else {
