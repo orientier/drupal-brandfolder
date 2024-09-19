@@ -278,7 +278,7 @@ function brandfolder_views_pre_render(ViewExecutable $view) {
  */
 function brandfolder_views_pre_build(ViewExecutable $view) {
   // If this is a Media Library view pertaining to a Brandfolder-sourced media
-  // type, remove view header and footer, as they are not part of our custom
+  // type, disable any exposed form, as it is not part of our custom
   // browsing experience.
   if ($view->storage->id() == 'media_library') {
     if (isset($view->args[0])) {
