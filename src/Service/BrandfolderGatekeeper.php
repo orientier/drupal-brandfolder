@@ -2,13 +2,13 @@
 
 namespace Drupal\brandfolder\Service;
 
+use Brandfolder\BrandfolderClient;
 use Drupal\brandfolder\Plugin\media\Source\BrandfolderImage;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\StringTranslation\TranslationInterface;
 use Drupal\media\MediaSourceInterface;
-use Brandfolder\Brandfolder;
 
 /**
  * Helps determine which Brandfolder entities should be available in a given
@@ -24,8 +24,9 @@ class BrandfolderGatekeeper {
    * @var array
    *  Array with the following structure:
    *
-   * @code
-   *  [
+   * ```php
+   *
+   *  $criteria = [
    *    'allowed' => [
    *      'collection' => [
    *        'abc123def456' => 'abc123def456',
@@ -43,8 +44,9 @@ class BrandfolderGatekeeper {
    *        'xyz123abc100' => 'xyz123abc100',
    *      ],
    *    ],
-   * ]
-   * @endcode
+   * ];
+   *
+   * ```
    *
    *  For an entity to be considered valid, it must match at least one of the
    *  criteria in *each* of the "allowed" criteria sets, and, additionally,
@@ -121,7 +123,7 @@ class BrandfolderGatekeeper {
     $brandfolder_id = $bf_config->get('brandfolder_id');
     if ($api_key && $brandfolder_id) {
       // @todo: Brandfolder as a service; DI, etc.
-      $this->bf_client = new Brandfolder($api_key, $brandfolder_id);
+      $this->bf_client = new BrandfolderClient($api_key, $brandfolder_id);
       if ($bf_config->get('verbose_log_mode')) {
         $this->bf_client->enableVerboseLogging();
       }
