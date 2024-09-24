@@ -2,15 +2,15 @@ brandfolder.settings:
   type: config_object
   label: 'Brandfolder Settings'
   mapping:
-    api_keys.admin:
+    api_key_ids.admin:
       type: string
-      label: 'API key for an Admin user; used for interacting with the Brandfolder REST API'
-    api_keys.collaborator:
+      label: 'The name/ID of a key in the key repository (where that key is a Brandfolder API key for an Admin user)'
+    api_key_ids.collaborator:
       type: string
-      label: 'API key for a Collaborator user; used for interacting with the Brandfolder REST API'
-    api_keys.guest:
+      label: 'The name/ID of a key in the key repository (where that key is a Brandfolder API key for a Collaborator user)'
+    api_key_ids.guest:
       type: string
-      label: 'API key for a Guest user; used for interacting with the Brandfolder REST API'
+      label: 'The name/ID of a key in the key repository (where that key is a Brandfolder API key for a Guest user)'
     brandfolder_id:
       type: string
       label: 'ID of the Brandfolder to be integrated with the Drupal site'

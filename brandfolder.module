@@ -43,7 +43,7 @@ use Drupal\Core\Entity\EntityStorageException;
  *  A \Brandfolder\BrandfolderClient instance for interacting with the
  *  Brandfolder API, or FALSE on failure.
  */
-function brandfolder_api(?string $stored_key_type = 'guest', string $custom_api_key = NULL) {
+function brandfolder_api(?string $stored_key_type = 'guest', ?string $custom_api_key = NULL): bool|BrandfolderClient {
   $config = \Drupal::config('brandfolder.settings');
 
   $api_key_types = [
@@ -52,7 +52,12 @@ function brandfolder_api(?string $stored_key_type = 'guest', string $custom_api_
     'guest',
   ];
   if (in_array($stored_key_type, $api_key_types)) {
-    $api_key = $config->get("api_keys.$stored_key_type");
+    $api_key_id = $config->get("api_key_ids.$stored_key_type");
+    if ($api_key_id) {
+      if ($key_entity = \Drupal::service('key.repository')->getKey($api_key_id)) {
+        $api_key = $key_entity->getKeyValue();
+      }
+    }
   }
   elseif (!is_null($custom_api_key)) {
     $api_key = $custom_api_key;

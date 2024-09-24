@@ -30,12 +30,7 @@
         }
     ],
     "require": {
-        "brandfolder/brandfolder-sdk-php": "4.x-dev"
-    },
-    "repositories": [
-        {
-            "url": "https://github.com/orientier/brandfolder-sdk-php",
-            "type": "git"
-        }
-    ]
+        "brandfolder/brandfolder-sdk-php": "4.x-dev",
+        "drupal/key": "^1.0"
+    }
 }

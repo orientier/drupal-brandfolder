@@ -8,6 +8,7 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\StringTranslation\TranslationInterface;
+use Drupal\key\KeyRepository;
 use Drupal\media\MediaSourceInterface;
 
 /**
@@ -111,15 +112,22 @@ class BrandfolderGatekeeper {
    * @param \Drupal\Core\StringTranslation\TranslationInterface $string_translation
    * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $logger_factory
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   * @param \Drupal\key\KeyRepository $key_repository
    *
    * @throws \Exception
    */
-  public function __construct(TranslationInterface $string_translation, LoggerChannelFactoryInterface $logger_factory, ConfigFactoryInterface $config_factory) {
+  public function __construct(TranslationInterface $string_translation, LoggerChannelFactoryInterface $logger_factory, ConfigFactoryInterface $config_factory, KeyRepository $key_repository) {
     $this->stringTranslation = $string_translation;
     $this->logger = $logger_factory->get('brandfolder');
     $this->configFactory = $config_factory;
     $bf_config = $this->configFactory->get('brandfolder.settings');
-    $api_key = $bf_config->get('api_keys.admin');
+    $api_key = NULL;
+    $api_key_id = $bf_config->get("api_key_ids.admin");
+    if ($api_key_id) {
+      if ($key_entity = $key_repository->getKey($api_key_id)) {
+        $api_key = $key_entity->getKeyValue();
+      }
+    }
     $brandfolder_id = $bf_config->get('brandfolder_id');
     if ($api_key && $brandfolder_id) {
       // @todo: Brandfolder as a service; DI, etc.
@@ -142,17 +150,19 @@ class BrandfolderGatekeeper {
    * @param \Drupal\Core\StringTranslation\TranslationInterface $string_translation
    * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $logger_factory
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   * @param \Drupal\key\KeyRepository $key_repository
    *
    * @return static
    *   Returns an instance of this service.
    *
    * @throws \Exception
    */
-  public function create(TranslationInterface $string_translation, LoggerChannelFactoryInterface $logger_factory, ConfigFactoryInterface $config_factory) {
+  public function create(TranslationInterface $string_translation, LoggerChannelFactoryInterface $logger_factory, ConfigFactoryInterface $config_factory, KeyRepository $key_repository): static {
     return new static(
       $string_translation,
       $logger_factory,
       $config_factory,
+      $key_repository,
     );
   }
 
@@ -162,7 +172,7 @@ class BrandfolderGatekeeper {
    *
    * @param MediaSourceInterface $source
    */
-  public function loadFromMediaSource(MediaSourceInterface $source) {
+  public function loadFromMediaSource(MediaSourceInterface $source): void {
     $criteria = [];
     $source_config = $source->getConfiguration();
     // @todo: Build on this.

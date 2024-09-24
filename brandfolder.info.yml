@@ -6,3 +6,4 @@ package: 'Brandfolder'
 configure: brandfolder.brandfolder_settings_form
 dependencies:
   - drupal:media
+  - drupal:key

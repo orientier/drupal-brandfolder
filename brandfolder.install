@@ -138,3 +138,22 @@ function brandfolder_schema() {
 //  // @todo: Update all fields using the BF scheme and/or the Brandfolder Browser widget, attempting to reconfigure them to use reasonable alternatives.
 //  // @todo: Ensure 'bf' is removed from the list of public file schemas.
 //}
+
+/**
+ * Remove any API keys from config. We will be explicitly using the Key module
+ * to manage API keys henceforth (this was previously optional via config
+ * override). After running this update, go to the Brandfolder settings page
+ * (/admin/config/media/brandfolder) to re-add your API keys.
+ */
+function brandfolder_update_100601() {
+  $config_factory = \Drupal::configFactory();
+  $config = $config_factory->getEditable('brandfolder.settings');
+  $key_types = ['admin', 'collaborator', 'guest'];
+  foreach ($key_types as $key_type) {
+    // Clear/delete the old config entry.
+    $config->clear("api_keys.$key_type");
+    // Initialize the corresponding new config entry.
+    $config->set("api_key_ids.$key_type", '');
+  }
+  $config->save(TRUE);
+}

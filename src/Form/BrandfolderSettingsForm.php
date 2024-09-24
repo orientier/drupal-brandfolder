@@ -3,8 +3,11 @@
 namespace Drupal\brandfolder\Form;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Config\TypedConfigManagerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\key\KeyRepository;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Define the administrative form used to configure the Brandfolder integration.
@@ -12,23 +15,15 @@ use Drupal\Core\Form\FormStateInterface;
 class BrandfolderSettingsForm extends ConfigFormBase {
 
   /**
-   * @var $password_field_preservation_token
-   *  A string to help preserve existing values for password-style form fields
-   *  without exposing sensitive data and still allowing users to clear
-   *  previous entries without providing new data.
-   */
-  protected $password_field_preservation_token = 'bf_api_key_exists_for_this_field_bf_api_key_exists_for_this_field_bf_api_key_exists_for_this_field_bf_api_key_exists_for_this_field';
-
-  /**
    * @var array machine names and human-readable names for the various types of
    *  Brandfolder API keys we collect.
    */
-  protected $api_key_types;
+  protected array $api_key_types;
 
   /**
    * {@inheritdoc}
    */
-  protected function getEditableConfigNames() {
+  protected function getEditableConfigNames(): array {
     return [
       'brandfolder.settings',
     ];
@@ -37,17 +32,27 @@ class BrandfolderSettingsForm extends ConfigFormBase {
   /**
    * {@inheritdoc}
    */
-  public function getFormId() {
+  public function getFormId(): string {
     return 'brandfolder_settings_form';
   }
+
+  /**
+   * The KeyRepository service.
+   *
+   * @var \Drupal\key\KeyRepository
+   */
+  protected KeyRepository $key_repository;
 
   /**
    * BrandfolderSettingsForm constructor.
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   * @param \Drupal\Core\Config\TypedConfigManagerInterface $typedConfigManager
+   * @param \Drupal\key\KeyRepository $key_repository
    */
-  public function __construct(ConfigFactoryInterface $config_factory) {
-    parent::__construct($config_factory);
+  public function __construct(ConfigFactoryInterface $config_factory, TypedConfigManagerInterface $typedConfigManager, KeyRepository $key_repository) {
+    parent::__construct($config_factory, $typedConfigManager);
+    $this->key_repository = $key_repository;
     $this->api_key_types = [
       'admin'        => $this->t('Admin'),
       'collaborator' => $this->t('Collaborator'),
@@ -58,14 +63,25 @@ class BrandfolderSettingsForm extends ConfigFormBase {
   /**
    * {@inheritdoc}
    */
-  public function buildForm(array $form, FormStateInterface $form_state) {
+  public static function create(ContainerInterface $container): BrandfolderSettingsForm|static {
+    return new static(
+      $container->get('config.factory'),
+      $container->get('config.typed'),
+      $container->get('key.repository')
+    );
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function buildForm(array $form, FormStateInterface $form_state): array {
     $config = $this->config('brandfolder.settings');
-    $api_keys = [];
+    $api_key_count = 0;
     $messenger = $this->messenger();
     $brandfolder_id = $config->get('brandfolder_id');
     $bf = brandfolder_api();
 
-    if ($config->get('verbose_log_mode')) {
+    if ($bf && $config->get('verbose_log_mode')) {
       $bf->enableVerboseLogging();
     }
 
@@ -75,12 +91,12 @@ class BrandfolderSettingsForm extends ConfigFormBase {
 
     $brandfolders_list = $collections_list = [];
     if ($bf) {
-      $brandfolders_list = $bf->getBrandfolders();
+      $brandfolders_list = $bf->listAllBrandfolderNames();
       if (!$brandfolders_list) {
         $messenger->addMessage($this->t('Please fill in all the requested API keys. You will then be able to select a Brandfolder.'));
       }
       if ($brandfolder_id) {
-        $collections_list = $bf->getCollectionsInBrandfolder();
+        $collections_list = $bf->listAllCollectionNamesInBrandfolder();
         if (!$collections_list) {
           $messenger->addMessage($this->t('Could not find collections for the selected Brandfolder.'));
         }
@@ -98,23 +114,23 @@ class BrandfolderSettingsForm extends ConfigFormBase {
     ];
 
     foreach ($this->api_key_types as $api_key_type => $api_key_type_label) {
-      $api_key = $config->get("api_keys.$api_key_type");
-
-      $form['credentials']["brandfolder_api_key_$api_key_type"] = [
-        '#type'        => 'password',
-        '#title'       => $this->t('Brandfolder API key: @label', ['@label' => $api_key_type_label]),
-        '#description' => $this->t('An API key for a Brandfolder user who has the "@label" role for the Brandfolder you wish to integrate with your Drupal site. This can be found in Brandfolder under "My Profile > Integrations > API Keys."', ['@label' => $api_key_type_label]),
-        '#maxlength'   => 255,
-        '#size'        => 64,
-      ];
-      if (!empty($api_key)) {
-        $form['credentials']["brandfolder_api_key_$api_key_type"]['#attributes']['value'] = $this->password_field_preservation_token;
-        $api_keys[$api_key_type] = $api_key;
+      $config_name = "api_key_ids.$api_key_type";
+      $api_key_id = $config->get($config_name);
+      if (!empty($api_key_id)) {
+        $api_key_count++;
       }
+
+      $form['credentials']["api_key_ids_$api_key_type"] = [
+        '#type'        => 'key_select',
+        '#title'       => $this->t('Brandfolder API key: @label', ['@label' => $api_key_type_label]),
+        '#description' => $this->t('The value of this key should be an API key for a Brandfolder user who has the "@label" role for the Organization you wish to integrate with your Drupal site. This can be found in Brandfolder under "My Profile > Integrations > API Keys."', ['@label' => $api_key_type_label]),
+        '#default_value' => $api_key_id,
+        '#required' => TRUE,
+      ];
     }
     // Open the fieldset if any of the three API keys have yet to be provided.
     // Collapse it if we have all three.
-    $form['credentials']['#open'] = (count($api_keys) < 3);
+    $form['credentials']['#open'] = ($api_key_count < count($this->api_key_types));
 
 
     /************************************
@@ -142,7 +158,7 @@ class BrandfolderSettingsForm extends ConfigFormBase {
       '#description'   => $this->t('Choose a collection from which to display sample images. This can help confirm that the integration is successful.'),
     ];
 
-    if (isset($bf) && $brandfolder_id) {
+    if ($bf && $brandfolder_id) {
       /************************************
        * Metadata Sync
        ************************************/
@@ -156,8 +172,8 @@ class BrandfolderSettingsForm extends ConfigFormBase {
         '#title'         => $this->t('Sync Mode'),
         '#options'       => [
           'empties_only' => $this->t('Only update Drupal fields that are empty (default).'),
-          'indiscriminate_bf_overwrite' => $this->t('Always update Drupal fields when Brandfolder data changes, regardless of whether Drupal fields are empty, have been changed in Drupal, etc. (feature currently in development)'),
-          'update_non_overridden_fields' => $this->t('When Brandfolder data changes, update all corresponding Drupal fields except those that have been changed (in Drupal) since the last sync (feature currently in development).'),
+          'indiscriminate_bf_overwrite' => $this->t('Always update Drupal fields when Brandfolder data changes, regardless of whether Drupal fields are empty, have been changed in Drupal, etc. (feature not currently available)'),
+          'update_non_overridden_fields' => $this->t('When Brandfolder data changes, update all corresponding Drupal fields except those that have been changed (in Drupal) since the last sync (feature not currently available).'),
         ],
         'indiscriminate_bf_overwrite' => ['#disabled' => TRUE],
         'update_non_overridden_fields' => ['#disabled' => TRUE],
@@ -226,6 +242,7 @@ class BrandfolderSettingsForm extends ConfigFormBase {
 
       $form['#attached']['library'][] = 'brandfolder/brandfolder-admin';
 
+
       if ($config->get('verbose_log_mode')) {
         foreach ($bf->getLogData() as $log_entry) {
           $this->logger('brandfolder')->debug($log_entry);
@@ -247,14 +264,14 @@ class BrandfolderSettingsForm extends ConfigFormBase {
         '#max'           => 1920,
         '#title'         => $this->t('Sample image width'),
         '#default_value' => $config->get('sample_image_width') ?? 400,
-        '#description' => $this->t('Optionally adjust the width of the sample images below, for testing. The default is 400px.'),
+        '#description'   => $this->t('Optionally adjust the width of the sample images below, for testing. The default is 400px.'),
       ];
 
 
       $params = [
-        'fields' => 'cdn_url',
+        'fields'  => 'cdn_url',
         'sort_by' => 'updated_at',
-        'order' => 'desc',
+        'order'   => 'desc',
       ];
       if ($preview_collection_id) {
         $assets = $bf->listAssets($params, $preview_collection_id);
@@ -302,43 +319,39 @@ class BrandfolderSettingsForm extends ConfigFormBase {
   /**
    * {@inheritdoc}
    */
-  public function validateForm(array &$form, FormStateInterface $form_state) {
+  public function validateForm(array &$form, FormStateInterface $form_state): void {
     // Check to see if all API keys are valid.
     // @todo: Additionally, validate that each key is associated with the correct user role. There appears to be no straightforward way to do this via the API, but we can deduce it by attempting operations that are only allowed for certain roles.
     $a_valid_api_key_exists = FALSE;
     $config = $this->config('brandfolder.settings');
 
     foreach ($this->api_key_types as $api_key_type => $api_key_type_label) {
-      $form_field_identifier = "brandfolder_api_key_$api_key_type";
-      $api_key = $form_state->getValue($form_field_identifier);
-      // If a value already existed, and the user did not overwrite it, make
-      // sure we preserve the existing value. This is how we achieve the best
-      // UX while using password fields.
-      if ($api_key == $this->password_field_preservation_token) {
-        $api_key = $config->get("api_keys.$api_key_type");
-        $form_state->setValue($form_field_identifier, $api_key);
-      }
-      if (!empty($api_key)) {
-        $bf = brandfolder_api(NULL, $api_key);
-        if ($config->get('verbose_log_mode')) {
-          $bf->enableVerboseLogging();
-        }
-        $brandfolders = $bf->getBrandfolders();
-        // Note that the getBrandfolders request will return a 200 response even
-        // if the API key is invalid, and the brandfolders array will simply be
-        // empty. This is a quirk of the Brandfolder API.
-        if (!empty($brandfolders)) {
-          $a_valid_api_key_exists = TRUE;
-        }
-        else {
-          $message = $this->t('Could not connect to Brandfolder using the @key_type API key. Make sure the key is correct and is linked to a Brandfolder user who has permission to access at least one Brandfolder.', ['@key_type' => $api_key_type]);
-          $form_state->setErrorByName($form_field_identifier, $message);
-        }
-        if ($config->get('verbose_log_mode')) {
-          foreach ($bf->getLogData() as $log_entry) {
-            $this->logger('brandfolder')->debug($log_entry);
+      $field_name = "api_key_ids_$api_key_type";
+      $api_key_id = $form_state->getValue($field_name);
+      if (!empty($api_key_id)) {
+        if ($key_entity = $this->key_repository->getKey($api_key_id)) {
+          $api_key = $key_entity->getKeyValue();
+          $bf = brandfolder_api(NULL, $api_key);
+          if ($config->get('verbose_log_mode')) {
+            $bf->enableVerboseLogging();
           }
-          $bf->clearLogData();
+          $brandfolders = $bf->listAllBrandfolderNames();
+          // Note that the getBrandfolders request will return a 200 response
+          // even if the API key is invalid, and the brandfolders array will
+          // simply be empty. This is a quirk of the Brandfolder API.
+          if (!empty($brandfolders)) {
+            $a_valid_api_key_exists = TRUE;
+          }
+          else {
+            $message = $this->t('Could not connect to Brandfolder using the @key_type API key. Make sure the key is correct and is linked to a Brandfolder user who has permission to access at least one Brandfolder.', ['@key_type' => $api_key_type]);
+            $form_state->setErrorByName($field_name, $message);
+          }
+          if ($config->get('verbose_log_mode')) {
+            foreach ($bf->getLogData() as $log_entry) {
+              $this->logger('brandfolder')->debug($log_entry);
+            }
+            $bf->clearLogData();
+          }
         }
       }
     }
@@ -354,11 +367,13 @@ class BrandfolderSettingsForm extends ConfigFormBase {
   /**
    * {@inheritdoc}
    */
-  public function submitForm(array &$form, FormStateInterface $form_state) {
+  public function submitForm(array &$form, FormStateInterface $form_state): void {
     $config = $this->config('brandfolder.settings');
 
     foreach ($this->api_key_types as $api_key_type => $api_key_type_label) {
-      $config->set("api_keys.$api_key_type", $form_state->getValue("brandfolder_api_key_$api_key_type"));
+      $config_name = "api_key_ids.$api_key_type";
+      $field_name = "api_key_ids_$api_key_type";
+      $config->set($config_name, $form_state->getValue($field_name));
     }
     $old_brandfolder = $config->get('brandfolder_id');
     $specified_brandfolder = $form_state->getValue('brandfolder_brandfolder_id');
