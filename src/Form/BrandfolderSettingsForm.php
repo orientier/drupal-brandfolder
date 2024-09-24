@@ -158,36 +158,82 @@ class BrandfolderSettingsForm extends ConfigFormBase {
       '#description'   => $this->t('Choose a collection from which to display sample images. This can help confirm that the integration is successful.'),
     ];
 
+
+    /************************************
+     * Metadata Sync
+     ************************************/
+    $form['metadata'] = [
+      '#type'  => 'details',
+      '#title' => $this->t('Metadata Synchronization'),
+    ];
+
+    $form['metadata']['metadata_sync_mode'] = [
+      '#type'          => 'radios',
+      '#title'         => $this->t('Sync Mode'),
+      '#options'       => [
+        'empties_only' => $this->t('Only update Drupal fields that are empty (default).'),
+        'indiscriminate_bf_overwrite' => $this->t('Always update Drupal fields when Brandfolder data changes, regardless of whether Drupal fields are empty, have been changed in Drupal, etc. (feature not currently available)'),
+        'update_non_overridden_fields' => $this->t('When Brandfolder data changes, update all corresponding Drupal fields except those that have been changed (in Drupal) since the last sync (feature not currently available).'),
+      ],
+      'indiscriminate_bf_overwrite' => ['#disabled' => TRUE],
+      'update_non_overridden_fields' => ['#disabled' => TRUE],
+      '#default_value' => $config->get('metadata_sync_mode') ?? 'empties_only',
+      '#description'   => $this->t('Some metadata pertaining to Brandfolder assets can be mapped to corresponding fields/attributes in Drupal. Choose how you want this module to manage that relationship.'),
+    ];
+
+
+    /************************************
+     * Image Optimization
+     ************************************/
+    $form['image_optimization'] = [
+      '#type'  => 'details',
+      '#title' => $this->t('Image Optimization'),
+      '#description' => $this->t('These settings can help reduce image file size. Note that they will be applied to all Brandfolder images throughout your site.'),
+    ];
+
+    $form['image_optimization']['io_auto_webp'] = [
+      '#type'          => 'checkbox',
+      '#title'         => $this->t('Automatically use WEBP format for images if supported'),
+      '#default_value' => (bool) $config->get('io_auto_webp'),
+      '#description' => $this->t('This will deliver a WEBP version of an image if the user\'s browser supports that format.'),
+    ];
+
+    $form['image_optimization']['io_quality'] = [
+      '#type'          => 'number',
+      '#min'           => 1,
+      '#max'           => 100,
+      '#title'         => $this->t('Quality to use for all compressed images'),
+      '#default_value' => $config->get('io_quality') ?? '',
+      '#description' => $this->t('Choose a value between 1 and 100 (default). A lower value will result in smaller image file sizes (and faster image load time) but also less detail/fidelity. You can experiment to find something that reduces image sizes without too much obvious degradation. Note: this will not be applied to SVG images.'),
+    ];
+
+
+    /************************************
+     * Advanced
+     ************************************/
+    $form['advanced'] = [
+      '#type'  => 'details',
+      '#title' => $this->t('Advanced Settings'),
+    ];
+
+    $form['advanced']['verbose_log_mode'] = [
+      '#type'          => 'checkbox',
+      '#title'         => $this->t('Detailed logging'),
+      '#default_value' => $config->get('verbose_log_mode'),
+      '#description'   => $this->t('Enable this setting to create log entries for all Brandfolder API queries, incoming webhooks, etc. This can be useful for troubleshooting, but should probably only be enabled for short periods lest it overwhelm your logs.'),
+    ];
+
     if ($bf && $brandfolder_id) {
-      /************************************
-       * Metadata Sync
-       ************************************/
-      $form['metadata'] = [
-        '#type'  => 'details',
-        '#title' => $this->t('Metadata Synchronization'),
-      ];
-
-      $form['metadata']['metadata_sync_mode'] = [
-        '#type'          => 'radios',
-        '#title'         => $this->t('Sync Mode'),
-        '#options'       => [
-          'empties_only' => $this->t('Only update Drupal fields that are empty (default).'),
-          'indiscriminate_bf_overwrite' => $this->t('Always update Drupal fields when Brandfolder data changes, regardless of whether Drupal fields are empty, have been changed in Drupal, etc. (feature not currently available)'),
-          'update_non_overridden_fields' => $this->t('When Brandfolder data changes, update all corresponding Drupal fields except those that have been changed (in Drupal) since the last sync (feature not currently available).'),
-        ],
-        'indiscriminate_bf_overwrite' => ['#disabled' => TRUE],
-        'update_non_overridden_fields' => ['#disabled' => TRUE],
-        '#default_value' => $config->get('metadata_sync_mode') ?? 'empties_only',
-        '#description'   => $this->t('Some metadata pertaining to Brandfolder assets can be mapped to corresponding fields/attributes in Drupal. Choose how you want this module to manage that relationship.'),
-      ];
-
+      /**********************************
+       * Custom Fields/Alt Text.
+       **********************************/
       $custom_field_options = $none_option_array;
       if ($custom_field_ids_and_names = $bf->listCustomFields(NULL, FALSE, TRUE)) {
         $custom_field_options = array_merge($custom_field_options, $custom_field_ids_and_names);
       }
 
       $existing_value = $config->get('alt_text_custom_field');
-      if (empty($existing_value)) {
+      if (empty($existing_value) || !array_key_exists($existing_value, $custom_field_options)) {
         $existing_value = 'none';
       }
 
@@ -199,64 +245,12 @@ class BrandfolderSettingsForm extends ConfigFormBase {
         '#description'   => $this->t('You can use a custom field in Brandfolder to store alt-text for assets, and Drupal will pull text from that field for use with Brandfolder-sourced images, where applicable. To enable this functionality, select the Brandfolder field you plan to use to store alt-text values.'),
       ];
 
-      /************************************
-       * Image Optimization
-       ************************************/
-      $form['image_optimization'] = [
-        '#type'  => 'details',
-        '#title' => $this->t('Image Optimization'),
-        '#description' => $this->t('These settings can help reduce image file size. Note that they will be applied to all Brandfolder images throughout your site.'),
-      ];
-
-      $form['image_optimization']['io_auto_webp'] = [
-        '#type'          => 'checkbox',
-        '#title'         => $this->t('Automatically use WEBP format for images if supported'),
-        '#default_value' => (bool) $config->get('io_auto_webp'),
-        '#description' => $this->t('This will deliver a WEBP version of an image if the user\'s browser supports that format.'),
-      ];
-
-      $form['image_optimization']['io_quality'] = [
-        '#type'          => 'number',
-        '#min'           => 1,
-        '#max'           => 100,
-        '#title'         => $this->t('Quality to use for all compressed images'),
-        '#default_value' => $config->get('io_quality') ?? '',
-        '#description' => $this->t('Choose a value between 1 and 100 (default). A lower value will result in smaller image file sizes (and faster image load time) but also less detail/fidelity. You can experiment to find something that reduces image sizes without too much obvious degradation. Note: this will not be applied to SVG images.'),
-      ];
-
-
-      /************************************
-       * Advanced
-       ************************************/
-      $form['advanced'] = [
-        '#type'  => 'details',
-        '#title' => $this->t('Advanced Settings'),
-      ];
-
-      $form['advanced']['verbose_log_mode'] = [
-        '#type'          => 'checkbox',
-        '#title'         => $this->t('Detailed logging'),
-        '#default_value' => $config->get('verbose_log_mode'),
-        '#description'   => $this->t('Enable this setting to create log entries for all Brandfolder API queries, incoming webhooks, etc. This can be useful for troubleshooting, but should probably only be enabled for short periods lest it overwhelm your logs.'),
-      ];
-
-      $form['#attached']['library'][] = 'brandfolder/brandfolder-admin';
-
-
-      if ($config->get('verbose_log_mode')) {
-        foreach ($bf->getLogData() as $log_entry) {
-          $this->logger('brandfolder')->debug($log_entry);
-        }
-        $bf->clearLogData();
-      }
-
 
       /************************************
        * Sample Images
        ************************************/
       // Display some images from the selected Brandfolder/collection if
       // applicable.
-
 
       $form['sample_image_width'] = [
         '#type'          => 'number',
@@ -312,6 +306,15 @@ class BrandfolderSettingsForm extends ConfigFormBase {
         ];
       }
     }
+
+    if ($bf && $config->get('verbose_log_mode')) {
+      foreach ($bf->getLogData() as $log_entry) {
+        $this->logger('brandfolder')->debug($log_entry);
+      }
+      $bf->clearLogData();
+    }
+
+    $form['#attached']['library'][] = 'brandfolder/brandfolder-admin';
 
     return parent::buildForm($form, $form_state);
   }
@@ -401,6 +404,7 @@ class BrandfolderSettingsForm extends ConfigFormBase {
 
     $config->set('verbose_log_mode', $form_state->getValue('verbose_log_mode'));
 
+    $config->set('metadata_sync_mode', $form_state->getValue('metadata_sync_mode'));
     $config->set('io_auto_webp', $form_state->getValue('io_auto_webp'));
     $config->set('io_quality', $form_state->getValue('io_quality'));
     $config->set('sample_image_width', $form_state->getValue('sample_image_width'));

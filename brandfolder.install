@@ -140,12 +140,14 @@ function brandfolder_schema() {
 //}
 
 /**
- * Remove any API keys from config. We will be explicitly using the Key module
- * to manage API keys henceforth (this was previously optional via config
- * override). After running this update, go to the Brandfolder settings page
- * (/admin/config/media/brandfolder) to re-add your API keys.
+ * Install the Key module. Remove any API keys from config. We will be explicitly using the Key module to manage API keys henceforth (this was previously optional via config override). After running this update, go to the Brandfolder settings page (/admin/config/media/brandfolder) to re-add your API keys.
  */
-function brandfolder_update_100601() {
+function brandfolder_update_10601() {
+  $installer = \Drupal::service('module_installer');
+  // Install the Key module.
+  $installer->install(['key']);
+
+  // Update Brandfolder module configuration.
   $config_factory = \Drupal::configFactory();
   $config = $config_factory->getEditable('brandfolder.settings');
   $key_types = ['admin', 'collaborator', 'guest'];
