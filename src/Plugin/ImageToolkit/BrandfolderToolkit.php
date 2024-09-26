@@ -2,16 +2,10 @@
 
 namespace Drupal\brandfolder\Plugin\ImageToolkit;
 
-use Drupal\Component\Utility\Color;
 use Drupal\Core\Config\ConfigFactoryInterface;
-use Drupal\Core\File\Exception\FileException;
-use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\ImageToolkit\ImageToolkitBase;
 use Drupal\Core\ImageToolkit\ImageToolkitOperationManagerInterface;
-use Drupal\Core\StreamWrapper\StreamWrapperInterface;
-use Drupal\Core\StreamWrapper\StreamWrapperManager;
-use Drupal\Core\StreamWrapper\StreamWrapperManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Database\Connection;
@@ -32,60 +26,6 @@ class BrandfolderToolkit extends ImageToolkitBase {
    * @var Connection
    */
   protected Connection $db;
-
-//  /**
-//   * An image resource.
-//   *
-//   * @var resource|null
-//   */
-//  protected $resource = NULL;
-//
-//  /**
-//   * Image type represented by a PHP IMAGETYPE_* constant (e.g. IMAGETYPE_JPEG).
-//   *
-//   * @var int
-//   */
-//  protected $type;
-//
-//  /**
-//   * Image information from a file, available prior to loading the GD resource.
-//   *
-//   * This contains a copy of the array returned by executing getimagesize()
-//   * on the image file when the image object is instantiated. It gets reset
-//   * to NULL as soon as the GD resource is loaded.
-//   *
-//   * @var array|null
-//   *
-//   * @see \Drupal\system\Plugin\ImageToolkit\BrandfolderToolkit::parseFile()
-//   * @see \Drupal\system\Plugin\ImageToolkit\BrandfolderToolkit::setResource()
-//   * @see http://php.net/manual/function.getimagesize.php
-//   */
-//  protected $preLoadInfo = NULL;
-//
-//  /**
-//   * The StreamWrapper manager.
-//   *
-//   * @var \Drupal\Core\StreamWrapper\StreamWrapperManagerInterface
-//   */
-//  protected $streamWrapperManager;
-//
-//  /**
-//   * The file system.
-//   *
-//   * @var \Drupal\Core\File\FileSystemInterface
-//   */
-//  protected $fileSystem;
-
-//  /**
-//   * Destructs a GDToolkit object.
-//   *
-//   * Frees memory associated with a GD image resource.
-//   */
-//  public function __destruct() {
-//    if (is_resource($this->resource)) {
-//      imagedestroy($this->resource);
-//    }
-//  }
 
   /**
    * A record of all image operations applied to the current image.
@@ -115,6 +55,13 @@ class BrandfolderToolkit extends ImageToolkitBase {
    * @var array
    */
   protected array $original_file_data = [];
+
+  /**
+   * Image type represented by a PHP IMAGETYPE_* constant (e.g. IMAGETYPE_JPEG).
+   *
+   * @var int
+   */
+  protected int $type;
 
   /**
    * Constructs a BrandfolderToolkit object.
@@ -154,37 +101,6 @@ class BrandfolderToolkit extends ImageToolkitBase {
     );
   }
 
-//  /**
-//   * Sets the GD image resource.
-//   *
-//   * @param resource $resource
-//   *   The GD image resource.
-//   *
-//   * @return $this
-//   *   An instance of the current toolkit object.
-//   */
-//  public function setResource($resource) {
-//    if (!is_resource($resource) || get_resource_type($resource) != 'gd') {
-//      throw new \InvalidArgumentException('Invalid resource argument');
-//    }
-//    $this->preLoadInfo = NULL;
-//    $this->resource = $resource;
-//    return $this;
-//  }
-//
-//  /**
-//   * Retrieves the GD image resource.
-//   *
-//   * @return resource|null
-//   *   The GD image resource, or NULL if not available.
-//   */
-//  public function getResource() {
-//    if (!is_resource($this->resource)) {
-//      $this->load();
-//    }
-//    return $this->resource;
-//  }
-
   /**
    * Record an image processing operation in order to maintain a record of all
    * operations, in sequence. This context can be used to convert traditional
@@ -194,7 +110,7 @@ class BrandfolderToolkit extends ImageToolkitBase {
    * @param string $operation_name The name of the operation, e.g. "resize."
    * @param array $operation_arguments All arguments passed to the operation.
    */
-  public function recordOperation(string $operation_name, array $operation_arguments) {
+  public function recordOperation(string $operation_name, array $operation_arguments): void {
     $this->operationsRecord[] = [
       'operation' => $operation_name,
       'arguments' => $operation_arguments,
@@ -209,7 +125,7 @@ class BrandfolderToolkit extends ImageToolkitBase {
    * @return array
    *   The operations record.
    */
-  public function getOperationsRecord() {
+  public function getOperationsRecord(): array {
     return $this->operationsRecord;
   }
 
@@ -220,7 +136,7 @@ class BrandfolderToolkit extends ImageToolkitBase {
    *
    * @return void
    */
-  public function setFileData(array $file_data) {
+  public function setFileData(array $file_data): void {
     $this->file_data = $file_data;
   }
 
@@ -232,7 +148,7 @@ class BrandfolderToolkit extends ImageToolkitBase {
    *
    * @return void
    */
-  public function setFileDataItem(string $key, $value) {
+  public function setFileDataItem(string $key, $value): void {
     $this->file_data[$key] = $value;
   }
 
@@ -241,7 +157,7 @@ class BrandfolderToolkit extends ImageToolkitBase {
    *
    * @return array
    */
-  public function getFileData() {
+  public function getFileData(): array {
     return $this->file_data;
   }
 
@@ -252,8 +168,8 @@ class BrandfolderToolkit extends ImageToolkitBase {
    *
    * @return mixed
    */
-  public function getFileDataItem(string $key) {
-    return isset($this->file_data[$key]) ? $this->file_data[$key] : NULL;
+  public function getFileDataItem(string $key): mixed {
+    return $this->file_data[$key] ?? NULL;
   }
 
   /**
@@ -261,7 +177,7 @@ class BrandfolderToolkit extends ImageToolkitBase {
    *
    * @return array
    */
-  public function getOriginalFileData() {
+  public function getOriginalFileData(): array {
     return $this->original_file_data;
   }
 
@@ -272,8 +188,8 @@ class BrandfolderToolkit extends ImageToolkitBase {
    *
    * @return mixed
    */
-  public function getOriginalFileDataItem(string $key) {
-    return isset($this->original_file_data[$key]) ? $this->original_file_data[$key] : NULL;
+  public function getOriginalFileDataItem(string $key): mixed {
+    return $this->original_file_data[$key] ?? NULL;
   }
 
   /**
@@ -282,7 +198,7 @@ class BrandfolderToolkit extends ImageToolkitBase {
    *
    * @param array $params
    */
-  public function setCdnUrlParams(array $params) {
+  public function setCdnUrlParams(array $params): void {
     $this->brandfolder_cdn_url_params = array_merge($this->brandfolder_cdn_url_params, $params);
   }
 
@@ -307,46 +223,7 @@ class BrandfolderToolkit extends ImageToolkitBase {
   /**
    * {@inheritdoc}
    */
-  public function submitConfigurationForm(array &$form, FormStateInterface $form_state) {}
-
-//  /**
-//   * Loads a GD resource from a file.
-//   *
-//   * @return bool
-//   *   TRUE or FALSE, based on success.
-//   */
-//  protected function load() {
-//    // Return immediately if the image file is not valid.
-//    if (!$this->isValid()) {
-//      return FALSE;
-//    }
-//
-//    $function = 'imagecreatefrom' . image_type_to_extension($this->getType(), FALSE);
-//    if (function_exists($function) && $resource = $function($this->getSource())) {
-//      $this->setResource($resource);
-//      if (imageistruecolor($resource)) {
-//        return TRUE;
-//      }
-//      else {
-//        // Convert indexed images to truecolor, copying the image to a new
-//        // truecolor resource, so that filters work correctly and don't result
-//        // in unnecessary dither.
-//        $data = [
-//          'width' => imagesx($resource),
-//          'height' => imagesy($resource),
-//          'extension' => image_type_to_extension($this->getType(), FALSE),
-//          'transparent_color' => $this->getTransparentColor(),
-//          'is_temp' => TRUE,
-//        ];
-//        if ($this->apply('create_new', $data)) {
-//          imagecopy($this->getResource(), $resource, 0, 0, 0, 0, imagesx($resource), imagesy($resource));
-//          imagedestroy($resource);
-//        }
-//      }
-//      return (bool) $this->getResource();
-//    }
-//    return FALSE;
-//  }
+  public function submitConfigurationForm(array &$form, FormStateInterface $form_state): void {}
 
   /**
    * {@inheritdoc}
@@ -368,7 +245,7 @@ class BrandfolderToolkit extends ImageToolkitBase {
    */
   public function parseFile(): bool {
     $uri = $this->getSource();
-    if (preg_match('/^bf:\/\/[^\/]+\/at\/([^\/]+)\/([^\.]*\.([^\?]+))?/', $uri, $matches)) {
+    if (preg_match('/^bf:\/\/[^\/]+\/at\/([^\/]+)\/([^.]*\.([^?]+))?/', $uri, $matches)) {
       $bf_attachment_id = $matches[1];
       $query = $this->db->select('brandfolder_file', 'bf')
         ->fields('bf', ['filesize', 'width', 'height', 'mime_type', 'bf_attachment_id'])
@@ -391,38 +268,6 @@ class BrandfolderToolkit extends ImageToolkitBase {
 
     return FALSE;
   }
-
-//  /**
-//   * Gets the color set for transparency in GIF images.
-//   *
-//   * @return string|null
-//   *   A color string like '#rrggbb', or NULL if not set or not relevant.
-//   */
-//  public function getTransparentColor() {
-//    if (!$this->getResource() || $this->getType() != IMAGETYPE_GIF) {
-//      return NULL;
-//    }
-//    // Find out if a transparent color is set, will return -1 if no
-//    // transparent color has been defined in the image.
-//    $transparent = imagecolortransparent($this->getResource());
-//    if ($transparent >= 0) {
-//      // Find out the number of colors in the image palette. It will be 0 for
-//      // truecolor images.
-//      $palette_size = imagecolorstotal($this->getResource());
-//      if ($palette_size == 0 || $transparent < $palette_size) {
-//        // Return the transparent color, either if it is a truecolor image
-//        // or if the transparent color is part of the palette.
-//        // Since the index of the transparent color is a property of the
-//        // image rather than of the palette, it is possible that an image
-//        // could be created with this index set outside the palette size.
-//        // (see http://stackoverflow.com/a/3898007).
-//        $rgb = imagecolorsforindex($this->getResource(), $transparent);
-//        unset($rgb['alpha']);
-//        return Color::rgbToHex($rgb);
-//      }
-//    }
-//    return NULL;
-//  }
 
   /**
    * {@inheritdoc}
@@ -455,9 +300,11 @@ class BrandfolderToolkit extends ImageToolkitBase {
   }
 
   /**
-   * {@inheritdoc}
+   * Get the file size of the image, in bytes.
+   *
+   * @return int
    */
-  public function getFileSize() {
+  public function getFileSize(): int {
     if (empty($this->file_data['filesize'])) {
       $this->parseFile();
     }
@@ -496,7 +343,7 @@ class BrandfolderToolkit extends ImageToolkitBase {
   /**
    * {@inheritdoc}
    */
-  public function getMimeType() {
+  public function getMimeType(): string {
 
     return $this->getType() ? image_type_to_mime_type($this->getType()) : '';
   }
@@ -535,7 +382,7 @@ class BrandfolderToolkit extends ImageToolkitBase {
    *
    * @see image_type_to_extension()
    */
-  public function extensionToImageType(string $extension) {
+  public function extensionToImageType(string $extension): int {
     if (in_array($extension, ['jpe', 'jpg'])) {
       $extension = 'jpeg';
     }

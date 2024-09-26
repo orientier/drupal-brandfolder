@@ -2,7 +2,7 @@
 
 namespace Drupal\brandfolder\Plugin\media\Source;
 
-use Brandfolder\Brandfolder;
+use Brandfolder\BrandfolderClient;
 use Drupal\brandfolder\Service\BrandfolderGatekeeper;
 use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Component\Utility\NestedArray;
@@ -38,12 +38,11 @@ use Drupal\file\Entity\File;
 class BrandfolderImage extends MediaSourceBase {
 
   /**
-   * Brandfolder API.
+   * Brandfolder API Client.
    *
-   * @var \Brandfolder\Brandfolder
-   *   BF SDK.
+   * @var \Brandfolder\BrandfolderClient
    */
-  protected $brandfolderClient;
+  protected BrandfolderClient $brandfolderClient;
 
   /**
    * Account proxy.
@@ -164,7 +163,7 @@ class BrandfolderImage extends MediaSourceBase {
 
     parent::__construct($configuration, $plugin_id, $plugin_definition, $entity_type_manager, $entity_field_manager, $field_type_manager, $config_factory);
 
-    // @todo: DI
+    // @todo: DI for BrandfolderClient?
     $this->brandfolderClient = brandfolder_api();
     $this->accountProxy = $account_proxy;
     $this->urlGenerator = $url_generator;
@@ -193,7 +192,7 @@ class BrandfolderImage extends MediaSourceBase {
       $container->get('cache.data'),
       $container->get('datetime.time'),
       $container->get('module_handler'),
-      $container->get(BrandfolderGatekeeper::class)
+      $container->get('brandfolder.gatekeeper')
     );
   }
 

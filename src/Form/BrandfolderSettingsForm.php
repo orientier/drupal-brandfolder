@@ -188,23 +188,47 @@ class BrandfolderSettingsForm extends ConfigFormBase {
     $form['image_optimization'] = [
       '#type'  => 'details',
       '#title' => $this->t('Image Optimization'),
-      '#description' => $this->t('These settings can help reduce image file size. Note that they will be applied to all Brandfolder images throughout your site.'),
+      '#description' => $this->t('These settings can help reduce image file size. These are not applicable to SVG images.'),
+    ];
+
+    $form['image_optimization']['io_format_auto'] = [
+      '#type'          => 'checkbox',
+      '#title'         => $this->t('Automatically calculate image format'),
+      '#default_value' => $config->get('io_format_auto') ?? TRUE,
+      '#description' => $this->t('If enabled, the CDN will calculate the best image format to deliver to each client/browser based on a variety of factors. This tends to yield the most optimized results. The "quality" parameter will still be respected if provided (see below).'),
+    ];
+
+    $form['image_optimization']['io_format_auto_force'] = [
+      '#type'          => 'checkbox',
+      '#title'         => $this->t('Use auto-format even when a specific format is requested'),
+      '#default_value' => $config->get('io_format_auto_force') ?? TRUE,
+      '#description' => $this->t('Use the auto-format option (see above) regardless of whether a particular image is being requested in a specific format. E.g. a Drupal image style effect might specify conversion to PNG or WebP, but this setting will override that and deliver the best format for each client.'),
+      '#states' => [
+        'disabled' => [
+          ':input[name="io_format_auto"]' => ['checked' => FALSE],
+        ],
+      ],
     ];
 
     $form['image_optimization']['io_auto_webp'] = [
       '#type'          => 'checkbox',
-      '#title'         => $this->t('Automatically use WEBP format for images if supported'),
+      '#title'         => $this->t('Automatically use WebP format for images if supported'),
       '#default_value' => (bool) $config->get('io_auto_webp'),
-      '#description' => $this->t('This will deliver a WEBP version of an image if the user\'s browser supports that format.'),
+      '#description' => $this->t('This will deliver a WebP version of an image if the user\'s browser supports that format. This is not relevant if using the auto-format option above (dynamic WebP delivery is included in that mode). If you find that the auto-format option is not suitable for you, then you may wish to experiment with this WebP option.'),
+      '#states' => [
+        'disabled' => [
+          ':input[name="io_format_auto"]' => ['checked' => TRUE],
+        ],
+      ],
     ];
 
     $form['image_optimization']['io_quality'] = [
       '#type'          => 'number',
       '#min'           => 1,
       '#max'           => 100,
-      '#title'         => $this->t('Quality to use for all compressed images'),
+      '#title'         => $this->t('Quality to use for all lossy/compressed images'),
       '#default_value' => $config->get('io_quality') ?? '',
-      '#description' => $this->t('Choose a value between 1 and 100 (default). A lower value will result in smaller image file sizes (and faster image load time) but also less detail/fidelity. You can experiment to find something that reduces image sizes without too much obvious degradation. Note: this will not be applied to SVG images.'),
+      '#description' => $this->t('Choose a value between 1 and 100 (default). A lower value will result in smaller image file sizes (and faster image load time) but also less detail/fidelity. You can experiment to find something that reduces image sizes without too much obvious degradation.'),
     ];
 
 
@@ -278,7 +302,10 @@ class BrandfolderSettingsForm extends ConfigFormBase {
         $cdn_url_param_string = "width=$sample_image_width";
         // Apply image optimization settings to the sample images so users can
         // do some basic testing.
-        if ($config->get('io_auto_webp')) {
+        if ($config->get('io_format_auto')) {
+          $cdn_url_param_string .= '&format=auto';
+        }
+        elseif ($config->get('io_auto_webp')) {
           $cdn_url_param_string .= '&auto=webp';
         }
         if ($config->get('io_quality')) {
@@ -289,8 +316,7 @@ class BrandfolderSettingsForm extends ConfigFormBase {
           $url = $asset->attributes->cdn_url;
           if ($url) {
             // Strip any query string from the URL.
-            // @todo: Decide whether/how to merge params (which should take priority in which circumstances, etc.).
-            $url = preg_replace('/^([^\?]+)\?.*$/', '$1', $url);
+            $url = preg_replace('/^([^?]+)\?.*$/', '$1', $url);
             $url .= '?' . $cdn_url_param_string;
             $output .= "<img src=\"$url\">";
           }
@@ -405,6 +431,8 @@ class BrandfolderSettingsForm extends ConfigFormBase {
     $config->set('verbose_log_mode', $form_state->getValue('verbose_log_mode'));
 
     $config->set('metadata_sync_mode', $form_state->getValue('metadata_sync_mode'));
+    $config->set('io_format_auto', $form_state->getValue('io_format_auto'));
+    $config->set('io_format_auto_force', $form_state->getValue('io_format_auto_force'));
     $config->set('io_auto_webp', $form_state->getValue('io_auto_webp'));
     $config->set('io_quality', $form_state->getValue('io_quality'));
     $config->set('sample_image_width', $form_state->getValue('sample_image_width'));
