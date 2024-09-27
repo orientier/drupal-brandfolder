@@ -327,7 +327,7 @@ class BrandfolderStreamWrapper implements StreamWrapperInterface {
       // params).
       // Brandfolder doesn't allow upload of files with multiple extensions in
       // their name, so we can assume that any extras are Drupal-added.
-      $uri_sans_scheme = preg_replace('/(\.[^.]+)(\.[^.]+)+$/', '$1', $uri_sans_scheme);
+      $uri_sans_scheme = preg_replace('/(\.[^.]+)(\.[^.]+)$/', '$1', $uri_sans_scheme);
 
       // Append style name as query param for clarity.
       $query_params['drupal-image-style'] = $image_style_id;
