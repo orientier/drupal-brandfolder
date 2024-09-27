@@ -473,9 +473,9 @@ class BrandfolderGatekeeper {
    * @param string $format If "tree" (default), return a multi-dimensional
    *  array representing item hierarchy. If "list", return a flattened array.
    *
-   * @param string $result_set If "all" (default), return all eligible labels.
-   *  If "difference", return only those labels that are explicitly allowed
-   *  minus any that are explicitly disallowed. If "allowed_only", return
+   * @param string $result_set If "all" (default), return all *eligible* labels.
+   *  If "difference", return only those labels that are explicitly allowed (if
+   *  any) minus any that are explicitly disallowed. If "allowed_only", return
    *  only those labels that are explicitly allowed. If "disallowed_only",
    *  return only those labels that are explicitly disallowed.
    *
@@ -509,30 +509,40 @@ class BrandfolderGatekeeper {
     $disallowed_label_ids = $this->criteria['disallowed']['label'] ?? [];
     $ids_to_include = [];
     $ids_to_exclude = [];
-    if ($result_set === 'difference') {
-      if (empty($allowed_label_ids)) {
 
-        return [];
-      }
-      $ids_to_include = $allowed_label_ids;
-      $ids_to_exclude = $disallowed_label_ids;
-    }
-    elseif ($result_set === 'allowed_only') {
-      if (empty($allowed_label_ids)) {
+    switch ($result_set) {
+      case 'all':
+      default:
+        $ids_to_include = $allowed_label_ids;
+        $ids_to_exclude = $disallowed_label_ids;
+        break;
 
-        return [];
-      }
-      $ids_to_include = $allowed_label_ids;
-      $ids_to_exclude = [];
-    }
-    elseif ($result_set === 'disallowed_only') {
-      if (empty($disallowed_label_ids)) {
+      case 'difference':
+        if (empty($allowed_label_ids)) {
 
-        return [];
-      }
-      $ids_to_include = $disallowed_label_ids;
-      $ids_to_exclude = [];
+          return [];
+        }
+        $ids_to_include = $allowed_label_ids;
+        $ids_to_exclude = $disallowed_label_ids;
+        break;
+
+      case 'allowed_only':
+        if (empty($allowed_label_ids)) {
+
+          return [];
+        }
+        $ids_to_include = $allowed_label_ids;
+        break;
+
+      case 'disallowed_only':
+        if (empty($disallowed_label_ids)) {
+
+          return [];
+        }
+        $ids_to_include = $disallowed_label_ids;
+        break;
     }
+
     if ($format === 'list') {
       $flat_list = [];
       $this->pruneTree($labels, 'label', $ids_to_include, $ids_to_exclude, $flat_list);
@@ -575,7 +585,7 @@ class BrandfolderGatekeeper {
       $should_item_remain = TRUE;
       $item = NULL;
       if (isset($node->{$item_type})) {
-        $item =& $node->{$item_type};
+        $item = $node->{$item_type};
         $item_lineage = $item->attributes->path ?? [];
         if (!empty($ids_to_include)) {
           // Note: lineage would include the item's own ID, but we still check
