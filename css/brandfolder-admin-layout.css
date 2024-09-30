@@ -1,3 +1,16 @@
+.brandfolder-sample-images {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  gap: 2.5rem 1rem;
+}
+
+.brandfolder-sample-image-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 .brandfolder-sample-images img {
-  margin: 0.25rem;
+  max-height: 300px;
 }

@@ -79,7 +79,7 @@ class BrandfolderSettingsForm extends ConfigFormBase {
     $api_key_count = 0;
     $messenger = $this->messenger();
     $brandfolder_id = $config->get('brandfolder_id');
-    $bf = brandfolder_api();
+    $bf = brandfolder_api('admin');
 
     if ($bf && $config->get('verbose_log_mode')) {
       $bf->enableVerboseLogging();
@@ -256,16 +256,20 @@ class BrandfolderSettingsForm extends ConfigFormBase {
         $custom_field_options = array_merge($custom_field_options, $custom_field_ids_and_names);
       }
 
-      $existing_value = $config->get('alt_text_custom_field');
-      if (empty($existing_value) || !array_key_exists($existing_value, $custom_field_options)) {
-        $existing_value = 'none';
+      $current_alt_text_custom_field_key_id = $config->get('alt_text_custom_field');
+      $current_alt_text_custom_field_key_name = NULL;
+      if (empty($current_alt_text_custom_field_key_id) || !array_key_exists($current_alt_text_custom_field_key_id, $custom_field_options)) {
+        $current_alt_text_custom_field_key_id = 'none';
+      }
+      else {
+        $current_alt_text_custom_field_key_name = $custom_field_options[$current_alt_text_custom_field_key_id];
       }
 
       $form['metadata']['alt_text_custom_field'] = [
         '#type'          => 'select',
         '#title'         => $this->t('Alt-Text Custom Field'),
         '#options'       => $custom_field_options,
-        '#default_value' => $existing_value,
+        '#default_value' => $current_alt_text_custom_field_key_id,
         '#description'   => $this->t('You can use a custom field in Brandfolder to store alt-text for assets, and Drupal will pull text from that field for use with Brandfolder-sourced images, where applicable. To enable this functionality, select the Brandfolder field you plan to use to store alt-text values.'),
       ];
 
@@ -285,12 +289,18 @@ class BrandfolderSettingsForm extends ConfigFormBase {
         '#description'   => $this->t('Optionally adjust the width of the sample images below, for testing. The default is 400px.'),
       ];
 
+      $sample_image_extensions = [
+        'jpg',
+        'jpeg',
+        'png',
+      ];
 
       $params = [
         'fields'  => 'cdn_url',
         'sort_by' => 'updated_at',
         'order'   => 'desc',
-        'search'  => '(approved:true) AND (expired:false) AND (unpublished:false)'
+        'search'  => '(approved:true) AND (expired:false) AND (unpublished:false) AND (extension:(' . implode(' OR ', $sample_image_extensions) . '))',
+        'include' => 'custom_fields',
       ];
       if ($preview_collection_id) {
         $assets = $bf->listAssets($params, $preview_collection_id);
@@ -312,14 +322,18 @@ class BrandfolderSettingsForm extends ConfigFormBase {
         if ($config->get('io_quality')) {
           $cdn_url_param_string .= '&quality=' . $config->get('io_quality');
         }
-        $thumbnails = array_map(function ($asset) use ($cdn_url_param_string) {
+        $thumbnails = array_map(function ($asset) use ($current_alt_text_custom_field_key_name, $cdn_url_param_string) {
           $output = '';
           $url = $asset->attributes->cdn_url;
           if ($url) {
             // Strip any query string from the URL.
             $url = preg_replace('/^([^?]+)\?.*$/', '$1', $url);
             $url .= '?' . $cdn_url_param_string;
-            $output .= "<img src=\"$url\">";
+            $alt_text = 'Brandfolder image for illustrative purposes only';
+            if ($current_alt_text_custom_field_key_name && isset($asset->custom_field_values[$current_alt_text_custom_field_key_name])) {
+              $alt_text = $asset->custom_field_values[$current_alt_text_custom_field_key_name];
+            }
+            $output .= "<div class=\"brandfolder-sample-image-wrapper\"><img src=\"$url\" alt=\"$alt_text\" /></div>";
           }
 
           return $output;
@@ -328,7 +342,8 @@ class BrandfolderSettingsForm extends ConfigFormBase {
         $form['sample_pics'] = [
           '#type'   => 'markup',
           '#prefix' => '<h2>Sample Images</h2>',
-          '#markup' => '<div class="brandfolder-sample-images">' . implode(' ', $thumbnails) . '</div>',
+          '#markup' => '<p class="sample-images-intro">Showing approved, published, non-expired assets from the selected Brandfolder (and collection, if applicable) with the following filetypes/extensions: <em>' . implode(', ', $sample_image_extensions) . '</em></p>'
+              . '<div class="brandfolder-sample-images">' . implode(' ', $thumbnails) . '</div>',
           '#weight' => 999,
         ];
       }
