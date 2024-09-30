@@ -290,6 +290,7 @@ class BrandfolderSettingsForm extends ConfigFormBase {
         'fields'  => 'cdn_url',
         'sort_by' => 'updated_at',
         'order'   => 'desc',
+        'search'  => '(approved:true) AND (expired:false) AND (unpublished:false)'
       ];
       if ($preview_collection_id) {
         $assets = $bf->listAssets($params, $preview_collection_id);

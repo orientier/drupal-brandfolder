@@ -306,6 +306,7 @@ class BrandfolderGatekeeper {
     $default_params = [
       'per' => 100,
       'page' => 1,
+      'fields' => 'cdn_url,availability',
     ];
     $query_params = array_merge($default_params, $query_params);
 
