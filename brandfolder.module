@@ -7,6 +7,7 @@
 
 use Drupal\brandfolder\Service\BrandfolderGatekeeper;
 use Drupal\brandfolder\Plugin\media\Source\BrandfolderImage;
+use Drupal\Component\Utility\DeprecationHelper;
 use Drupal\Component\Utility\Html;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Routing\RouteMatchInterface;
@@ -43,7 +44,7 @@ use Drupal\Core\Entity\EntityStorageException;
  *  A \Brandfolder\BrandfolderClient instance for interacting with the
  *  Brandfolder API, or FALSE on failure.
  */
-function brandfolder_api(?string $stored_key_type = 'guest', string $custom_api_key = NULL) {
+function brandfolder_api(?string $stored_key_type = 'guest', ?string $custom_api_key = NULL): bool|BrandfolderClient {
   $config = \Drupal::config('brandfolder.settings');
 
   $api_key_types = [
@@ -52,7 +53,12 @@ function brandfolder_api(?string $stored_key_type = 'guest', string $custom_api_
     'guest',
   ];
   if (in_array($stored_key_type, $api_key_types)) {
-    $api_key = $config->get("api_keys.$stored_key_type");
+    $api_key_id = $config->get("api_key_ids.$stored_key_type");
+    if ($api_key_id) {
+      if ($key_entity = \Drupal::service('key.repository')->getKey($api_key_id)) {
+        $api_key = $key_entity->getKeyValue();
+      }
+    }
   }
   elseif (!is_null($custom_api_key)) {
     $api_key = $custom_api_key;
@@ -306,7 +312,7 @@ function brandfolder_views_pre_build(ViewExecutable $view) {
 function brandfolder_browser_media_library_form_manipulator(&$form, FormStateInterface $form_state, MediaType $media_type) {
   $media_source = $media_type->getSource();
   $gatekeeper = \Drupal::getContainer()
-    ->get(BrandfolderGatekeeper::class);
+    ->get('brandfolder.gatekeeper');
   $gatekeeper->loadFromMediaSource($media_source);
 
   $context = ['media_library'];
@@ -315,7 +321,7 @@ function brandfolder_browser_media_library_form_manipulator(&$form, FormStateInt
   $build_info = $form_state->getBuildInfo();
   if ($build_info['base_form_id'] == 'views_form_media_library_widget' && isset($build_info['args'][0]) && $build_info['args'][0] instanceof ViewExecutable) {
     $view = $build_info['args'][0];
-    if (strpos($view->current_display, 'widget') === 0) {
+    if (str_starts_with($view->current_display, 'widget')) {
       try {
         $state = MediaLibraryState::fromRequest($view->getRequest());
         $selection_limit = $state->getAvailableSlots();
@@ -631,7 +637,7 @@ function brandfolder_format_asset_list(object $assets, array $disabled_attachmen
           .       "<img class=\"brandfolder-attachment__image\" src=\"\" data-img-src=\"{$attachment->thumbnail_url}\" />"
           .       "<figcaption>"
           .         "<div class=\"bf-attachment-metadata\"><strong>" . t('Filename') . ":</strong> {$attachment->filename}</div>"
-          .         "<div class=\"bf-attachment-metadata\"><strong>" . t('File Size') . ":</strong> " . format_size($attachment->size) . "</div>"
+          .         "<div class=\"bf-attachment-metadata\"><strong>" . t('File Size') . ":</strong> " . DeprecationHelper::backwardsCompatibleCall(\Drupal::VERSION, '10.2.0', fn() => \Drupal\Core\StringTranslation\ByteSizeMarkup::create($attachment->size), fn() => format_size($attachment->size)) . "</div>"
           .         "<div class=\"bf-attachment-metadata\"><strong>" . t('Dimensions') . ":</strong> {$attachment->width}x{$attachment->height}</div>"
           .       "</figcaption>"
           .     "</figure>"
@@ -1371,7 +1377,7 @@ function brandfolder_map_attachment_to_file($attachment, $create_new_file = TRUE
 
       // Store data in the brandfolder_file table before saving the file, so
       // we can use it to look up things like filesize when the file is being
-      // saved.
+      // saved (@see BrandfolderStreamWrapper).
       try {
         $db->insert('brandfolder_file')
           ->fields($bf_file_data)
@@ -1390,10 +1396,10 @@ function brandfolder_map_attachment_to_file($attachment, $create_new_file = TRUE
 
         // Update the brandfolder_file table with the newly created FID.
         $result = $db->merge('brandfolder_file')
-          ->key([
-            'uri'         => $uri,
+          ->keys([
+            'uri'              => $uri,
             'bf_attachment_id' => $attachment_id,
-            'bf_asset_id' => $asset_id,
+            'bf_asset_id'      => $asset_id,
           ])
           ->fields(['fid' => $fid])
           ->execute();
@@ -1760,7 +1766,7 @@ function brandfolder_media_presave(MediaInterface $media) {
     // ensure nothing falls through the cracks during programmatic entity
     // updates, etc.
     $gatekeeper = \Drupal::getContainer()
-      ->get(BrandfolderGatekeeper::class);
+      ->get('brandfolder.gatekeeper');
     $gatekeeper->loadFromMediaSource($source);
     $valid = $gatekeeper->validateBrandfolderEntities(['attachments' => [$bf_attachment_id]]);
     if (!$valid) {

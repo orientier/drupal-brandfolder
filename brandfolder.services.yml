@@ -18,9 +18,9 @@ services:
     tags:
       - { name: event_subscriber }
 
-  Drupal\brandfolder\Service\BrandfolderGatekeeper:
+  brandfolder.gatekeeper:
     class: Drupal\brandfolder\Service\BrandfolderGatekeeper
-    arguments: [ '@string_translation', '@logger.factory', '@config.factory' ]
+    arguments: [ '@string_translation', '@logger.factory', '@config.factory', '@key.repository' ]
 
 # @todo: Gather more data about mime type and file extension relationships among real-world customers. Decide whether it's best to use the file extension guesser, Brandfolder API as per the custom guesser below, or a hybrid, etc.
   file.mime_type.guesser.brandfolder:

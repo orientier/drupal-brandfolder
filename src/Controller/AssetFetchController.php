@@ -283,7 +283,7 @@ class AssetFetchController extends ControllerBase {
     $query_params['order'] = $all_form_values['brandfolder_controls_sort_order'] ?? 'desc';
 
     $gatekeeper = \Drupal::getContainer()
-      ->get(BrandfolderGatekeeper::class);
+      ->get('brandfolder.gatekeeper');
     $gatekeeper_criteria_string = $form_state->getValue('bf_gatekeeper_criteria');
     if (!empty($gatekeeper_criteria_string)) {
       $gatekeeper_criteria = json_decode($gatekeeper_criteria_string, TRUE);

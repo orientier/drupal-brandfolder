@@ -7,9 +7,13 @@ use Drupal\brandfolder\Service\BrandfolderGatekeeper;
 use Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException;
 use Drupal\Component\Plugin\Exception\PluginNotFoundException;
 use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
 use Drupal\entity_browser\WidgetBase;
+use Drupal\entity_browser\WidgetValidationManager;
+use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 /**
  * Allows users to browse Brandfolder assets and select attachments for use in
@@ -23,6 +27,51 @@ use Drupal\entity_browser\WidgetBase;
  * )
  */
 class BrandfolderBrowser extends WidgetBase {
+
+  /**
+   * Brandfolder Gatekeeper service.
+   *
+   * @var \Drupal\brandfolder\Service\BrandfolderGatekeeper
+   */
+  protected BrandfolderGatekeeper $brandfolderGatekeeper;
+
+  /**
+   * Constructor.
+   *
+   * @param array $configuration
+   *   A configuration array containing information about the plugin instance.
+   * @param string $plugin_id
+   *   The plugin_id for the plugin instance.
+   * @param mixed $plugin_definition
+   *   The plugin implementation definition.
+   * @param \Symfony\Component\EventDispatcher\EventDispatcherInterface $event_dispatcher
+   *   Event dispatcher service.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager service.
+   * @param \Drupal\entity_browser\WidgetValidationManager $validation_manager
+   *   The Widget Validation Manager service.
+   * @param \Drupal\brandfolder\Service\BrandfolderGatekeeper $brandfolder_gatekeeper
+   *   The Brandfolder Gatekeeper service.
+   */
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, EventDispatcherInterface $event_dispatcher, EntityTypeManagerInterface $entity_type_manager, WidgetValidationManager $validation_manager, BrandfolderGatekeeper $brandfolder_gatekeeper) {
+    parent::__construct($configuration, $plugin_id, $plugin_definition, $event_dispatcher, $entity_type_manager, $validation_manager);
+    $this->brandfolderGatekeeper = $brandfolder_gatekeeper;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
+    return new static(
+      $configuration,
+      $plugin_id,
+      $plugin_definition,
+      $container->get('event_dispatcher'),
+      $container->get('entity_type.manager'),
+      $container->get('plugin.manager.entity_browser.widget_validation'),
+      $container->get('brandfolder.gatekeeper')
+    );
+  }
 
   /**
    * {@inheritdoc}
@@ -145,8 +194,7 @@ class BrandfolderBrowser extends WidgetBase {
     $context = ['entity_browser', 'brandfolder_browser'];
     $context_string = implode('-', $context);
     $media_source = $media_type->getSource();
-    $gatekeeper = \Drupal::getContainer()
-      ->get(BrandfolderGatekeeper::class);
+    $gatekeeper = $this->brandfolderGatekeeper;
     $gatekeeper->loadFromMediaSource($media_source);
 
     // @todo: Test in field contexts where we might have previously selected entities on first browser load.

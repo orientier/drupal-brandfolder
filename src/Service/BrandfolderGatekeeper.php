@@ -2,13 +2,14 @@
 
 namespace Drupal\brandfolder\Service;
 
+use Brandfolder\BrandfolderClient;
 use Drupal\brandfolder\Plugin\media\Source\BrandfolderImage;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\StringTranslation\TranslationInterface;
+use Drupal\key\KeyRepository;
 use Drupal\media\MediaSourceInterface;
-use Brandfolder\Brandfolder;
 
 /**
  * Helps determine which Brandfolder entities should be available in a given
@@ -24,8 +25,9 @@ class BrandfolderGatekeeper {
    * @var array
    *  Array with the following structure:
    *
-   * @code
-   *  [
+   * ```php
+   *
+   *  $criteria = [
    *    'allowed' => [
    *      'collection' => [
    *        'abc123def456' => 'abc123def456',
@@ -43,8 +45,9 @@ class BrandfolderGatekeeper {
    *        'xyz123abc100' => 'xyz123abc100',
    *      ],
    *    ],
-   * ]
-   * @endcode
+   * ];
+   *
+   * ```
    *
    *  For an entity to be considered valid, it must match at least one of the
    *  criteria in *each* of the "allowed" criteria sets, and, additionally,
@@ -109,19 +112,26 @@ class BrandfolderGatekeeper {
    * @param \Drupal\Core\StringTranslation\TranslationInterface $string_translation
    * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $logger_factory
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   * @param \Drupal\key\KeyRepository $key_repository
    *
    * @throws \Exception
    */
-  public function __construct(TranslationInterface $string_translation, LoggerChannelFactoryInterface $logger_factory, ConfigFactoryInterface $config_factory) {
+  public function __construct(TranslationInterface $string_translation, LoggerChannelFactoryInterface $logger_factory, ConfigFactoryInterface $config_factory, KeyRepository $key_repository) {
     $this->stringTranslation = $string_translation;
     $this->logger = $logger_factory->get('brandfolder');
     $this->configFactory = $config_factory;
     $bf_config = $this->configFactory->get('brandfolder.settings');
-    $api_key = $bf_config->get('api_keys.admin');
+    $api_key = NULL;
+    $api_key_id = $bf_config->get("api_key_ids.admin");
+    if ($api_key_id) {
+      if ($key_entity = $key_repository->getKey($api_key_id)) {
+        $api_key = $key_entity->getKeyValue();
+      }
+    }
     $brandfolder_id = $bf_config->get('brandfolder_id');
     if ($api_key && $brandfolder_id) {
       // @todo: Brandfolder as a service; DI, etc.
-      $this->bf_client = new Brandfolder($api_key, $brandfolder_id);
+      $this->bf_client = new BrandfolderClient($api_key, $brandfolder_id);
       if ($bf_config->get('verbose_log_mode')) {
         $this->bf_client->enableVerboseLogging();
       }
@@ -140,17 +150,19 @@ class BrandfolderGatekeeper {
    * @param \Drupal\Core\StringTranslation\TranslationInterface $string_translation
    * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $logger_factory
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   * @param \Drupal\key\KeyRepository $key_repository
    *
    * @return static
    *   Returns an instance of this service.
    *
    * @throws \Exception
    */
-  public function create(TranslationInterface $string_translation, LoggerChannelFactoryInterface $logger_factory, ConfigFactoryInterface $config_factory) {
+  public function create(TranslationInterface $string_translation, LoggerChannelFactoryInterface $logger_factory, ConfigFactoryInterface $config_factory, KeyRepository $key_repository): static {
     return new static(
       $string_translation,
       $logger_factory,
       $config_factory,
+      $key_repository,
     );
   }
 
@@ -160,7 +172,7 @@ class BrandfolderGatekeeper {
    *
    * @param MediaSourceInterface $source
    */
-  public function loadFromMediaSource(MediaSourceInterface $source) {
+  public function loadFromMediaSource(MediaSourceInterface $source): void {
     $criteria = [];
     $source_config = $source->getConfiguration();
     // @todo: Build on this.
@@ -294,6 +306,7 @@ class BrandfolderGatekeeper {
     $default_params = [
       'per' => 100,
       'page' => 1,
+      'fields' => 'cdn_url,availability',
     ];
     $query_params = array_merge($default_params, $query_params);
 
@@ -461,9 +474,9 @@ class BrandfolderGatekeeper {
    * @param string $format If "tree" (default), return a multi-dimensional
    *  array representing item hierarchy. If "list", return a flattened array.
    *
-   * @param string $result_set If "all" (default), return all eligible labels.
-   *  If "difference", return only those labels that are explicitly allowed
-   *  minus any that are explicitly disallowed. If "allowed_only", return
+   * @param string $result_set If "all" (default), return all *eligible* labels.
+   *  If "difference", return only those labels that are explicitly allowed (if
+   *  any) minus any that are explicitly disallowed. If "allowed_only", return
    *  only those labels that are explicitly allowed. If "disallowed_only",
    *  return only those labels that are explicitly disallowed.
    *
@@ -497,30 +510,40 @@ class BrandfolderGatekeeper {
     $disallowed_label_ids = $this->criteria['disallowed']['label'] ?? [];
     $ids_to_include = [];
     $ids_to_exclude = [];
-    if ($result_set === 'difference') {
-      if (empty($allowed_label_ids)) {
 
-        return [];
-      }
-      $ids_to_include = $allowed_label_ids;
-      $ids_to_exclude = $disallowed_label_ids;
-    }
-    elseif ($result_set === 'allowed_only') {
-      if (empty($allowed_label_ids)) {
+    switch ($result_set) {
+      case 'all':
+      default:
+        $ids_to_include = $allowed_label_ids;
+        $ids_to_exclude = $disallowed_label_ids;
+        break;
 
-        return [];
-      }
-      $ids_to_include = $allowed_label_ids;
-      $ids_to_exclude = [];
-    }
-    elseif ($result_set === 'disallowed_only') {
-      if (empty($disallowed_label_ids)) {
+      case 'difference':
+        if (empty($allowed_label_ids)) {
 
-        return [];
-      }
-      $ids_to_include = $disallowed_label_ids;
-      $ids_to_exclude = [];
+          return [];
+        }
+        $ids_to_include = $allowed_label_ids;
+        $ids_to_exclude = $disallowed_label_ids;
+        break;
+
+      case 'allowed_only':
+        if (empty($allowed_label_ids)) {
+
+          return [];
+        }
+        $ids_to_include = $allowed_label_ids;
+        break;
+
+      case 'disallowed_only':
+        if (empty($disallowed_label_ids)) {
+
+          return [];
+        }
+        $ids_to_include = $disallowed_label_ids;
+        break;
     }
+
     if ($format === 'list') {
       $flat_list = [];
       $this->pruneTree($labels, 'label', $ids_to_include, $ids_to_exclude, $flat_list);
@@ -563,7 +586,7 @@ class BrandfolderGatekeeper {
       $should_item_remain = TRUE;
       $item = NULL;
       if (isset($node->{$item_type})) {
-        $item =& $node->{$item_type};
+        $item = $node->{$item_type};
         $item_lineage = $item->attributes->path ?? [];
         if (!empty($ids_to_include)) {
           // Note: lineage would include the item's own ID, but we still check

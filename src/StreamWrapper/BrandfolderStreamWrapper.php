@@ -288,53 +288,69 @@ class BrandfolderStreamWrapper implements StreamWrapperInterface {
     // This is not quite as slick or readable as
     // "bf://abc123-echvmo-7qf0za/my_image.jpg"
     // or "bf://abc123-echvmo-7qf0za," but it should be more
-    // performant and allow for straightforward management of (a) attachments from
-    // multiple Brandfolders if we choose to support that in the future.
+    // performant and allow for straightforward management of (a) attachments
+    // from multiple Brandfolders if we choose to support that in the future.
     // The effective limit on BF attachment filenames (including extension) is
     // therefore 217 characters.
     $url_options = [
       'absolute' => TRUE,
     ];
 
-    // @todo: Get config 'brandfolder_default_cdn_file_format';
-    $default_file_extension = 'jpg';
-
     $scheme_prefix = 'bf://';
     $file_uri = $this->getUri();
     $uri_sans_scheme = substr($file_uri, strlen($scheme_prefix));
-    $extension_pattern = '/\.([^.?]+)(\?[^?]*)?$/';
-    $result = preg_match($extension_pattern, $uri_sans_scheme, $matches);
-    $extension = $result ? strtolower($matches[1]) : $default_file_extension;
     $query_params = [];
     $image_style = NULL;
+    $mimetype = $this->getMimeType($file_uri);
 
     // Handle image styles.
-    $image_style_unsupported_extensions = [
-      'svg',
+    $image_style_unsupported_mimetypes = [
+      'image/svg+xml',
     ];
     if (preg_match("/^styles\/([^\/]+)\/bf\/(.*)$/", $uri_sans_scheme, $matches)) {
       $image_style_id = $matches[1];
       // Remove the style portion of the URI.
       $uri_sans_scheme = $matches[2];
 
+      // Check for a problematic "extra extension" that may have been slapped
+      // onto the path (resulting in something like
+      // "bf://abc123-echvmo-7qf0za/.../my_image.jpg.webp"). Specifically, undo
+      // the work of \Drupal\image\Entity\ImageStyle::addExtension, which
+      // appends an extension if its image effects indicate that they would
+      // alter the original extension (this is true of, e.g., image_convert
+      // effects). We don't want this because (a) it can interfere with other
+      // image effects performing lookups (e.g. Focal Point module checking to
+      // see if it has any crops defined for a given URI),
+      // (b) having multiple extensions in the URL can cause Brandfolder to
+      // return a 404, and (c) we don't use the extension portion of the URL
+      // to request a specific image format (we use the "format" and/or "auto"
+      // params).
+      // Brandfolder doesn't allow upload of files with multiple extensions in
+      // their name, so we can assume that any extras are Drupal-added.
+      $uri_sans_scheme = preg_replace('/(\.[^.]+)(\.[^.]+)$/', '$1', $uri_sans_scheme);
+
       // Append style name as query param for clarity.
-      // @todo: Decide whether to keep this, kill it, or make it configurable.
       $query_params['drupal-image-style'] = $image_style_id;
 
-      if (!in_array($extension, $image_style_unsupported_extensions)) {
+      if (!in_array($mimetype, $image_style_unsupported_mimetypes)) {
         if ($image_style = ImageStyle::load($image_style_id)) {
-          // Apply all effects from the given image style. Our image toolkit will
-          // handle compatible effects and add corresponding Smart CDN URL
+          // Apply all effects from the given image style. Our image toolkit
+          // will handle compatible effects and add corresponding Smart CDN URL
           // transformation params to the image object.
-          // @todo: Test scenarios with stacked effects; try to provide more robust pass-through support for non BF images.
+          // @todo: Test more scenarios with stacked effects.
           $file_uri = "{$scheme_prefix}{$uri_sans_scheme}";
-          // Note: we will always use the BF image toolkit for BF images, without
-          // making BF the default sitewide toolkit.
+          // Note: we will always use the BF image toolkit for BF images,
+          // without making BF the default sitewide toolkit.
           // @see \Drupal\brandfolder\Image\BrandfolderImageFactory.
           $image = \Drupal::service('image.factory')->get($file_uri);
           if ($image->isValid()) {
-            $effects = $image_style->getEffects();
-            foreach ($effects as $effect) {
+            foreach ($image_style->getEffects() as $effect) {
+              // Skip image conversion effects if the Brandfolder module has
+              // been configured to always use "format=auto" despite
+              // image-style-specific settings.
+              if ($config->get('io_format_auto') && $config->get('io_format_auto_force') && $effect->getPluginId() == 'image_convert') {
+                continue;
+              }
               if (!$effect->applyEffect($image)) {
                 $this->logger->error('Could not apply the image effect :effect_name to the Brandfolder image :uri.', [
                   ':effect_name' => $effect->label(),
@@ -351,24 +367,33 @@ class BrandfolderStreamWrapper implements StreamWrapperInterface {
       }
     }
 
-    // Lastly, convert the file format/extension to match the globally
-    // configured preference for certain image types if applicable.
-    // It's important to do this as late as possible so other modules can
-    // accurately map the URI to a managed file.
-    // @todo: Get config 'brandfolder_default_cdn_file_format';
-    $default_static_image_format = 'jpg';
-    $convertable_image_extensions = [
-      'jpeg',
-      'jpg',
-      'png',
-      'tiff',
-      'bmp',
-    ];
-    $url = "{$this->baseUrl}/{$uri_sans_scheme}";
-    // @todo: More sophisticated/granular handling for various file types.
-    if ($default_static_image_format && $extension != $default_static_image_format && in_array($extension, $convertable_image_extensions)) {
-      $url = preg_replace($extension_pattern, ".$default_static_image_format$2", $url);
+    // Image optimization.
+    // (We almost always want to do this, but it's counterproductive for SVGs).
+    if ($mimetype != 'image/svg+xml') {
+      // Apply the "format=auto" param if that option has been configured. That
+      // causes the CDN to calculate the best image format to deliver to each
+      // client/browser based on a variety of factors.
+      if ($config->get('io_format_auto')) {
+        // If a format param is already set (e.g. from an image style conversion
+        // effect), then we might not want to override it. Whether we do or not
+        // is dictated by the 'io_format_auto_force' setting.
+        if ($config->get('io_format_auto_force')) {
+          $query_params['format'] = 'auto';
+          unset($query_params['auto']);
+        }
+        elseif (!isset($query_params['format']) && !isset($query_params['auto'])) {
+          $query_params['format'] = 'auto';
+        }
+      }
+      elseif ($config->get('io_auto_webp')) {
+        $query_params['auto'] = 'webp';
+      }
+      if (!empty($config->get('io_quality'))) {
+        $query_params['quality'] = $config->get('io_quality');
+      }
     }
+
+    $url = "{$this->baseUrl}/{$uri_sans_scheme}";
 
     // Remove any query params from the original URL and add them to the query
     // params array.
@@ -386,17 +411,6 @@ class BrandfolderStreamWrapper implements StreamWrapperInterface {
       }
     }
     $url_options['query'] = $query_params;
-
-    $mimetype = $this->getMimeType($this->getUri());
-    // Functionality for non-SVG images.
-    if (!empty($mimetype) && str_starts_with($mimetype, 'image/') && $mimetype != 'image/svg+xml') {
-      if ($config->get('io_auto_webp')) {
-        $url_options['query']['auto'] = 'webp';
-      }
-      if (!empty($config->get('io_quality'))) {
-        $url_options['query']['quality'] = $config->get('io_quality');
-      }
-    }
 
     // Allow other modules to alter the URL.
     $context = [
