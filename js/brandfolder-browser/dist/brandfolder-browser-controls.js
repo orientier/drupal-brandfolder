@@ -23,9 +23,27 @@ let BrandfolderBrowserControls = class BrandfolderBrowserControls extends LitEle
         this._userInput = null;
     }
     /**
+     * Handle use of the "reset" button. Reset all user input.
+     */
+    _controlsResetHandler() {
+        this._userInput = null;
+    }
+    /**
      * Handle the submission of the search/filter/sort form.
      */
     _controlsSubmissionHandler() {
+        // Notify ancestors of the submission.
+        const options = {
+            detail: { userInput: this._userInput },
+            bubbles: true,
+            composed: true,
+        };
+        this.dispatchEvent(new CustomEvent('bfBrowserControlsSubmission', options));
+    }
+    /**
+     * Pull UI element values into state.
+     */
+    _controlsChangeHandler() {
         const userInput = {
             searchText: this.searchTextInput.value,
         };
@@ -35,18 +53,17 @@ let BrandfolderBrowserControls = class BrandfolderBrowserControls extends LitEle
                 .filter((input) => input.checked)
                 .map((input) => input.value);
         }
+        if (this.sectionInputs) {
+            const sectionInputsArray = Array.from(this.sectionInputs);
+            userInput.sections = sectionInputsArray
+                .filter((input) => input.checked)
+                .map((input) => input.value);
+        }
         this._userInput = userInput;
-        // Notify ancestors of the submission.
-        const options = {
-            detail: { userInput: this._userInput },
-            bubbles: true,
-            composed: true,
-        };
-        this.dispatchEvent(new CustomEvent('bfBrowserControlsSubmission', options));
     }
     render() {
         return html `
-      <input type="text" class="search-text-input" aria-label="Search" />
+      <input type="text" class="search-text-input" aria-label="Search" .value="${this._userInput?.searchText ?? ''}" @change=${this._controlsChangeHandler} />
       ${(this.controlSchema?.collections && Object.keys(this.controlSchema?.collections)?.length > 1) &&
             html `
           <fieldset class="collections-container">
@@ -64,14 +81,39 @@ let BrandfolderBrowserControls = class BrandfolderBrowserControls extends LitEle
                         aria-label="${collectionName}"
                         name="${inputName}"
                         value=${collectionId}
-                        ?checked=${isSelected}
+                        .checked=${isSelected}
+                        @change=${this._controlsChangeHandler}
                       />
                       <label for=${inputName}>${collectionName}</label>
                     `;
             })}
             </div>
           </fieldset>
+          <fieldset class="sections-container">
+            <legend>Sections</legend>
+            <div class="sections">
+              ${Object.keys(this.controlSchema.sections).map((sectionId) => {
+                const sectionName = this.controlSchema.sections[sectionId];
+                const isSelected = this._userInput?.sections?.includes(sectionId);
+                const inputName = 'section';
+                return html `
+                    <input
+                      type="checkbox"
+                      class="section-input"
+                      id="section-input--${sectionId}"
+                      aria-label="${sectionName}"
+                      name="${inputName}"
+                      value=${sectionId}
+                      .checked=${isSelected}
+                      @change=${this._controlsChangeHandler}
+                    />
+                    <label for=${inputName}>${sectionName}</label>
+                  `;
+            })}
+            </div>
+          </fieldset>
         `}
+      <button @click=${this._controlsResetHandler}>Reset</button>
       <button @click=${this._controlsSubmissionHandler}>Submit</button>
     `;
     }
@@ -93,6 +135,9 @@ __decorate([
 __decorate([
     queryAll('.collection-input')
 ], BrandfolderBrowserControls.prototype, "collectionInputs", void 0);
+__decorate([
+    queryAll('.section-input')
+], BrandfolderBrowserControls.prototype, "sectionInputs", void 0);
 BrandfolderBrowserControls = __decorate([
     customElement('brandfolder-browser-controls')
 ], BrandfolderBrowserControls);

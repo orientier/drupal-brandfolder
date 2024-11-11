@@ -67,9 +67,21 @@ export declare class BrandfolderBrowserControls extends LitElement {
      */
     collectionInputs: HTMLInputElement[];
     /**
+     * Create a reference to the sections input element.
+     */
+    sectionInputs: HTMLInputElement[];
+    /**
+     * Handle use of the "reset" button. Reset all user input.
+     */
+    private _controlsResetHandler;
+    /**
      * Handle the submission of the search/filter/sort form.
      */
     private _controlsSubmissionHandler;
+    /**
+     * Pull UI element values into state.
+     */
+    private _controlsChangeHandler;
     render(): import("lit-html").TemplateResult<1>;
 }
 declare global {

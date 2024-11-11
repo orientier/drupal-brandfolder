@@ -9,6 +9,7 @@ import { Task, TaskStatus } from '@lit/task';
 import { customElement, property, state } from 'lit/decorators.js';
 // Import all subcomponents and class dependencies so we can compile
 // everything into a single JS file with this file as the sole entry point.
+import './brandfolder-browser-controls';
 import './brandfolder-asset-base';
 import './brandfolder-asset-detail';
 import './brandfolder-asset-preview';
@@ -130,11 +131,18 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
          */
         this._browserUpdateTask = new Task(this, {
             task: async ([requestedPage], { signal, }) => {
-                const response = await fetch(`https://emmanuel.orien.tier/brandfolder-browser-update?XDEBUG_SESSION_START=PHPSTORM`, {
+                const response = await fetch(
+                // `/brandfolder-browser-update`,
+                // Dev:
+                `https://brandfolder-drupal-11.orien.tier/brandfolder-browser-update`, {
                     signal,
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json; charset=UTF-8',
+                        // Dev:
+                        'Access-Control-Allow-Origin': "*",
+                        "Access-Control-Allow-Methods": "GET,HEAD,POST,OPTIONS",
+                        "Access-Control-Max-Age": "86400",
                     },
                     body: JSON.stringify({
                         bfBrowserId: this.bfBrowserId,
