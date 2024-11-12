@@ -57,13 +57,17 @@ export declare class BrandfolderBrowserControls extends LitElement {
      */
     searchTextInput: HTMLInputElement;
     /**
-     * Create a reference to the collections input element.
+     * Create a reference to the collections input elements.
      */
     collectionInputs: HTMLInputElement[];
     /**
-     * Create a reference to the sections input element.
+     * Create a reference to the sections input elements.
      */
     sectionInputs: HTMLInputElement[];
+    /**
+     * Create a reference to the aspect/orientation input elements.
+     */
+    aspectInputs: HTMLInputElement[];
     /**
      * Constructor.
      */

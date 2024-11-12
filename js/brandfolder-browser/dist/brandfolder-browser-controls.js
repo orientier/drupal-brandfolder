@@ -66,6 +66,12 @@ let BrandfolderBrowserControls = class BrandfolderBrowserControls extends LitEle
                 .filter((input) => input.checked)
                 .map((input) => input.value);
         }
+        if (this.aspectInputs) {
+            const aspectInputsArray = Array.from(this.aspectInputs);
+            this._controlsInput.aspect = aspectInputsArray
+                .filter((input) => input.checked)
+                .map((input) => input.value);
+        }
     }
     /**
      * Listen for label selection changes.
@@ -133,6 +139,30 @@ let BrandfolderBrowserControls = class BrandfolderBrowserControls extends LitEle
             .selectedLabels=${this._controlsInput?.labels}
           />
         </div>` : ''}
+      ${(this?.controlSchema?.aspect && Object.keys(this.controlSchema.aspect)?.length > 1) ? html `
+        <fieldset class="aspect-container">
+          <legend>Orientation</legend>
+          <div class="aspect-options">
+            ${Object.keys(this.controlSchema.aspect).map((aspectKey) => {
+            const aspectName = this.controlSchema.aspect[aspectKey];
+            const isSelected = this._controlsInput?.aspect?.includes(aspectKey);
+            const inputName = 'aspect';
+            return html `
+                  <input
+                    type="checkbox"
+                    class="aspect-input"
+                    id="aspect-input--${aspectKey}"
+                    aria-label="${aspectName}"
+                    name="${inputName}"
+                    value=${aspectKey}
+                    .checked=${isSelected}
+                    @change=${this._controlsChangeHandler}
+                  />
+                  <label for=${inputName}>${aspectName}</label>
+                `;
+        })}
+          </div>
+        </fieldset>` : ''}
       <button @click=${this._controlsResetHandler}>Reset</button>
       <button @click=${this._controlsSubmissionHandler}>Submit</button>
     `;
@@ -158,6 +188,9 @@ __decorate([
 __decorate([
     queryAll('.section-input')
 ], BrandfolderBrowserControls.prototype, "sectionInputs", void 0);
+__decorate([
+    queryAll('.aspect-input')
+], BrandfolderBrowserControls.prototype, "aspectInputs", void 0);
 BrandfolderBrowserControls = __decorate([
     customElement('brandfolder-browser-controls')
 ], BrandfolderBrowserControls);

@@ -90,16 +90,22 @@ export class BrandfolderBrowserControls extends LitElement {
   searchTextInput: HTMLInputElement
 
   /**
-   * Create a reference to the collections input element.
+   * Create a reference to the collections input elements.
    */
   @queryAll('.collection-input')
   collectionInputs: HTMLInputElement[]
 
   /**
-   * Create a reference to the sections input element.
+   * Create a reference to the sections input elements.
    */
   @queryAll('.section-input')
   sectionInputs: HTMLInputElement[]
+
+  /**
+   * Create a reference to the aspect/orientation input elements.
+   */
+  @queryAll('.aspect-input')
+  aspectInputs: HTMLInputElement[]
 
   /**
    * Constructor.
@@ -153,6 +159,12 @@ export class BrandfolderBrowserControls extends LitElement {
       this._controlsInput.sections = sectionInputsArray
         .filter((input) => input.checked)
         .map((input) => input.value)
+    }
+    if (this.aspectInputs) {
+      const aspectInputsArray = Array.from(this.aspectInputs)
+      this._controlsInput.aspect = aspectInputsArray
+        .filter((input) => input.checked)
+        .map((input) => input.value as BfAspectRatio)
     }
   }
 
@@ -231,6 +243,34 @@ export class BrandfolderBrowserControls extends LitElement {
             .selectedLabels=${this._controlsInput?.labels}
           />
         </div>` : ''
+      }
+      ${(this?.controlSchema?.aspect && Object.keys(this.controlSchema.aspect)?.length > 1) ? html`
+        <fieldset class="aspect-container">
+          <legend>Orientation</legend>
+          <div class="aspect-options">
+            ${Object.keys(this.controlSchema.aspect).map(
+        (aspectKey: BfAspectRatio) => {
+          const aspectName: string = this.controlSchema.aspect[aspectKey]
+          const isSelected = this._controlsInput?.aspect?.includes(aspectKey)
+          const inputName = 'aspect'
+
+          return html`
+                  <input
+                    type="checkbox"
+                    class="aspect-input"
+                    id="aspect-input--${aspectKey}"
+                    aria-label="${aspectName}"
+                    name="${inputName}"
+                    value=${aspectKey}
+                    .checked=${isSelected}
+                    @change=${this._controlsChangeHandler}
+                  />
+                  <label for=${inputName}>${aspectName}</label>
+                `
+        }
+      )}
+          </div>
+        </fieldset>` : ''
       }
       <button @click=${this._controlsResetHandler}>Reset</button>
       <button @click=${this._controlsSubmissionHandler}>Submit</button>

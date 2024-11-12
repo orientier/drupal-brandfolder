@@ -135,7 +135,7 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
                 const response = await fetch(
                 // `/brandfolder-browser-update`,
                 // Dev:
-                `https://brandfolder-drupal-11.orien.tier/brandfolder-browser-update`, {
+                `https://brandfolder-drupal-11.orien.tier/brandfolder-browser-update?XDEBUG_SESSION_START=PHPSTORM`, {
                     signal,
                     method: 'POST',
                     headers: {
