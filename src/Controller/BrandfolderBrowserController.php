@@ -30,10 +30,18 @@ class BrandfolderBrowserController extends ControllerBase {
   protected SharedTempStore $bfBrowserDataStore;
 
   /**
+   * Brandfolder Gatekeeper service.
+   *
+   * @var \Drupal\brandfolder\Service\BrandfolderGatekeeper
+   */
+  protected BrandfolderGatekeeper $brandfolderGatekeeper;
+
+  /**
    * Constructs a new BrandfolderBrowserController object.
    */
-  public function __construct(SharedTempStoreFactory $shared_temp_store_factory) {
+  public function __construct(SharedTempStoreFactory $shared_temp_store_factory, BrandfolderGatekeeper $brandfolder_gatekeeper) {
     $this->bfBrowserDataStore = $shared_temp_store_factory->get('brandfolder_browser_data');
+    $this->brandfolderGatekeeper = $brandfolder_gatekeeper;
   }
 
   /**
@@ -41,7 +49,8 @@ class BrandfolderBrowserController extends ControllerBase {
    */
   public static function create(ContainerInterface $container): BrandfolderBrowserController|static {
     return new static(
-      $container->get('tempstore.shared')
+      $container->get('tempstore.shared'),
+      $container->get('brandfolder.gatekeeper')
     );
   }
 
@@ -69,12 +78,22 @@ class BrandfolderBrowserController extends ControllerBase {
     // Testing.
     if ($bf_browser_id == 'abc123') {
       $gatekeeper_criteria = [
-        'approved' => TRUE,
-        'expired' => FALSE,
+        'approved'    => TRUE,
+        'expired'     => FALSE,
         'unpublished' => FALSE,
-        'disallowed' => [
-          'section' => []
-        ]
+        'allowed'     => [
+          'filetype' => [
+            'jpg',
+            'png',
+            'gif',
+            'tiff',
+            'svg',
+            'webp',
+          ],
+        ],
+        'disallowed'  => [
+          'section' => [],
+        ],
       ];
     }
     else {
@@ -155,23 +174,7 @@ class BrandfolderBrowserController extends ControllerBase {
     }
     // Labels.
     if (!empty($request_data['userInput']['labels'])) {
-      // Translate label IDs to their latest names (caching isn't good enough
-      // here), since Brandfolder doesn't seem to support searching for assets
-      // by label ID/key.
-      $bf = brandfolder_api(); // @todo: Dependency Injection.
-      $bf_config = \Drupal::config('brandfolder.settings');
-      if ($bf_config->get('verbose_log_mode')) {
-        $bf->enableVerboseLogging();
-      }
-      $label_id_name_mapping = $bf->listLabelsInBrandfolder(NULL, TRUE);
-      if ($bf_config->get('verbose_log_mode')) {
-        $logger = \Drupal::logger('brandfolder');
-        foreach ($bf->getLogData() as $log_entry) {
-          $logger->debug($log_entry);
-        }
-        $bf->clearLogData();
-      }
-      $selected_label_names = array_intersect_key($label_id_name_mapping, $request_data['userInput']['labels']);
+      $selected_label_names = $request_data['userInput']['labels'];
       array_walk($selected_label_names, function(&$value) {
         $value = "\"$value\"";
       });
@@ -198,9 +201,7 @@ class BrandfolderBrowserController extends ControllerBase {
     $query_params['sort_by'] = $request_data['userInput']['sortCriterion'] ?? 'created_at';
     $query_params['order'] = $request_data['userInput']['sortOrder'] ?? 'desc';
 
-    // @todo: Dependency injection.
-    $gatekeeper = \Drupal::getContainer()
-      ->get(BrandfolderGatekeeper::class);
+    $gatekeeper = $this->brandfolderGatekeeper;
     $gatekeeper->setCriteria($gatekeeper_criteria);
     $query_params['include'] = 'attachments';
 

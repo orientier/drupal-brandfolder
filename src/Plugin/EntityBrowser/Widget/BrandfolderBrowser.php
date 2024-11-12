@@ -224,33 +224,6 @@ class BrandfolderBrowser extends WidgetBase {
   }
 
   /**
-   * Check to see whether a form submission was triggered by one of our
-   * Brandfolder browser controls (e.g. search, filters, etc.).
-   *
-   * @param \Drupal\Core\Form\FormStateInterface $form_state
-   *
-   * @return bool
-   */
-  protected function isFormSubmissionTriggeredByBrowserControls(FormStateInterface $form_state): bool {
-    return is_form_submission_triggered_by_bf_browser_controls($form_state);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function validate(array &$form, FormStateInterface $form_state) {
-    if ($this->isFormSubmissionTriggeredByBrowserControls($form_state)) {
-      // If the submission was triggered by one of our browser controls, the
-      // only outcome should be to update the browser contents. We do not care
-      // about other validation logic/errors.
-      $form_state->clearErrors();
-    }
-    else {
-      parent::validate($form, $form_state);
-    }
-  }
-
-  /**
    * {@inheritdoc}
    */
   public function submit(array &$element, array &$form, FormStateInterface $form_state) {
@@ -264,16 +237,6 @@ class BrandfolderBrowser extends WidgetBase {
    * {@inheritdoc}
    */
   protected function prepareEntities(array $form, FormStateInterface $form_state): array {
-
-    // We don't need or want to load entities when the submission is
-    // triggered by one of our browser controls - only when the final selection
-    // is submitted.
-    // @todo: Probe and verify that this is true in an Entity Browser context. What about, e.g., Media Browsers with selection trays showing the selected entities rendered in some special way?
-    if ($this->isFormSubmissionTriggeredByBrowserControls($form_state)) {
-
-      return [];
-    }
-
     $selected_media_entities = [];
     $selected_attachment_list = $form_state->getValue('selected_bf_attachment_ids');
     if (!empty($selected_attachment_list)) {
