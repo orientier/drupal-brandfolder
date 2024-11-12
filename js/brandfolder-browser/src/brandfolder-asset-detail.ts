@@ -1,6 +1,6 @@
 import {html, css} from 'lit'
 import {customElement} from 'lit/decorators.js'
-import {BfAsset, BrandfolderAssetBase} from './brandfolder-asset-base'
+import {BrandfolderAssetBase} from './brandfolder-asset-base'
 
 /**
  * An element displaying the details of an individual asset and allowing users
@@ -11,7 +11,7 @@ export class BrandfolderAssetDetail extends BrandfolderAssetBase {
   static override styles = css`
     :host {
       //position: fixed;
-      //z-index: 2;
+      z-index: 2;
       //top: var(--top-offset);
       //left: 0;
       //width: 100%;
@@ -117,6 +117,6 @@ export class BrandfolderAssetDetail extends BrandfolderAssetBase {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'brandfolder-asset-detail': BfAsset
+    'brandfolder-asset-detail': BrandfolderAssetDetail
   }
 }

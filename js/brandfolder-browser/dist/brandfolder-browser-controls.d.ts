@@ -1,13 +1,7 @@
 import { LitElement } from 'lit';
+import { BfLabelTreeNode } from "./brandfolder-browser-labels-filter";
 export type BfKvList = {
     [key: string]: string;
-};
-export type BfLabel = {
-    id: string;
-    name: string;
-    depth: number;
-    parent: BfLabel | null;
-    children: BfLabel[];
 };
 export type BfSortCriterion = 'name' | 'score' | 'position' | 'updated_at' | 'created_at';
 export type BfSortOrder = 'asc' | 'desc';
@@ -24,7 +18,7 @@ export type BfBrowserControlSchema = {
     searchText?: string;
     collections?: BfKvList;
     sections?: BfKvList;
-    labels?: BfLabel[];
+    labels?: BfLabelTreeNode[];
     tags?: string[];
     aspect?: BfAspectRatiosList;
     filetype?: BfFiletype[];
@@ -36,7 +30,7 @@ export type BfBrowserUserInput = {
     searchText?: string;
     collections?: string[];
     sections?: string[];
-    labels?: string[];
+    labels?: Record<string, string>;
     tags?: string[];
     aspect?: BfAspectRatio[];
     filetype?: BfFiletype[];
@@ -57,7 +51,7 @@ export declare class BrandfolderBrowserControls extends LitElement {
      * An object with properties corresponding to user-facing controls, with
      * any corresponding user-supplied values.
      */
-    private _userInput;
+    private _controlsInput;
     /**
      * Create a reference to the search text input element.
      */
@@ -71,6 +65,10 @@ export declare class BrandfolderBrowserControls extends LitElement {
      */
     sectionInputs: HTMLInputElement[];
     /**
+     * Constructor.
+     */
+    constructor();
+    /**
      * Handle use of the "reset" button. Reset all user input.
      */
     private _controlsResetHandler;
@@ -79,9 +77,17 @@ export declare class BrandfolderBrowserControls extends LitElement {
      */
     private _controlsSubmissionHandler;
     /**
-     * Pull UI element values into state.
+     * Pull UI element values into state. Call this whenever any relevant UI
+     * element changes. This isn't as efficient as making precise updates
+     * affecting only the state/prop corresponding to the changed element, but
+     * it's simpler and more convenient. Consider refactoring if control volume
+     * makes the difference noticeable.
      */
     private _controlsChangeHandler;
+    /**
+     * Listen for label selection changes.
+     */
+    private _labelsChangeHandler;
     render(): import("lit-html").TemplateResult<1>;
 }
 declare global {

@@ -1,6 +1,6 @@
 import {html, css} from 'lit'
 import {customElement} from 'lit/decorators.js'
-import {BfAsset, BrandfolderAssetBase} from './brandfolder-asset-base'
+import {BrandfolderAssetBase} from './brandfolder-asset-base'
 
 /**
  * An element corresponding to an asset in Brandfolder.
@@ -51,6 +51,6 @@ export class BrandfolderAssetPreview extends BrandfolderAssetBase {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'brandfolder-asset-preview': BfAsset
+    'brandfolder-asset-preview': BrandfolderAssetPreview
   }
 }

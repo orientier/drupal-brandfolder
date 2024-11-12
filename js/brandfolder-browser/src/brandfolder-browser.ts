@@ -9,11 +9,12 @@ import {
 } from './brandfolder-browser-controls'
 // Import all subcomponents and class dependencies so we can compile
 // everything into a single JS file with this file as the sole entry point.
-import './brandfolder-browser-controls'
 import './brandfolder-asset-base'
 import './brandfolder-asset-detail'
 import './brandfolder-asset-preview'
 import './brandfolder-attachment'
+import './brandfolder-browser-controls'
+import './brandfolder-browser-labels-filter'
 
 // type BfAssetFetchResponse = {
 //   assets: BfAsset[]
@@ -79,24 +80,29 @@ export class BrandfolderBrowser extends LitElement {
       overflow: hidden;
     }
 
-    .brandfolder-browser__inner {
+    .bf-browser__inner {
       position: relative;
       display: grid;
       grid-template-rows: auto 1fr;
       height: 100%;
     }
 
-    .search-and-filter {
+    .bf-browser__controls-container {
       grid-area: 1 / 1 / 2 / -1;
       padding: 0.5rem;
       margin: 0 0 1rem;
       background: var(--color-gray-50);
     }
 
-    .main-content {
+    .bf-browser__results-container {
       grid-area: 2 / 1 / 3 / -1;
       padding: 0.5rem;
       overflow: scroll;
+    }
+
+    :host.is-asset-detail-open .bf-browser__controls-container,
+    :host.is-asset-detail-open .bf-browser__results-container {
+      display: none;
     }
 
     .asset-list {
@@ -123,7 +129,7 @@ export class BrandfolderBrowser extends LitElement {
    *    in the host window/frame/document.
    */
   @property({type: String, attribute: 'format'})
-  format: string = 'inline'
+  format = 'inline'
 
   // /**
   //  * A generic settings object with key-value pairs. Initialized as a
@@ -296,22 +302,19 @@ export class BrandfolderBrowser extends LitElement {
       }: {
         signal: AbortSignal
       }
-    ): Promise<TaskFunction<any>> => {
-      const response = await fetch(
-        `/brandfolder-browser-update`,
-        {
-          signal,
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json; charset=UTF-8',
-          },
-          body: JSON.stringify({
-            bfBrowserId: this.bfBrowserId,
-            userInput: this?._userInput,
-            requestedPage,
-          }),
-        }
-      )
+    ): Promise<TaskFunction<never>> => {
+      const response = await fetch(`/brandfolder-browser-update`, {
+        signal,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: JSON.stringify({
+          bfBrowserId: this.bfBrowserId,
+          userInput: this?._userInput,
+          requestedPage,
+        }),
+      })
       if (!response.ok) {
         throw new Error(response?.statusText || response?.status.toString())
       }
@@ -341,21 +344,24 @@ export class BrandfolderBrowser extends LitElement {
    * Submit the search/filter/sort form.
    */
   private _controlsSubmissionHandler(e: CustomEvent) {
-    // const target = e.target as HTMLFormElement
-    // @todo: Check to see whether the user engaged with the Submit button or Reset button, and act accordingly.
-
     // Check to see if the user has made any changes to the form, and only
     // submit if they have.
     // @todo: Initialize this._userInput with a value equivalent to that of an empty form submission.
-    if (JSON.stringify(this._userInput) !== JSON.stringify(e.detail.userInput)) {
+    if (
+      JSON.stringify(this._userInput) !== JSON.stringify(e.detail.userInput)
+    ) {
       this._assetList = []
       this._assetFetchMeta = null
-      this._userInput = e.detail.userInput
+      // Set the new user input with the data provided by the controls. Copy
+      // it to avoid establishing a reference to the child component's data.
+      // If we did that, changes to the controls would immediately be
+      // reflected in this._userInput here, which isn't how data is supposed to
+      // be communicated from children to parent components, and would thwart
+      // our change detection strategy.
+      this._userInput = {...e.detail.userInput}
       this._browserUpdateTask.run([1]).then()
-    }
-    else {
+    } else {
       // @todo: If there's no need to fetch new data, do a little flash/flourish of some sort to signal a near-instantaneous update.
-
     }
   }
 
@@ -413,23 +419,27 @@ export class BrandfolderBrowser extends LitElement {
    */
   override render() {
     return html`
-      <div class="brandfolder-browser__inner">
-        <div class="brandfolder-browser__controls-container">
-          <brandfolder-browser-controls .controlSchema="${this._controlSchema}" />
+      <div class="bf-browser__inner">
+        <div class="bf-browser__controls-container">
+          <brandfolder-browser-controls
+            .controlSchema="${this._controlSchema}"
+          />
         </div>
-        <div class="main-content">
+        <div class="bf-browser__results-container">
           <div class="asset-list">
-            ${this._assetList?.length > 0 ?
-              this._assetList.map(
-                (asset) => html`
-                  <brandfolder-asset-preview
-                    @click="${this._assetSelectionHandler}"
-                    bf-asset-id=${asset.id}
-                    .asset=${asset}
-                  />
-                `
-              )
-              : (this._browserUpdateTask.status === TaskStatus.COMPLETE ? html`<p>No assets found.</p>` : '')}
+            ${this._assetList?.length > 0
+              ? this._assetList.map(
+                  (asset) => html`
+                    <brandfolder-asset-preview
+                      @click="${this._assetSelectionHandler}"
+                      bf-asset-id=${asset.id}
+                      .asset=${asset}
+                    />
+                  `
+                )
+              : this._browserUpdateTask.status === TaskStatus.COMPLETE
+              ? html`<p>No assets found.</p>`
+              : ''}
             ${this._browserUpdateTask.render({
               pending: () => html`<p>Fetching assets...</p>`,
               error: (e: string) => {

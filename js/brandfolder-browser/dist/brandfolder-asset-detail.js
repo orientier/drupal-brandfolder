@@ -61,7 +61,7 @@ let BrandfolderAssetDetail = class BrandfolderAssetDetail extends BrandfolderAss
 BrandfolderAssetDetail.styles = css `
     :host {
       //position: fixed;
-      //z-index: 2;
+      z-index: 2;
       //top: var(--top-offset);
       //left: 0;
       //width: 100%;

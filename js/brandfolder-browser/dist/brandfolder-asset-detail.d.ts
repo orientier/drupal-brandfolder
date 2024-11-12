@@ -1,4 +1,4 @@
-import { BfAsset, BrandfolderAssetBase } from './brandfolder-asset-base';
+import { BrandfolderAssetBase } from './brandfolder-asset-base';
 /**
  * An element displaying the details of an individual asset and allowing users
  * to select one or more of the asset's attachments.
@@ -14,7 +14,7 @@ export declare class BrandfolderAssetDetail extends BrandfolderAssetBase {
 }
 declare global {
     interface HTMLElementTagNameMap {
-        'brandfolder-asset-detail': BfAsset;
+        'brandfolder-asset-detail': BrandfolderAssetDetail;
     }
 }
 //# sourceMappingURL=brandfolder-asset-detail.d.ts.map

@@ -1,9 +1,10 @@
 import { LitElement } from 'lit';
-import './brandfolder-browser-controls';
 import './brandfolder-asset-base';
 import './brandfolder-asset-detail';
 import './brandfolder-asset-preview';
 import './brandfolder-attachment';
+import './brandfolder-browser-controls';
+import './brandfolder-browser-labels-filter';
 type bfGatekeeperCriteriaBase = {
     collection?: string[];
     section?: string[];

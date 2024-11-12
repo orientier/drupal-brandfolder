@@ -6,20 +6,18 @@ import {
   queryAll,
   state,
 } from 'lit/decorators.js'
+import {BfLabelTreeNode} from "./brandfolder-browser-labels-filter";
 
 export type BfKvList = {
   [key: string]: string
 }
 
-export type BfLabel = {
-  id: string
-  name: string
-  depth: number
-  parent: BfLabel | null
-  children: BfLabel[]
-}
-
-export type BfSortCriterion = 'name' | 'score' | 'position' | 'updated_at' | 'created_at'
+export type BfSortCriterion =
+  'name'
+  | 'score'
+  | 'position'
+  | 'updated_at'
+  | 'created_at'
 
 export type BfSortOrder = 'asc' | 'desc'
 
@@ -39,7 +37,7 @@ export type BfBrowserControlSchema = {
   searchText?: string
   collections?: BfKvList
   sections?: BfKvList
-  labels?: BfLabel[]
+  labels?: BfLabelTreeNode[]
   tags?: string[]
   aspect?: BfAspectRatiosList
   filetype?: BfFiletype[]
@@ -52,7 +50,7 @@ export type BfBrowserUserInput = {
   searchText?: string
   collections?: string[]
   sections?: string[]
-  labels?: string[]
+  labels?: Record<string, string>
   tags?: string[]
   aspect?: BfAspectRatio[]
   filetype?: BfFiletype[]
@@ -83,7 +81,7 @@ export class BrandfolderBrowserControls extends LitElement {
    * any corresponding user-supplied values.
    */
   @state()
-  private _userInput: BfBrowserUserInput | null = null
+  private _controlsInput: BfBrowserUserInput | null = null
 
   /**
    * Create a reference to the search text input element.
@@ -104,10 +102,21 @@ export class BrandfolderBrowserControls extends LitElement {
   sectionInputs: HTMLInputElement[]
 
   /**
+   * Constructor.
+   */
+  constructor() {
+    super()
+    this.addEventListener(
+      'bfLabelsChanged',
+      this._labelsChangeHandler
+    )
+  }
+
+  /**
    * Handle use of the "reset" button. Reset all user input.
    */
   private _controlsResetHandler() {
-    this._userInput = null
+    this._controlsInput = null
   }
 
   /**
@@ -116,7 +125,7 @@ export class BrandfolderBrowserControls extends LitElement {
   private _controlsSubmissionHandler() {
     // Notify ancestors of the submission.
     const options = {
-      detail: {userInput: this._userInput},
+      detail: {userInput: this._controlsInput},
       bubbles: true,
       composed: true,
     }
@@ -124,85 +133,105 @@ export class BrandfolderBrowserControls extends LitElement {
   }
 
   /**
-   * Pull UI element values into state.
+   * Pull UI element values into state. Call this whenever any relevant UI
+   * element changes. This isn't as efficient as making precise updates
+   * affecting only the state/prop corresponding to the changed element, but
+   * it's simpler and more convenient. Consider refactoring if control volume
+   * makes the difference noticeable.
    */
   private _controlsChangeHandler() {
-    const userInput: BfBrowserUserInput = {
-      searchText: this.searchTextInput.value,
-    }
+    this._controlsInput = this._controlsInput ?? {}
+    this._controlsInput.searchText = this.searchTextInput.value
     if (this.collectionInputs) {
       const collectionInputsArray = Array.from(this.collectionInputs)
-      userInput.collections = collectionInputsArray
+      this._controlsInput.collections = collectionInputsArray
         .filter((input) => input.checked)
         .map((input) => input.value)
     }
     if (this.sectionInputs) {
       const sectionInputsArray = Array.from(this.sectionInputs)
-      userInput.sections = sectionInputsArray
+      this._controlsInput.sections = sectionInputsArray
         .filter((input) => input.checked)
         .map((input) => input.value)
     }
-    this._userInput = userInput
+  }
+
+  /**
+   * Listen for label selection changes.
+   */
+  private _labelsChangeHandler(e: CustomEvent) {
+    this._controlsInput = {...this._controlsInput, labels: e.detail.selectedLabelsById}
   }
 
   override render() {
     return html`
-      <input type="text" class="search-text-input" aria-label="Search" .value="${ this._userInput?.searchText ?? '' }" @change=${this._controlsChangeHandler} />
-      ${(this.controlSchema?.collections && Object.keys(this.controlSchema?.collections)?.length > 1) &&
-        html`
-          <fieldset class="collections-container">
-            <legend>Collections</legend>
-            <div class="collections">
-                ${Object.keys(this.controlSchema.collections).map(
-                  (collectionId) => {
-                    const collectionName = this.controlSchema.collections[collectionId]
-                    const isSelected = this._userInput?.collections?.includes(collectionId)
-                    const inputName = 'collection'
+      <input type="text" class="search-text-input" aria-label="Search"
+             .value="${this._controlsInput?.searchText ?? ''}"
+             @change=${this._controlsChangeHandler}/>
+      ${(this?.controlSchema?.collections && Object.keys(this.controlSchema?.collections)?.length > 1) ? html`
+        <fieldset class="collections-container">
+          <legend>Collections</legend>
+          <div class="collections">
+            ${Object.keys(this.controlSchema.collections).map(
+              (collectionId) => {
+                const collectionName = this.controlSchema.collections[collectionId]
+                const isSelected = this._controlsInput?.collections?.includes(collectionId)
+                const inputName = 'collection'
 
-                    return html`
-                      <input
-                        type="checkbox"
-                        class="collection-input"
-                        id="collection-input--${collectionId}"
-                        aria-label="${collectionName}"
-                        name="${inputName}"
-                        value=${collectionId}
-                        .checked=${isSelected}
-                        @change=${this._controlsChangeHandler}
-                      />
-                      <label for=${inputName}>${collectionName}</label>
-                    `
-                  }
-                )}
-            </div>
-          </fieldset>
-          <fieldset class="sections-container">
-            <legend>Sections</legend>
-            <div class="sections">
-              ${Object.keys(this.controlSchema.sections).map(
-                (sectionId) => {
-                  const sectionName = this.controlSchema.sections[sectionId]
-                  const isSelected = this._userInput?.sections?.includes(sectionId)
-                  const inputName = 'section'
+                return html`
+                  <input
+                    type="checkbox"
+                    class="collection-input"
+                    id="collection-input--${collectionId}"
+                    aria-label="${collectionName}"
+                    name="${inputName}"
+                    value=${collectionId}
+                    .checked=${isSelected}
+                    @change=${this._controlsChangeHandler}
+                  />
+                  <label for=${inputName}>${collectionName}</label>
+                `
+              }
+            )}
+          </div>
+        </fieldset>` : ''
+      }
+      ${(this?.controlSchema?.sections && Object.keys(this.controlSchema?.sections)?.length > 1) ? html`
+        <fieldset class="sections-container">
+          <legend>Sections</legend>
+          <div class="sections">
+            ${Object.keys(this.controlSchema.sections).map(
+              (sectionId) => {
+                const sectionName = this.controlSchema.sections[sectionId]
+                const isSelected = this._controlsInput?.sections?.includes(sectionId)
+                const inputName = 'section'
 
-                  return html`
-                    <input
-                      type="checkbox"
-                      class="section-input"
-                      id="section-input--${sectionId}"
-                      aria-label="${sectionName}"
-                      name="${inputName}"
-                      value=${sectionId}
-                      .checked=${isSelected}
-                      @change=${this._controlsChangeHandler}
-                    />
-                    <label for=${inputName}>${sectionName}</label>
-                  `
-                }
-              )}
-            </div>
-          </fieldset>
-        `}
+                return html`
+                  <input
+                    type="checkbox"
+                    class="section-input"
+                    id="section-input--${sectionId}"
+                    aria-label="${sectionName}"
+                    name="${inputName}"
+                    value=${sectionId}
+                    .checked=${isSelected}
+                    @change=${this._controlsChangeHandler}
+                  />
+                  <label for=${inputName}>${sectionName}</label>
+                `
+              }
+            )}
+          </div>
+        </fieldset>` : ''
+      }
+      ${(this?.controlSchema?.labels && Object.keys(this.controlSchema?.labels)?.length > 1) ? html`
+        <div class="labels-container">
+          <brandfolder-browser-labels-filter
+            .allLabels=${this.controlSchema.labels}
+            .selectedLabels=${this._controlsInput?.labels}
+          />
+        </div>` : ''
+      }
       <button @click=${this._controlsResetHandler}>Reset</button>
       <button @click=${this._controlsSubmissionHandler}>Submit</button>
     `
