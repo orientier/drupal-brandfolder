@@ -49,28 +49,38 @@ let BrandfolderBrowserControls = class BrandfolderBrowserControls extends LitEle
      * element changes. This isn't as efficient as making precise updates
      * affecting only the state/prop corresponding to the changed element, but
      * it's simpler and more convenient. Consider refactoring if control volume
-     * makes the difference noticeable.
+     * makes the difference noticeable...but this will probably have a different
+     * shape anyway once we establish filter subcomponents.
      */
     _controlsChangeHandler() {
         this._controlsInput = this._controlsInput ?? {};
         this._controlsInput.searchText = this.searchTextInput.value;
-        if (this.collectionInputs) {
+        if (this?.collectionInputs?.length) {
             const collectionInputsArray = Array.from(this.collectionInputs);
             this._controlsInput.collections = collectionInputsArray
                 .filter((input) => input.checked)
                 .map((input) => input.value);
         }
-        if (this.sectionInputs) {
+        if (this?.sectionInputs?.length) {
             const sectionInputsArray = Array.from(this.sectionInputs);
             this._controlsInput.sections = sectionInputsArray
                 .filter((input) => input.checked)
                 .map((input) => input.value);
         }
-        if (this.aspectInputs) {
+        if (this?.aspectInputs?.length) {
             const aspectInputsArray = Array.from(this.aspectInputs);
             this._controlsInput.aspect = aspectInputsArray
                 .filter((input) => input.checked)
                 .map((input) => input.value);
+        }
+        if (this?.filetypeInputs?.length) {
+            const filetypeInputsArray = Array.from(this.filetypeInputs);
+            this._controlsInput.filetype = filetypeInputsArray
+                .filter((input) => input.checked)
+                .map((input) => input.value);
+        }
+        if (this?.creationDateSelect) {
+            this._controlsInput.creationDate = this.creationDateSelect.value;
         }
     }
     /**
@@ -79,6 +89,11 @@ let BrandfolderBrowserControls = class BrandfolderBrowserControls extends LitEle
     _labelsChangeHandler(e) {
         this._controlsInput = { ...this._controlsInput, labels: e.detail.selectedLabelsById };
     }
+    /**
+     * Render the component.
+     *
+     * @todo: Refactor to use subcomponents for each control.
+     */
     render() {
         return html `
       <input type="text" class="search-text-input" aria-label="Search"
@@ -133,12 +148,13 @@ let BrandfolderBrowserControls = class BrandfolderBrowserControls extends LitEle
           </div>
         </fieldset>` : ''}
       ${(this?.controlSchema?.labels && Object.keys(this.controlSchema?.labels)?.length > 1) ? html `
-        <div class="labels-container">
+        <fieldset class="labels-container">
+          <legend>Labels</legend>
           <brandfolder-browser-labels-filter
             .allLabels=${this.controlSchema.labels}
             .selectedLabels=${this._controlsInput?.labels}
           />
-        </div>` : ''}
+        </fieldset>` : ''}
       ${(this?.controlSchema?.aspect && Object.keys(this.controlSchema.aspect)?.length > 1) ? html `
         <fieldset class="aspect-container">
           <legend>Orientation</legend>
@@ -162,6 +178,50 @@ let BrandfolderBrowserControls = class BrandfolderBrowserControls extends LitEle
                 `;
         })}
           </div>
+        </fieldset>` : ''}
+      ${(this?.controlSchema?.filetype && Object.keys(this.controlSchema.filetype)?.length > 1) ? html `
+        <fieldset class="filetype-container">
+          <legend>File Type</legend>
+          <div class="filetype-options">
+            ${this.controlSchema.filetype.map((filetype) => {
+            const isSelected = this._controlsInput?.filetype?.includes(filetype);
+            const inputName = 'filetype';
+            return html `
+                  <input
+                    type="checkbox"
+                    class="filetype-input"
+                    id="filetype-input--${filetype}"
+                    aria-label="${filetype}"
+                    name="${inputName}"
+                    value=${filetype}
+                    .checked=${isSelected}
+                    @change=${this._controlsChangeHandler}
+                  />
+                  <label for=${inputName}>${filetype}</label>
+                `;
+        })}
+          </div>
+        </fieldset>` : ''}
+      ${(this?.controlSchema?.creationDate && Object.keys(this.controlSchema.creationDate)?.length > 1) ? html `
+        <fieldset class="creation-date-container">
+          <legend>Created/Uploaded</legend>
+          <select
+            name="brandfolder-browser-controls-creation-date"
+            class="brandfolder-browser-controls__creation-date"
+            @change=${this._controlsChangeHandler}
+          >
+            ${Object.keys(this.controlSchema.creationDate).map((creationDateKey) => {
+            const creationDateName = this.controlSchema.creationDate[creationDateKey];
+            const isSelected = this._controlsInput?.creationDate === creationDateKey;
+            return html `
+                  <option
+                    value=${creationDateKey}
+                    .selected=${isSelected}
+                  >
+                    ${creationDateName}
+                  </option>
+                `;
+        })}
         </fieldset>` : ''}
       <button @click=${this._controlsResetHandler}>Reset</button>
       <button @click=${this._controlsSubmissionHandler}>Submit</button>
@@ -191,6 +251,12 @@ __decorate([
 __decorate([
     queryAll('.aspect-input')
 ], BrandfolderBrowserControls.prototype, "aspectInputs", void 0);
+__decorate([
+    queryAll('.filetype-input')
+], BrandfolderBrowserControls.prototype, "filetypeInputs", void 0);
+__decorate([
+    query('.brandfolder-browser-controls__creation-date')
+], BrandfolderBrowserControls.prototype, "creationDateSelect", void 0);
 BrandfolderBrowserControls = __decorate([
     customElement('brandfolder-browser-controls')
 ], BrandfolderBrowserControls);

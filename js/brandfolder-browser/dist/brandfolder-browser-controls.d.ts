@@ -10,9 +10,9 @@ export type BfAspectRatiosList = {
     [key in BfAspectRatio]: string;
 };
 export type BfFiletype = 'jpg' | 'png' | 'svg' | 'gif' | 'webp';
-export type BfUploadDate = 'all' | '30m' | '1d' | '7d' | '30d';
-export type BfUploadDatesList = {
-    [key in BfUploadDate]: string;
+export type BfDateRange = 'all' | '30m' | '1d' | '7d' | '30d' | '60d' | '90d';
+export type BfDateRangesList = {
+    [key in BfDateRange]: string;
 };
 export type BfBrowserControlSchema = {
     searchText?: string;
@@ -22,7 +22,9 @@ export type BfBrowserControlSchema = {
     tags?: string[];
     aspect?: BfAspectRatiosList;
     filetype?: BfFiletype[];
-    uploadDate?: BfUploadDatesList;
+    creationDate?: BfDateRangesList;
+    modificationDate?: BfDateRangesList;
+    publicationDate?: BfDateRangesList;
     sortCriterion?: BfSortCriterion;
     sortOrder?: BfSortOrder;
 };
@@ -34,7 +36,9 @@ export type BfBrowserUserInput = {
     tags?: string[];
     aspect?: BfAspectRatio[];
     filetype?: BfFiletype[];
-    uploadDate?: BfUploadDate;
+    creationDate?: BfDateRange;
+    modificationDate?: BfDateRange;
+    publicationDate?: BfDateRange;
     sortCriterion?: BfSortCriterion;
     sortOrder?: BfSortOrder;
 };
@@ -69,6 +73,14 @@ export declare class BrandfolderBrowserControls extends LitElement {
      */
     aspectInputs: HTMLInputElement[];
     /**
+     * Create a reference to the filetype input elements.
+     */
+    filetypeInputs: HTMLInputElement[];
+    /**
+     * Create a reference to the creation date input elements.
+     */
+    creationDateSelect: HTMLInputElement;
+    /**
      * Constructor.
      */
     constructor();
@@ -85,13 +97,19 @@ export declare class BrandfolderBrowserControls extends LitElement {
      * element changes. This isn't as efficient as making precise updates
      * affecting only the state/prop corresponding to the changed element, but
      * it's simpler and more convenient. Consider refactoring if control volume
-     * makes the difference noticeable.
+     * makes the difference noticeable...but this will probably have a different
+     * shape anyway once we establish filter subcomponents.
      */
     private _controlsChangeHandler;
     /**
      * Listen for label selection changes.
      */
     private _labelsChangeHandler;
+    /**
+     * Render the component.
+     *
+     * @todo: Refactor to use subcomponents for each control.
+     */
     render(): import("lit-html").TemplateResult<1>;
 }
 declare global {

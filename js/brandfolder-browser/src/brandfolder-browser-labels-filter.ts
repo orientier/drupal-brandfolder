@@ -96,7 +96,6 @@ export class BrandfolderBrowserLabelsFilter extends LitElement {
 
   override render() {
     return html`
-      <label for="brandfolder-browser-controls-labels">Labels</label>
       <select
         name="brandfolder-browser-controls-labels"
         class="brandfolder-browser-controls__labels"
