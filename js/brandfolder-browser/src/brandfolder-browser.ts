@@ -25,21 +25,23 @@ import './brandfolder-browser-labels-filter'
 //   }
 // }
 
-// type BfBrowserSettings = {
-//   height: number
+type BfBrowserSettings = {
+  height: number
+  format: 'inline' | 'full'
+  endpoint: string
+}
+
+// type bfGatekeeperCriteriaBase = {
+//   collection?: string[]
+//   section?: string[]
+//   label?: string[]
+//   filetype?: string[]
 // }
-
-type bfGatekeeperCriteriaBase = {
-  collection?: string[]
-  section?: string[]
-  label?: string[]
-  filetype?: string[]
-}
-
-type bfGatekeeperCriteria = {
-  allowed: bfGatekeeperCriteriaBase
-  disallowed: bfGatekeeperCriteriaBase
-}
+//
+// type bfGatekeeperCriteria = {
+//   allowed: bfGatekeeperCriteriaBase
+//   disallowed: bfGatekeeperCriteriaBase
+// }
 
 /**
  * An interface for viewing/searching/filtering/selecting assets and attachments
@@ -123,33 +125,38 @@ export class BrandfolderBrowser extends LitElement {
   bfBrowserId: string | null = null
 
   /**
+   * A generic settings object with key-value pairs. Initialized as a
+   * JSON string.
+   */
+  @property({type: String, attribute: 'settings'})
+  settings: BfBrowserSettings | string | null = null
+
+  /**
+   * The URL to which API requests should be sent.
+   */
+  @state()
+  private _apiEndpoint = '/brandfolder-browser-update'
+
+  /**
+   * The number of assets to fetch per page.
+   */
+  @state()
+  private _assetsPerPage = 100
+
+  /**
    * The format in which the browser should be displayed. Options:
    * - 'inline' (default): Display the browser inline within the page.
    * - 'full': Display the browser in a way that consumes all available space
    *    in the host window/frame/document.
    */
-  @property({type: String, attribute: 'format'})
-  format = 'inline'
-
-  // /**
-  //  * A generic settings object with key-value pairs. Initialized as a
-  //  * JSON string.
-  //  */
-  // @property({type: String, attribute: 'settings'})
-  // settings: BfBrowserSettings | string | null = null
+  // @state()
+  // private _format = 'inline'
 
   /**
-   * An object of criteria for determining which assets may be
-   * accessed via this browser.
+   * The recommended height of the browser, in pixels.
    */
-  @property({type: Object, attribute: null})
-  bfGatekeeperCriteria: bfGatekeeperCriteria = {allowed: {}, disallowed: {}}
-
-  /**
-   * The number of assets to fetch per page.
-   */
-  @property({type: Number, attribute: false})
-  assetsPerPage = 100
+  // @state()
+  // private _height: number | null = null
 
   /**
    * Active asset.
@@ -211,24 +218,34 @@ export class BrandfolderBrowser extends LitElement {
   override connectedCallback() {
     super.connectedCallback()
 
+    // Apply any configurable settings.
+    if (this.settings && typeof this.settings === 'string') {
+      const settings = JSON.parse(this.settings)
+      if (settings.apiEndpoint) {
+        this._apiEndpoint = settings.apiEndpoint
+      }
+      if (settings.assetsPerPage) {
+        this._assetsPerPage = settings.assetsPerPage
+      }
+      // if (settings.format) {
+      //   this._format = settings.format
+      // }
+      // if (settings.height) {
+      //   this._height = settings.height
+      // }
+    }
+
     // Perform an initial data fetch (requesting the first page of assets).
     this._browserUpdateTask.run([1]).then()
 
-    // Convert settings attribute from JSON string to object.
-    // if (this.settings && typeof this.settings === 'string') {
-    //   this.settings = JSON.parse(this.settings)
-    // }
-
-    // console.log('BrandfolderBrowser connectedCallback')
-
-    // if (this.format === 'inline') {
+    // if (this._format === 'inline') {
     //   // We might need to adjust the browser height when the window is resized
     //   // (e.g. when the browser lives within a modal that occupies a certain
     //   // percentage of the viewport).
     //   window.addEventListener('resize', this._calibrateHeight)
-    // } else if (this.format === 'full') {
-    //   if (typeof this.settings === 'object' && this.settings?.height) {
-    //     this.style.height = `${this.settings.height}px`
+    // } else if (this._format === 'full') {
+    //   if (typeof this.settings === 'object' && this._height) {
+    //     this.style.height = `${this._height}px`
     //   }
     // }
   }
@@ -237,7 +254,7 @@ export class BrandfolderBrowser extends LitElement {
    * Callback executed when the element is removed from the document.
    */
   // override disconnectedCallback() {
-  //   if (this.format === 'inline') {
+  //   if (this._format === 'inline') {
   //     window.removeEventListener('resize', this._calibrateHeight)
   //   }
   //   super.disconnectedCallback()
@@ -247,7 +264,7 @@ export class BrandfolderBrowser extends LitElement {
    * Callback executed when the element is updated.
    */
   // override updated(_changedProperties: Map<string | number | symbol, unknown>) {
-  //   if (this.format === 'inline') {
+  //   if (this._format === 'inline') {
   //     // After fetching and rendering new assets, determine whether the
   //     // browser's height should be constrained in order to achieve
   //     // the best UX within the containing context.
@@ -303,18 +320,22 @@ export class BrandfolderBrowser extends LitElement {
         signal: AbortSignal
       }
     ): Promise<TaskFunction<never>> => {
-      const response = await fetch(`/brandfolder-browser-update`, {
-        signal,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
-        body: JSON.stringify({
-          bfBrowserId: this.bfBrowserId,
-          userInput: this?._userInput,
-          requestedPage,
-        }),
-      })
+      const response = await fetch(
+        this._apiEndpoint,
+        {
+          signal,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+          },
+          body: JSON.stringify({
+            bfBrowserId: this.bfBrowserId,
+            userInput: this?._userInput,
+            requestedPage,
+            assetsPerPage: this._assetsPerPage
+          }),
+        }
+      )
       if (!response.ok) {
         throw new Error(response?.statusText || response?.status.toString())
       }
@@ -347,9 +368,7 @@ export class BrandfolderBrowser extends LitElement {
     // Check to see if the user has made any changes to the form, and only
     // submit if they have.
     // @todo: Initialize this._userInput with a value equivalent to that of an empty form submission.
-    if (
-      JSON.stringify(this._userInput) !== JSON.stringify(e.detail.userInput)
-    ) {
+    if (JSON.stringify(this._userInput) !== JSON.stringify(e.detail.userInput)) {
       this._assetList = []
       this._assetFetchMeta = null
       // Set the new user input with the data provided by the controls. Copy
@@ -360,8 +379,10 @@ export class BrandfolderBrowser extends LitElement {
       // our change detection strategy.
       this._userInput = {...e.detail.userInput}
       this._browserUpdateTask.run([1]).then()
-    } else {
+    }
+    else {
       // @todo: If there's no need to fetch new data, do a little flash/flourish of some sort to signal a near-instantaneous update.
+
     }
   }
 
@@ -421,25 +442,21 @@ export class BrandfolderBrowser extends LitElement {
     return html`
       <div class="bf-browser__inner">
         <div class="bf-browser__controls-container">
-          <brandfolder-browser-controls
-            .controlSchema="${this._controlSchema}"
-          />
+          <brandfolder-browser-controls .controlSchema="${this._controlSchema}" />
         </div>
         <div class="bf-browser__results-container">
           <div class="asset-list">
-            ${this._assetList?.length > 0
-              ? this._assetList.map(
-                  (asset) => html`
-                    <brandfolder-asset-preview
-                      @click="${this._assetSelectionHandler}"
-                      bf-asset-id=${asset.id}
-                      .asset=${asset}
-                    />
-                  `
-                )
-              : this._browserUpdateTask.status === TaskStatus.COMPLETE
-              ? html`<p>No assets found.</p>`
-              : ''}
+            ${this._assetList?.length > 0 ?
+              this._assetList.map(
+                (asset) => html`
+                  <brandfolder-asset-preview
+                    @click="${this._assetSelectionHandler}"
+                    bf-asset-id=${asset.id}
+                    .asset=${asset}
+                  />
+                `
+              )
+              : (this._browserUpdateTask.status === TaskStatus.COMPLETE ? html`<p>No assets found.</p>` : '')}
             ${this._browserUpdateTask.render({
               pending: () => html`<p>Fetching assets...</p>`,
               error: (e: string) => {
@@ -460,7 +477,7 @@ export class BrandfolderBrowser extends LitElement {
                     ...and
                     ${new Intl.NumberFormat().format(
                       this._assetFetchMeta.total_count -
-                        this._assetFetchMeta.current_page * this.assetsPerPage
+                        this._assetFetchMeta.current_page * this._assetsPerPage
                     )}
                     more
                   </p>

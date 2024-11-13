@@ -113,11 +113,11 @@ class BrandfolderBrowserController extends ControllerBase {
       $gatekeeper_criteria = $bf_browser_data['gatekeeper_criteria'];
     }
 
-    // @todo: Config option, or centralized default.
-    $assets_per_page = 100;
     // Default to fetching the first page, unless the user has requested
     // another page.
     $page_to_fetch = $request_data['requestedPage'] ?? 1;
+    // @todo: Config option, or centralized default.
+    $assets_per_page = $request_data['assetsPerPage'] ?? 100;
     $query_params = [
       'per' => $assets_per_page,
       'page' => $page_to_fetch,
@@ -240,6 +240,7 @@ class BrandfolderBrowserController extends ControllerBase {
           '30d'    => t('Last 30 Days'),
         ],
         // @todo: Tags.
+        // @todo: Sort.
       ];
 
       $response_data = [

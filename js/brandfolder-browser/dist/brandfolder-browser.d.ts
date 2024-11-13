@@ -5,15 +5,10 @@ import './brandfolder-asset-preview';
 import './brandfolder-attachment';
 import './brandfolder-browser-controls';
 import './brandfolder-browser-labels-filter';
-type bfGatekeeperCriteriaBase = {
-    collection?: string[];
-    section?: string[];
-    label?: string[];
-    filetype?: string[];
-};
-type bfGatekeeperCriteria = {
-    allowed: bfGatekeeperCriteriaBase;
-    disallowed: bfGatekeeperCriteriaBase;
+type BfBrowserSettings = {
+    height: number;
+    format: 'inline' | 'full';
+    endpoint: string;
 };
 /**
  * An interface for viewing/searching/filtering/selecting assets and attachments
@@ -26,21 +21,27 @@ export declare class BrandfolderBrowser extends LitElement {
      */
     bfBrowserId: string | null;
     /**
+     * A generic settings object with key-value pairs. Initialized as a
+     * JSON string.
+     */
+    settings: BfBrowserSettings | string | null;
+    /**
+     * The URL to which API requests should be sent.
+     */
+    private _apiEndpoint;
+    /**
+     * The number of assets to fetch per page.
+     */
+    private _assetsPerPage;
+    /**
      * The format in which the browser should be displayed. Options:
      * - 'inline' (default): Display the browser inline within the page.
      * - 'full': Display the browser in a way that consumes all available space
      *    in the host window/frame/document.
      */
-    format: string;
     /**
-     * An object of criteria for determining which assets may be
-     * accessed via this browser.
+     * The recommended height of the browser, in pixels.
      */
-    bfGatekeeperCriteria: bfGatekeeperCriteria;
-    /**
-     * The number of assets to fetch per page.
-     */
-    assetsPerPage: number;
     /**
      * Active asset.
      */

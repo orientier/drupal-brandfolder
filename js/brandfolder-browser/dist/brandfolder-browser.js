@@ -15,6 +15,17 @@ import './brandfolder-asset-preview';
 import './brandfolder-attachment';
 import './brandfolder-browser-controls';
 import './brandfolder-browser-labels-filter';
+// type bfGatekeeperCriteriaBase = {
+//   collection?: string[]
+//   section?: string[]
+//   label?: string[]
+//   filetype?: string[]
+// }
+//
+// type bfGatekeeperCriteria = {
+//   allowed: bfGatekeeperCriteriaBase
+//   disallowed: bfGatekeeperCriteriaBase
+// }
 /**
  * An interface for viewing/searching/filtering/selecting assets and attachments
  * from Brandfolder.
@@ -30,27 +41,31 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
          */
         this.bfBrowserId = null;
         /**
+         * A generic settings object with key-value pairs. Initialized as a
+         * JSON string.
+         */
+        this.settings = null;
+        /**
+         * The URL to which API requests should be sent.
+         */
+        this._apiEndpoint = '/brandfolder-browser-update';
+        /**
+         * The number of assets to fetch per page.
+         */
+        this._assetsPerPage = 100;
+        /**
          * The format in which the browser should be displayed. Options:
          * - 'inline' (default): Display the browser inline within the page.
          * - 'full': Display the browser in a way that consumes all available space
          *    in the host window/frame/document.
          */
-        this.format = 'inline';
-        // /**
-        //  * A generic settings object with key-value pairs. Initialized as a
-        //  * JSON string.
-        //  */
-        // @property({type: String, attribute: 'settings'})
-        // settings: BfBrowserSettings | string | null = null
+        // @state()
+        // private _format = 'inline'
         /**
-         * An object of criteria for determining which assets may be
-         * accessed via this browser.
+         * The recommended height of the browser, in pixels.
          */
-        this.bfGatekeeperCriteria = { allowed: {}, disallowed: {} };
-        /**
-         * The number of assets to fetch per page.
-         */
-        this.assetsPerPage = 100;
+        // @state()
+        // private _height: number | null = null
         /**
          * Active asset.
          */
@@ -77,7 +92,7 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
          * Callback executed when the element is removed from the document.
          */
         // override disconnectedCallback() {
-        //   if (this.format === 'inline') {
+        //   if (this._format === 'inline') {
         //     window.removeEventListener('resize', this._calibrateHeight)
         //   }
         //   super.disconnectedCallback()
@@ -86,7 +101,7 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
          * Callback executed when the element is updated.
          */
         // override updated(_changedProperties: Map<string | number | symbol, unknown>) {
-        //   if (this.format === 'inline') {
+        //   if (this._format === 'inline') {
         //     // After fetching and rendering new assets, determine whether the
         //     // browser's height should be constrained in order to achieve
         //     // the best UX within the containing context.
@@ -132,10 +147,7 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
          */
         this._browserUpdateTask = new Task(this, {
             task: async ([requestedPage], { signal, }) => {
-                const response = await fetch(
-                // `/brandfolder-browser-update`,
-                // Dev:
-                `https://brandfolder-drupal-11.orien.tier/brandfolder-browser-update?XDEBUG_SESSION_START=PHPSTORM`, {
+                const response = await fetch(this._apiEndpoint, {
                     signal,
                     method: 'POST',
                     headers: {
@@ -145,6 +157,7 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
                         bfBrowserId: this.bfBrowserId,
                         userInput: this?._userInput,
                         requestedPage,
+                        assetsPerPage: this._assetsPerPage
                     }),
                 });
                 if (!response.ok) {
@@ -210,21 +223,32 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
      */
     connectedCallback() {
         super.connectedCallback();
+        // Apply any configurable settings.
+        if (this.settings && typeof this.settings === 'string') {
+            const settings = JSON.parse(this.settings);
+            if (settings.apiEndpoint) {
+                this._apiEndpoint = settings.apiEndpoint;
+            }
+            if (settings.assetsPerPage) {
+                this._assetsPerPage = settings.assetsPerPage;
+            }
+            // if (settings.format) {
+            //   this._format = settings.format
+            // }
+            // if (settings.height) {
+            //   this._height = settings.height
+            // }
+        }
         // Perform an initial data fetch (requesting the first page of assets).
         this._browserUpdateTask.run([1]).then();
-        // Convert settings attribute from JSON string to object.
-        // if (this.settings && typeof this.settings === 'string') {
-        //   this.settings = JSON.parse(this.settings)
-        // }
-        // console.log('BrandfolderBrowser connectedCallback')
-        // if (this.format === 'inline') {
+        // if (this._format === 'inline') {
         //   // We might need to adjust the browser height when the window is resized
         //   // (e.g. when the browser lives within a modal that occupies a certain
         //   // percentage of the viewport).
         //   window.addEventListener('resize', this._calibrateHeight)
-        // } else if (this.format === 'full') {
-        //   if (typeof this.settings === 'object' && this.settings?.height) {
-        //     this.style.height = `${this.settings.height}px`
+        // } else if (this._format === 'full') {
+        //   if (typeof this.settings === 'object' && this._height) {
+        //     this.style.height = `${this._height}px`
         //   }
         // }
     }
@@ -300,7 +324,7 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
                   <p class="pagination__info">
                     ...and
                     ${new Intl.NumberFormat().format(this._assetFetchMeta.total_count -
-                this._assetFetchMeta.current_page * this.assetsPerPage)}
+                this._assetFetchMeta.current_page * this._assetsPerPage)}
                     more
                   </p>
                   <div class="load-more">
@@ -400,14 +424,14 @@ __decorate([
     property({ type: String, attribute: 'bf-browser-id' })
 ], BrandfolderBrowser.prototype, "bfBrowserId", void 0);
 __decorate([
-    property({ type: String, attribute: 'format' })
-], BrandfolderBrowser.prototype, "format", void 0);
+    property({ type: String, attribute: 'settings' })
+], BrandfolderBrowser.prototype, "settings", void 0);
 __decorate([
-    property({ type: Object, attribute: null })
-], BrandfolderBrowser.prototype, "bfGatekeeperCriteria", void 0);
+    state()
+], BrandfolderBrowser.prototype, "_apiEndpoint", void 0);
 __decorate([
-    property({ type: Number, attribute: false })
-], BrandfolderBrowser.prototype, "assetsPerPage", void 0);
+    state()
+], BrandfolderBrowser.prototype, "_assetsPerPage", void 0);
 __decorate([
     state()
 ], BrandfolderBrowser.prototype, "_activeAsset", void 0);
