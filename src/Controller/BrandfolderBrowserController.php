@@ -251,8 +251,20 @@ class BrandfolderBrowserController extends ControllerBase {
         'creationDate' => $predefined_date_range_options,
         'modificationDate' => $predefined_date_range_options,
         'publicationDate' => $predefined_date_range_options,
+
         // @todo: Tags.
-        // @todo: Sort.
+
+        'sortCriteria' => [
+          'name'       => t('Name'),
+          'score'      => t('Score'),
+          'position'   => t('Position'),
+          'updated_at' => t('Date Last Updated'),
+          'created_at' => t('Date Uploaded/Created'),
+        ],
+        'sortOrder' => [
+          'asc'  => t('Ascending'),
+          'desc' => t('Descending'),
+        ],
       ];
 
       $response_data = [

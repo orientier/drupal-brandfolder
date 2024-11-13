@@ -16,6 +16,23 @@ let BrandfolderBrowserControls = class BrandfolderBrowserControls extends LitEle
     constructor() {
         super();
         /**
+         * Default values for user-facing controls.
+         */
+        this.controlsInputDefaults = {
+            searchText: '',
+            collections: [],
+            sections: [],
+            labels: {},
+            tags: [],
+            aspect: [],
+            filetype: [],
+            creationDate: 'all',
+            modificationDate: 'all',
+            publicationDate: 'all',
+            sortCriterion: 'created_at',
+            sortOrder: 'desc',
+        };
+        /**
          * An object with data sufficient to build user-facing controls.
          */
         this.controlSchema = null;
@@ -23,14 +40,14 @@ let BrandfolderBrowserControls = class BrandfolderBrowserControls extends LitEle
          * An object with properties corresponding to user-facing controls, with
          * any corresponding user-supplied values.
          */
-        this._controlsInput = null;
+        this._controlsInput = { ...this.controlsInputDefaults };
         this.addEventListener('bfLabelsChanged', this._labelsChangeHandler);
     }
     /**
      * Handle use of the "reset" button. Reset all user input.
      */
     _controlsResetHandler() {
-        this._controlsInput = null;
+        this._controlsInput = { ...this.controlsInputDefaults };
     }
     /**
      * Handle the submission of the search/filter/sort form.
@@ -53,7 +70,6 @@ let BrandfolderBrowserControls = class BrandfolderBrowserControls extends LitEle
      * shape anyway once we establish filter subcomponents.
      */
     _controlsChangeHandler() {
-        this._controlsInput = this._controlsInput ?? {};
         this._controlsInput.searchText = this.searchTextInput.value;
         if (this?.collectionInputs?.length) {
             const collectionInputsArray = Array.from(this.collectionInputs);
@@ -87,6 +103,12 @@ let BrandfolderBrowserControls = class BrandfolderBrowserControls extends LitEle
         }
         if (this?.publicationDateSelect) {
             this._controlsInput.publicationDate = this.publicationDateSelect.value;
+        }
+        if (this?.sortCriterionSelect) {
+            this._controlsInput.sortCriterion = this.sortCriterionSelect.value;
+        }
+        if (this?.sortOrderSelect) {
+            this._controlsInput.sortOrder = this.sortOrderSelect.value;
         }
     }
     /**
@@ -271,6 +293,55 @@ let BrandfolderBrowserControls = class BrandfolderBrowserControls extends LitEle
                 `;
         })}
         </fieldset>` : ''}
+      ${(this?.controlSchema?.sortCriteria && Object.keys(this.controlSchema.sortCriteria)?.length > 1) ? html `
+        <fieldset class="sorting-container">
+          <legend>Sorting</legend>
+          <div class="brandfolder-browser-controls__sort-criterion-container">
+            <label for="brandfolder-browser-controls-sort-criterion">Sort
+              by:</label>
+            <select
+              name="brandfolder-browser-controls-sort-criterion"
+              class="brandfolder-browser-controls__sort-criterion"
+              @change=${this._controlsChangeHandler}
+            >
+              ${Object.keys(this.controlSchema.sortCriteria).map((sortCriterion) => {
+            const sortCriterionName = this.controlSchema.sortCriteria[sortCriterion];
+            const isSelected = this._controlsInput?.sortCriterion === sortCriterion;
+            return html `
+                    <option
+                      value=${sortCriterion}
+                      .selected=${isSelected}
+                    >
+                      ${sortCriterionName}
+                    </option>
+                  `;
+        })}
+            </select>
+          </div>
+          ${(this?.controlSchema?.sortOrder && Object.keys(this.controlSchema.sortOrder)?.length > 1) ? html `
+            <div class="brandfolder-browser-controls__sort-order-container">
+              <label for="brandfolder-browser-controls-sort-order">Sort
+                order:</label>
+              <select
+                name="brandfolder-browser-controls-sort-order"
+                class="brandfolder-browser-controls__sort-order"
+                @change=${this._controlsChangeHandler}
+              >
+                ${Object.keys(this.controlSchema.sortOrder).map((sortOrder) => {
+            const sortOrderName = this.controlSchema.sortOrder[sortOrder];
+            const isSelected = this._controlsInput?.sortOrder === sortOrder;
+            return html `
+                      <option
+                        value=${sortOrder}
+                        .selected=${isSelected}
+                      >
+                        ${sortOrderName}
+                      </option>
+                    `;
+        })}
+              </select>
+            </div>` : ''}
+        </fieldset>` : ''}
       <button @click=${this._controlsResetHandler}>Reset</button>
       <button @click=${this._controlsSubmissionHandler}>Submit</button>
     `;
@@ -311,6 +382,12 @@ __decorate([
 __decorate([
     query('.brandfolder-browser-controls__publication-date')
 ], BrandfolderBrowserControls.prototype, "publicationDateSelect", void 0);
+__decorate([
+    query('.brandfolder-browser-controls__sort-criterion')
+], BrandfolderBrowserControls.prototype, "sortCriterionSelect", void 0);
+__decorate([
+    query('.brandfolder-browser-controls__sort-order')
+], BrandfolderBrowserControls.prototype, "sortOrderSelect", void 0);
 BrandfolderBrowserControls = __decorate([
     customElement('brandfolder-browser-controls')
 ], BrandfolderBrowserControls);

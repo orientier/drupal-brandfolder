@@ -4,7 +4,13 @@ export type BfKvList = {
     [key: string]: string;
 };
 export type BfSortCriterion = 'name' | 'score' | 'position' | 'updated_at' | 'created_at';
+export type BfSortCriteriaList = {
+    [key in BfSortCriterion]: string;
+};
 export type BfSortOrder = 'asc' | 'desc';
+export type BfSortOrderList = {
+    [key in BfSortOrder]: string;
+};
 export type BfAspectRatio = 'landscape' | 'portrait' | 'square' | 'panorama';
 export type BfAspectRatiosList = {
     [key in BfAspectRatio]: string;
@@ -25,8 +31,8 @@ export type BfBrowserControlSchema = {
     creationDate?: BfDateRangesList;
     modificationDate?: BfDateRangesList;
     publicationDate?: BfDateRangesList;
-    sortCriterion?: BfSortCriterion;
-    sortOrder?: BfSortOrder;
+    sortCriteria?: BfSortCriteriaList;
+    sortOrder?: BfSortOrderList;
 };
 export type BfBrowserUserInput = {
     searchText?: string;
@@ -47,6 +53,10 @@ export type BfBrowserUserInput = {
  */
 export declare class BrandfolderBrowserControls extends LitElement {
     static styles: import("lit").CSSResult;
+    /**
+     * Default values for user-facing controls.
+     */
+    private controlsInputDefaults;
     /**
      * An object with data sufficient to build user-facing controls.
      */
@@ -77,17 +87,25 @@ export declare class BrandfolderBrowserControls extends LitElement {
      */
     filetypeInputs: HTMLInputElement[];
     /**
-     * Create a reference to the creation date input elements.
+     * Create a reference to the creation date select element.
      */
-    creationDateSelect: HTMLInputElement;
+    creationDateSelect: HTMLSelectElement;
     /**
-     * Create a reference to the modification date input elements.
+     * Create a reference to the modification date select element.
      */
-    modificationDateSelect: HTMLInputElement;
+    modificationDateSelect: HTMLSelectElement;
     /**
-     * Create a reference to the publication date input elements.
+     * Create a reference to the publication date select element.
      */
-    publicationDateSelect: HTMLInputElement;
+    publicationDateSelect: HTMLSelectElement;
+    /**
+     * Create a reference to the sort criterion select element.
+     */
+    sortCriterionSelect: HTMLSelectElement;
+    /**
+     * Create a reference to the sort order select element.
+     */
+    sortOrderSelect: HTMLSelectElement;
     /**
      * Constructor.
      */

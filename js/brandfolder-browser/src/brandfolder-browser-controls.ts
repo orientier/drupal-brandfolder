@@ -18,8 +18,14 @@ export type BfSortCriterion =
   | 'position'
   | 'updated_at'
   | 'created_at'
+export type BfSortCriteriaList = {
+  [key in BfSortCriterion]: string
+}
 
 export type BfSortOrder = 'asc' | 'desc'
+export type BfSortOrderList = {
+  [key in BfSortOrder]: string
+}
 
 export type BfAspectRatio = 'landscape' | 'portrait' | 'square' | 'panorama'
 export type BfAspectRatiosList = {
@@ -44,8 +50,8 @@ export type BfBrowserControlSchema = {
   creationDate?: BfDateRangesList
   modificationDate?: BfDateRangesList
   publicationDate?: BfDateRangesList
-  sortCriterion?: BfSortCriterion
-  sortOrder?: BfSortOrder
+  sortCriteria?: BfSortCriteriaList
+  sortOrder?: BfSortOrderList
 }
 
 export type BfBrowserUserInput = {
@@ -75,6 +81,24 @@ export class BrandfolderBrowserControls extends LitElement {
   `
 
   /**
+   * Default values for user-facing controls.
+   */
+  private controlsInputDefaults: BfBrowserUserInput = {
+    searchText: '',
+    collections: [],
+    sections: [],
+    labels: {},
+    tags: [],
+    aspect: [],
+    filetype: [],
+    creationDate: 'all',
+    modificationDate: 'all',
+    publicationDate: 'all',
+    sortCriterion: 'created_at',
+    sortOrder: 'desc',
+  }
+
+  /**
    * An object with data sufficient to build user-facing controls.
    */
   @property({type: Object, attribute: false})
@@ -85,7 +109,7 @@ export class BrandfolderBrowserControls extends LitElement {
    * any corresponding user-supplied values.
    */
   @state()
-  private _controlsInput: BfBrowserUserInput | null = null
+  private _controlsInput: BfBrowserUserInput = {...this.controlsInputDefaults}
 
   /**
    * Create a reference to the search text input element.
@@ -118,22 +142,34 @@ export class BrandfolderBrowserControls extends LitElement {
   filetypeInputs: HTMLInputElement[]
 
   /**
-   * Create a reference to the creation date input elements.
+   * Create a reference to the creation date select element.
    */
   @query('.brandfolder-browser-controls__creation-date')
-  creationDateSelect: HTMLInputElement
+  creationDateSelect: HTMLSelectElement
 
   /**
-   * Create a reference to the modification date input elements.
+   * Create a reference to the modification date select element.
    */
   @query('.brandfolder-browser-controls__modification-date')
-  modificationDateSelect: HTMLInputElement
+  modificationDateSelect: HTMLSelectElement
 
   /**
-   * Create a reference to the publication date input elements.
+   * Create a reference to the publication date select element.
    */
   @query('.brandfolder-browser-controls__publication-date')
-  publicationDateSelect: HTMLInputElement
+  publicationDateSelect: HTMLSelectElement
+
+  /**
+   * Create a reference to the sort criterion select element.
+   */
+  @query('.brandfolder-browser-controls__sort-criterion')
+  sortCriterionSelect: HTMLSelectElement
+
+  /**
+   * Create a reference to the sort order select element.
+   */
+  @query('.brandfolder-browser-controls__sort-order')
+  sortOrderSelect: HTMLSelectElement
 
   /**
    * Constructor.
@@ -150,7 +186,7 @@ export class BrandfolderBrowserControls extends LitElement {
    * Handle use of the "reset" button. Reset all user input.
    */
   private _controlsResetHandler() {
-    this._controlsInput = null
+    this._controlsInput = {...this.controlsInputDefaults}
   }
 
   /**
@@ -175,7 +211,6 @@ export class BrandfolderBrowserControls extends LitElement {
    * shape anyway once we establish filter subcomponents.
    */
   private _controlsChangeHandler() {
-    this._controlsInput = this._controlsInput ?? {}
     this._controlsInput.searchText = this.searchTextInput.value
     if (this?.collectionInputs?.length) {
       const collectionInputsArray = Array.from(this.collectionInputs)
@@ -209,6 +244,12 @@ export class BrandfolderBrowserControls extends LitElement {
     }
     if (this?.publicationDateSelect) {
       this._controlsInput.publicationDate = this.publicationDateSelect.value as BfDateRange
+    }
+    if (this?.sortCriterionSelect) {
+      this._controlsInput.sortCriterion = this.sortCriterionSelect.value as BfSortCriterion
+    }
+    if (this?.sortOrderSelect) {
+      this._controlsInput.sortOrder = this.sortOrderSelect.value as BfSortOrder
     }
   }
 
@@ -422,6 +463,63 @@ export class BrandfolderBrowserControls extends LitElement {
                 `
               }
             )}
+        </fieldset>` : ''
+      }
+      ${(this?.controlSchema?.sortCriteria && Object.keys(this.controlSchema.sortCriteria)?.length > 1) ? html`
+        <fieldset class="sorting-container">
+          <legend>Sorting</legend>
+          <div class="brandfolder-browser-controls__sort-criterion-container">
+            <label for="brandfolder-browser-controls-sort-criterion">Sort
+              by:</label>
+            <select
+              name="brandfolder-browser-controls-sort-criterion"
+              class="brandfolder-browser-controls__sort-criterion"
+              @change=${this._controlsChangeHandler}
+            >
+              ${Object.keys(this.controlSchema.sortCriteria).map(
+                (sortCriterion: BfSortCriterion) => {
+                  const sortCriterionName: string = this.controlSchema.sortCriteria[sortCriterion]
+                  const isSelected = this._controlsInput?.sortCriterion === sortCriterion
+
+                  return html`
+                    <option
+                      value=${sortCriterion}
+                      .selected=${isSelected}
+                    >
+                      ${sortCriterionName}
+                    </option>
+                  `
+                }
+              )}
+            </select>
+          </div>
+          ${(this?.controlSchema?.sortOrder && Object.keys(this.controlSchema.sortOrder)?.length > 1) ? html`
+            <div class="brandfolder-browser-controls__sort-order-container">
+              <label for="brandfolder-browser-controls-sort-order">Sort
+                order:</label>
+              <select
+                name="brandfolder-browser-controls-sort-order"
+                class="brandfolder-browser-controls__sort-order"
+                @change=${this._controlsChangeHandler}
+              >
+                ${Object.keys(this.controlSchema.sortOrder).map(
+                  (sortOrder: BfSortOrder) => {
+                    const sortOrderName: string = this.controlSchema.sortOrder[sortOrder]
+                    const isSelected = this._controlsInput?.sortOrder === sortOrder
+
+                    return html`
+                      <option
+                        value=${sortOrder}
+                        .selected=${isSelected}
+                      >
+                        ${sortOrderName}
+                      </option>
+                    `
+                  }
+                )}
+              </select>
+            </div>` : ''
+          }
         </fieldset>` : ''
       }
       <button @click=${this._controlsResetHandler}>Reset</button>
