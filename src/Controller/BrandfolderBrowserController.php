@@ -181,11 +181,18 @@ class BrandfolderBrowserController extends ControllerBase {
       $search_query_components[] = "labels:(" . implode(' OR ', $selected_label_names) . ')';
     }
 
-    // Creation/Upload recency.
-    if (!empty($request_data['userInput']['creationDate'])) {
-      $creation_date_input = $request_data['userInput']['creationDate'];
-      if ($creation_date_input != 'all') {
-        $search_query_components[] = "created_at:>now-$creation_date_input";
+    // Date range options.
+    $date_range_control_mapping = [
+      'creationDate' => 'created_at',
+      'modificationDate' => 'updated_at',
+      'publicationDate' => 'published_at',
+    ];
+    foreach ($date_range_control_mapping as $control_key => $date_field) {
+      if (!empty($request_data['userInput'][$control_key])) {
+        $date_input = $request_data['userInput'][$control_key];
+        if ($date_input != 'all') {
+          $search_query_components[] = "$date_field:>now-$date_input";
+        }
       }
     }
 
@@ -213,6 +220,15 @@ class BrandfolderBrowserController extends ControllerBase {
       // Assemble data related to browser controls
       // (user search/filtering/sorting/etc.).
       // @todo: Consider proactively customizing/winnowing this list based on which filter combinations will yield results.
+      $predefined_date_range_options = [
+        'all'        => t('All'),
+        '30m' => t('Last 30 Minutes'),
+        '1d'   => t('Last 24 Hours'),
+        '7d'     => t('Last 7 Days'),
+        '30d'    => t('Last 30 Days'),
+        '60d'    => t('Last 60 Days'),
+        '90d'    => t('Last 90 Days'),
+      ];
       $control_schema = [
         'collections' => $gatekeeper->getCollections(),
         'sections' => $gatekeeper->getSections(),
@@ -232,15 +248,9 @@ class BrandfolderBrowserController extends ControllerBase {
           'webp',
           //    'mp4',
         ],
-        'creationDate' => [
-          'all'        => t('All'),
-          '30m' => t('Last 30 Minutes'),
-          '1d'   => t('Last 24 Hours'),
-          '7d'     => t('Last 7 Days'),
-          '30d'    => t('Last 30 Days'),
-          '60d'    => t('Last 60 Days'),
-          '90d'    => t('Last 90 Days'),
-        ],
+        'creationDate' => $predefined_date_range_options,
+        'modificationDate' => $predefined_date_range_options,
+        'publicationDate' => $predefined_date_range_options,
         // @todo: Tags.
         // @todo: Sort.
       ];

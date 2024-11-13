@@ -124,6 +124,18 @@ export class BrandfolderBrowserControls extends LitElement {
   creationDateSelect: HTMLInputElement
 
   /**
+   * Create a reference to the modification date input elements.
+   */
+  @query('.brandfolder-browser-controls__modification-date')
+  modificationDateSelect: HTMLInputElement
+
+  /**
+   * Create a reference to the publication date input elements.
+   */
+  @query('.brandfolder-browser-controls__publication-date')
+  publicationDateSelect: HTMLInputElement
+
+  /**
    * Constructor.
    */
   constructor() {
@@ -191,6 +203,12 @@ export class BrandfolderBrowserControls extends LitElement {
     }
     if (this?.creationDateSelect) {
       this._controlsInput.creationDate = this.creationDateSelect.value as BfDateRange
+    }
+    if (this?.modificationDateSelect) {
+      this._controlsInput.modificationDate = this.modificationDateSelect.value as BfDateRange
+    }
+    if (this?.publicationDateSelect) {
+      this._controlsInput.publicationDate = this.publicationDateSelect.value as BfDateRange
     }
   }
 
@@ -350,6 +368,56 @@ export class BrandfolderBrowserControls extends LitElement {
                     .selected=${isSelected}
                   >
                     ${creationDateName}
+                  </option>
+                `
+              }
+            )}
+        </fieldset>` : ''
+      }
+      ${(this?.controlSchema?.modificationDate && Object.keys(this.controlSchema.modificationDate)?.length > 1) ? html`
+        <fieldset class="modification-date-container">
+          <legend>Last Updated</legend>
+          <select
+            name="brandfolder-browser-controls-modification-date"
+            class="brandfolder-browser-controls__modification-date"
+            @change=${this._controlsChangeHandler}
+          >
+            ${Object.keys(this.controlSchema.modificationDate).map(
+              (modificationDateKey: BfDateRange) => {
+                const modificationDateName: string = this.controlSchema.modificationDate[modificationDateKey]
+                const isSelected = this._controlsInput?.modificationDate === modificationDateKey
+
+                return html`
+                  <option
+                    value=${modificationDateKey}
+                    .selected=${isSelected}
+                  >
+                    ${modificationDateName}
+                  </option>
+                `
+              }
+            )}
+        </fieldset>` : ''
+      }
+      ${(this?.controlSchema?.publicationDate && Object.keys(this.controlSchema.publicationDate)?.length > 1) ? html`
+        <fieldset class="publication-date-container">
+          <legend>Published</legend>
+          <select
+            name="brandfolder-browser-controls-publication-date"
+            class="brandfolder-browser-controls__publication-date"
+            @change=${this._controlsChangeHandler}
+          >
+            ${Object.keys(this.controlSchema.publicationDate).map(
+              (publicationDateKey: BfDateRange) => {
+                const publicationDateName: string = this.controlSchema.publicationDate[publicationDateKey]
+                const isSelected = this._controlsInput?.publicationDate === publicationDateKey
+
+                return html`
+                  <option
+                    value=${publicationDateKey}
+                    .selected=${isSelected}
+                  >
+                    ${publicationDateName}
                   </option>
                 `
               }

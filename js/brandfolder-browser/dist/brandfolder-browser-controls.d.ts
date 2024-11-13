@@ -81,6 +81,14 @@ export declare class BrandfolderBrowserControls extends LitElement {
      */
     creationDateSelect: HTMLInputElement;
     /**
+     * Create a reference to the modification date input elements.
+     */
+    modificationDateSelect: HTMLInputElement;
+    /**
+     * Create a reference to the publication date input elements.
+     */
+    publicationDateSelect: HTMLInputElement;
+    /**
      * Constructor.
      */
     constructor();

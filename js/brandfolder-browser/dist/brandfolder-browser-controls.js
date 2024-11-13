@@ -82,6 +82,12 @@ let BrandfolderBrowserControls = class BrandfolderBrowserControls extends LitEle
         if (this?.creationDateSelect) {
             this._controlsInput.creationDate = this.creationDateSelect.value;
         }
+        if (this?.modificationDateSelect) {
+            this._controlsInput.modificationDate = this.modificationDateSelect.value;
+        }
+        if (this?.publicationDateSelect) {
+            this._controlsInput.publicationDate = this.publicationDateSelect.value;
+        }
     }
     /**
      * Listen for label selection changes.
@@ -223,6 +229,48 @@ let BrandfolderBrowserControls = class BrandfolderBrowserControls extends LitEle
                 `;
         })}
         </fieldset>` : ''}
+      ${(this?.controlSchema?.modificationDate && Object.keys(this.controlSchema.modificationDate)?.length > 1) ? html `
+        <fieldset class="modification-date-container">
+          <legend>Last Updated</legend>
+          <select
+            name="brandfolder-browser-controls-modification-date"
+            class="brandfolder-browser-controls__modification-date"
+            @change=${this._controlsChangeHandler}
+          >
+            ${Object.keys(this.controlSchema.modificationDate).map((modificationDateKey) => {
+            const modificationDateName = this.controlSchema.modificationDate[modificationDateKey];
+            const isSelected = this._controlsInput?.modificationDate === modificationDateKey;
+            return html `
+                  <option
+                    value=${modificationDateKey}
+                    .selected=${isSelected}
+                  >
+                    ${modificationDateName}
+                  </option>
+                `;
+        })}
+        </fieldset>` : ''}
+      ${(this?.controlSchema?.publicationDate && Object.keys(this.controlSchema.publicationDate)?.length > 1) ? html `
+        <fieldset class="publication-date-container">
+          <legend>Published</legend>
+          <select
+            name="brandfolder-browser-controls-publication-date"
+            class="brandfolder-browser-controls__publication-date"
+            @change=${this._controlsChangeHandler}
+          >
+            ${Object.keys(this.controlSchema.publicationDate).map((publicationDateKey) => {
+            const publicationDateName = this.controlSchema.publicationDate[publicationDateKey];
+            const isSelected = this._controlsInput?.publicationDate === publicationDateKey;
+            return html `
+                  <option
+                    value=${publicationDateKey}
+                    .selected=${isSelected}
+                  >
+                    ${publicationDateName}
+                  </option>
+                `;
+        })}
+        </fieldset>` : ''}
       <button @click=${this._controlsResetHandler}>Reset</button>
       <button @click=${this._controlsSubmissionHandler}>Submit</button>
     `;
@@ -257,6 +305,12 @@ __decorate([
 __decorate([
     query('.brandfolder-browser-controls__creation-date')
 ], BrandfolderBrowserControls.prototype, "creationDateSelect", void 0);
+__decorate([
+    query('.brandfolder-browser-controls__modification-date')
+], BrandfolderBrowserControls.prototype, "modificationDateSelect", void 0);
+__decorate([
+    query('.brandfolder-browser-controls__publication-date')
+], BrandfolderBrowserControls.prototype, "publicationDateSelect", void 0);
 BrandfolderBrowserControls = __decorate([
     customElement('brandfolder-browser-controls')
 ], BrandfolderBrowserControls);
