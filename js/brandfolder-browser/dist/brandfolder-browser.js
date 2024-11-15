@@ -354,16 +354,16 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
 };
 BrandfolderBrowser.styles = css `
     :host {
-      --color-gray-50: #f1f1f1;
-      --color-gray-100: #dddddd;
-      --color-gray-200: #c6c6c7;
-      --color-gray-300: #afafb0;
-      --color-gray-400: #9e9e9f;
-      --color-gray-500: #8d8d8e;
-      --color-gray-600: #858586;
-      --color-gray-700: #7a7a7b;
-      --color-gray-800: #707071;
-      --color-gray-900: #5d5d5f;
+      --color-gray-50: #f9f9fa;
+      --color-gray-100: #f2f2f3;
+      --color-gray-200: #e9e9ea;
+      --color-gray-300: #d9d9da;
+      --color-gray-400: #b5b5b6;
+      --color-gray-500: #959596;
+      --color-gray-600: #6d6d6e;
+      --color-gray-700: #59595a;
+      --color-gray-800: #3b3b3c;
+      --color-gray-900: #1a1a1b;
 
       --bf-browser-height: 100%;
 
@@ -400,7 +400,7 @@ BrandfolderBrowser.styles = css `
     }
 
     .bf-browser__results-container {
-      grid-area: 2 / 1 / 3 / -1;
+      grid-area: 2 / 1 / -1 / -1;
       padding: 0.5rem;
       overflow: scroll;
     }

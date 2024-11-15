@@ -67,6 +67,10 @@ export declare class BrandfolderBrowserControls extends LitElement {
      */
     private _controlsInput;
     /**
+     * Manage open/closed state.
+     */
+    private _isOpen;
+    /**
      * Create a reference to the search text input element.
      */
     searchTextInput: HTMLInputElement;
@@ -134,7 +138,7 @@ export declare class BrandfolderBrowserControls extends LitElement {
     /**
      * Render the component.
      *
-     * @todo: Refactor to use subcomponents for each control.
+     * @todo: Use subcomponents for each control, etc.
      */
     render(): import("lit-html").TemplateResult<1>;
 }

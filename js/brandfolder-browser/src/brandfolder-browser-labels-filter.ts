@@ -26,7 +26,8 @@ export type BfLabelAttributes = {
 @customElement('brandfolder-browser-labels-filter')
 export class BrandfolderBrowserLabelsFilter extends LitElement {
   static override styles = css`
-    :host {
+    .brandfolder-browser-controls__labels {
+      max-height: 12rem;
     }
   `
 
@@ -95,14 +96,17 @@ export class BrandfolderBrowserLabelsFilter extends LitElement {
   }
 
   override render() {
+    const labelsArray = Object.values(this.allLabels ?? [])
+
     return html`
       <select
         name="brandfolder-browser-controls-labels"
         class="brandfolder-browser-controls__labels"
         multiple
+        size="${Math.max(labelsArray.length, 5)}"
         @change=${this._changeHandler}
       >
-        ${Object.values(this.allLabels).map((labelNode) => this.renderLabelNode(labelNode))}
+        ${labelsArray.map((labelNode) => this.renderLabelNode(labelNode))}
       </select>
     `
   }

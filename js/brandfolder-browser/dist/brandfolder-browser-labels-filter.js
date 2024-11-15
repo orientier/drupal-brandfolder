@@ -60,20 +60,23 @@ let BrandfolderBrowserLabelsFilter = class BrandfolderBrowserLabelsFilter extend
     `;
     }
     render() {
+        const labelsArray = Object.values(this.allLabels ?? []);
         return html `
       <select
         name="brandfolder-browser-controls-labels"
         class="brandfolder-browser-controls__labels"
         multiple
+        size="${Math.max(labelsArray.length, 5)}"
         @change=${this._changeHandler}
       >
-        ${Object.values(this.allLabels).map((labelNode) => this.renderLabelNode(labelNode))}
+        ${labelsArray.map((labelNode) => this.renderLabelNode(labelNode))}
       </select>
     `;
     }
 };
 BrandfolderBrowserLabelsFilter.styles = css `
-    :host {
+    .brandfolder-browser-controls__labels {
+      max-height: 12rem;
     }
   `;
 __decorate([

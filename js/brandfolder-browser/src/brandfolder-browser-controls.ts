@@ -76,7 +76,75 @@ export type BfBrowserUserInput = {
 export class BrandfolderBrowserControls extends LitElement {
   static override styles = css`
     :host {
-      height: auto;
+      color: var(--color-gray-800);
+    }
+
+    .controls__header {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .controls__title {
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    .controls__main {
+      max-height: 0;
+      overflow: hidden;
+      transition: all 0.3s;
+      padding: 0;
+    }
+
+    .controls__inner.is-open .controls__main {
+      max-height: 100vh;
+      padding: 1rem 0 0;
+    }
+
+    .controls__inputs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .bf-control-item {
+      flex: 1;
+    }
+
+    .bf-control-item--search-text {
+      flex-basis: 100%;
+      display: flex;
+    }
+
+    .search-text-input {
+      width: 100%;
+      font-size: 1rem;
+      padding: 0.3rem 0.4rem;
+      color: var(--color-gray-900);
+    }
+
+    .input-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .input-item {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 0.25rem;
+      flex-wrap: nowrap;
+    }
+
+    .controls__actions {
+      display: flex;
+      justify-content: flex-start;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 0.25rem 0.5rem;
     }
   `
 
@@ -110,6 +178,12 @@ export class BrandfolderBrowserControls extends LitElement {
    */
   @state()
   private _controlsInput: BfBrowserUserInput = {...this.controlsInputDefaults}
+
+  /**
+   * Manage open/closed state.
+   */
+  @state()
+  private _isOpen = false
 
   /**
    * Create a reference to the search text input element.
@@ -257,273 +331,321 @@ export class BrandfolderBrowserControls extends LitElement {
    * Listen for label selection changes.
    */
   private _labelsChangeHandler(e: CustomEvent) {
-    this._controlsInput = {...this._controlsInput, labels: e.detail.selectedLabelsById}
+    this._controlsInput = {
+      ...this._controlsInput,
+      labels: e.detail.selectedLabelsById
+    }
   }
 
   /**
    * Render the component.
    *
-   * @todo: Refactor to use subcomponents for each control.
+   * @todo: Use subcomponents for each control, etc.
    */
   override render() {
     return html`
-      <input type="text" class="search-text-input" aria-label="Search"
-             .value="${this._controlsInput?.searchText ?? ''}"
-             @change=${this._controlsChangeHandler}/>
-      ${(this?.controlSchema?.collections && Object.keys(this.controlSchema?.collections)?.length > 1) ? html`
-        <fieldset class="collections-container">
-          <legend>Collections</legend>
-          <div class="collections">
-            ${Object.keys(this.controlSchema.collections).map(
-              (collectionId) => {
-                const collectionName = this.controlSchema.collections[collectionId]
-                const isSelected = this._controlsInput?.collections?.includes(collectionId)
-                const inputName = 'collection'
+      <div class="controls__inner ${this._isOpen ? 'is-open' : ''}">
+        <header class="controls__header">
+          <h4 class="controls__title">Search/Filter/Sort</h4>
+          <!-- Add an element styled as a dropdown arrow. Clicking it should toggle the open/closed state. -->
+          <button @click=${() => this._isOpen = !this._isOpen}>
+            ${this._isOpen ? 'Close' : 'Open'}
+          </button>
+        </header>
+        <main class="controls__main">
+          <div class="controls__inputs">
+            <div class="bf-control-item bf-control-item--search-text">
+              <input type="text" class="search-text-input" aria-label="Search"
+                     .value="${this._controlsInput?.searchText ?? ''}"
+                     @change=${this._controlsChangeHandler}/>
+            </div>
+            ${(this?.controlSchema?.collections && Object.keys(this.controlSchema?.collections)?.length > 1) ? html`
+              <div class="bf-control-item">
+                <fieldset class="collections-container">
+                  <legend>Collections</legend>
+                  <div class="collections input-group">
+                    ${Object.keys(this.controlSchema.collections).map(
+                      (collectionId) => {
+                        const collectionName = this.controlSchema.collections[collectionId]
+                        const isSelected = this._controlsInput?.collections?.includes(collectionId)
+                        const inputName = 'collection'
 
-                return html`
-                  <input
-                    type="checkbox"
-                    class="collection-input"
-                    id="collection-input--${collectionId}"
-                    aria-label="${collectionName}"
-                    name="${inputName}"
-                    value=${collectionId}
-                    .checked=${isSelected}
-                    @change=${this._controlsChangeHandler}
+                        return html`
+                          <span class="input-item">
+                            <input
+                              type="checkbox"
+                              class="collection-input"
+                              id="collection-input--${collectionId}"
+                              aria-label="${collectionName}"
+                              name="${inputName}"
+                              value=${collectionId}
+                              .checked=${isSelected}
+                              @change=${this._controlsChangeHandler}
+                            />
+                            <label for=${inputName}>${collectionName}</label>
+                          </span>
+                        `
+                      }
+                    )}
+                  </div>
+                </fieldset>
+              </div>` : ''
+            }
+            ${(this?.controlSchema?.sections && Object.keys(this.controlSchema?.sections)?.length > 1) ? html`
+              <div class="bf-control-item">
+                <fieldset class="sections-container">
+                  <legend>Sections</legend>
+                  <div class="sections input-group">
+                    ${Object.keys(this.controlSchema.sections).map(
+                      (sectionId) => {
+                        const sectionName = this.controlSchema.sections[sectionId]
+                        const isSelected = this._controlsInput?.sections?.includes(sectionId)
+                        const inputName = 'section'
+
+                        return html`
+                          <span class="input-item">
+                            <input
+                              type="checkbox"
+                              class="section-input"
+                              id="section-input--${sectionId}"
+                              aria-label="${sectionName}"
+                              name="${inputName}"
+                              value=${sectionId}
+                              .checked=${isSelected}
+                              @change=${this._controlsChangeHandler}
+                            />
+                            <label for=${inputName}>${sectionName}</label>
+                          </span>
+                        `
+                      }
+                    )}
+                  </div>
+                </fieldset>
+              </div>` : ''
+            }
+            ${(this?.controlSchema?.labels && Object.keys(this.controlSchema?.labels)?.length > 1) ? html`
+              <div class="bf-control-item">
+                <fieldset class="labels-container">
+                  <legend>Labels</legend>
+                  <brandfolder-browser-labels-filter
+                    .allLabels=${this.controlSchema.labels}
+                    .selectedLabels=${this._controlsInput?.labels}
                   />
-                  <label for=${inputName}>${collectionName}</label>
-                `
-              }
-            )}
-          </div>
-        </fieldset>` : ''
-      }
-      ${(this?.controlSchema?.sections && Object.keys(this.controlSchema?.sections)?.length > 1) ? html`
-        <fieldset class="sections-container">
-          <legend>Sections</legend>
-          <div class="sections">
-            ${Object.keys(this.controlSchema.sections).map(
-              (sectionId) => {
-                const sectionName = this.controlSchema.sections[sectionId]
-                const isSelected = this._controlsInput?.sections?.includes(sectionId)
-                const inputName = 'section'
+                </fieldset>
+              </div>` : ''
+            }
+            ${(this?.controlSchema?.aspect && Object.keys(this.controlSchema.aspect)?.length > 1) ? html`
+              <div class="bf-control-item">
+                <fieldset class="aspect-container">
+                  <legend>Orientation</legend>
+                  <div class="aspects input-group">
+                    ${Object.keys(this.controlSchema.aspect).map(
+                      (aspectKey: BfAspectRatio) => {
+                        const aspectName: string = this.controlSchema.aspect[aspectKey]
+                        const isSelected = this._controlsInput?.aspect?.includes(aspectKey)
+                        const inputName = 'aspect'
 
-                return html`
-                  <input
-                    type="checkbox"
-                    class="section-input"
-                    id="section-input--${sectionId}"
-                    aria-label="${sectionName}"
-                    name="${inputName}"
-                    value=${sectionId}
-                    .checked=${isSelected}
+                        return html`
+                          <span class="input-item">
+                            <input
+                              type="checkbox"
+                              class="aspect-input"
+                              id="aspect-input--${aspectKey}"
+                              aria-label="${aspectName}"
+                              name="${inputName}"
+                              value=${aspectKey}
+                              .checked=${isSelected}
+                              @change=${this._controlsChangeHandler}
+                            />
+                            <label for=${inputName}>${aspectName}</label>
+                          </span>
+                        `
+                      }
+                    )}
+                  </div>
+                </fieldset>
+              </div>` : ''
+            }
+            ${(this?.controlSchema?.filetype && Object.keys(this.controlSchema.filetype)?.length > 1) ? html`
+              <div class="bf-control-item">
+                <fieldset class="filetype-container">
+                  <legend>File Type</legend>
+                  <div class="filetypes input-group">
+                    ${this.controlSchema.filetype.map(
+                      (filetype: BfFiletype) => {
+                        const isSelected = this._controlsInput?.filetype?.includes(filetype)
+                        const inputName = 'filetype'
+
+                        return html`
+                          <span class="input-item">
+                            <input
+                              type="checkbox"
+                              class="filetype-input"
+                              id="filetype-input--${filetype}"
+                              aria-label="${filetype}"
+                              name="${inputName}"
+                              value=${filetype}
+                              .checked=${isSelected}
+                              @change=${this._controlsChangeHandler}
+                            />
+                            <label for=${inputName}>${filetype}</label>
+                          </span>
+                        `
+                      }
+                    )}
+                  </div>
+                </fieldset>
+              </div>` : ''
+            }
+            ${(this?.controlSchema?.creationDate && Object.keys(this.controlSchema.creationDate)?.length > 1) ? html`
+              <div class="bf-control-item">
+                <fieldset class="creation-date-container">
+                  <legend>Created/Uploaded</legend>
+                  <select
+                    name="brandfolder-browser-controls-creation-date"
+                    class="brandfolder-browser-controls__creation-date"
                     @change=${this._controlsChangeHandler}
-                  />
-                  <label for=${inputName}>${sectionName}</label>
-                `
-              }
-            )}
-          </div>
-        </fieldset>` : ''
-      }
-      ${(this?.controlSchema?.labels && Object.keys(this.controlSchema?.labels)?.length > 1) ? html`
-        <fieldset class="labels-container">
-          <legend>Labels</legend>
-          <brandfolder-browser-labels-filter
-            .allLabels=${this.controlSchema.labels}
-            .selectedLabels=${this._controlsInput?.labels}
-          />
-        </fieldset>` : ''
-      }
-      ${(this?.controlSchema?.aspect && Object.keys(this.controlSchema.aspect)?.length > 1) ? html`
-        <fieldset class="aspect-container">
-          <legend>Orientation</legend>
-          <div class="aspect-options">
-            ${Object.keys(this.controlSchema.aspect).map(
-              (aspectKey: BfAspectRatio) => {
-                const aspectName: string = this.controlSchema.aspect[aspectKey]
-                const isSelected = this._controlsInput?.aspect?.includes(aspectKey)
-                const inputName = 'aspect'
-
-                return html`
-                  <input
-                    type="checkbox"
-                    class="aspect-input"
-                    id="aspect-input--${aspectKey}"
-                    aria-label="${aspectName}"
-                    name="${inputName}"
-                    value=${aspectKey}
-                    .checked=${isSelected}
-                    @change=${this._controlsChangeHandler}
-                  />
-                  <label for=${inputName}>${aspectName}</label>
-                `
-              }
-            )}
-          </div>
-        </fieldset>` : ''
-      }
-      ${(this?.controlSchema?.filetype && Object.keys(this.controlSchema.filetype)?.length > 1) ? html`
-        <fieldset class="filetype-container">
-          <legend>File Type</legend>
-          <div class="filetype-options">
-            ${this.controlSchema.filetype.map(
-              (filetype: BfFiletype) => {
-                const isSelected = this._controlsInput?.filetype?.includes(filetype)
-                const inputName = 'filetype'
-
-                return html`
-                  <input
-                    type="checkbox"
-                    class="filetype-input"
-                    id="filetype-input--${filetype}"
-                    aria-label="${filetype}"
-                    name="${inputName}"
-                    value=${filetype}
-                    .checked=${isSelected}
-                    @change=${this._controlsChangeHandler}
-                  />
-                  <label for=${inputName}>${filetype}</label>
-                `
-              }
-            )}
-          </div>
-        </fieldset>` : ''
-      }
-      ${(this?.controlSchema?.creationDate && Object.keys(this.controlSchema.creationDate)?.length > 1) ? html`
-        <fieldset class="creation-date-container">
-          <legend>Created/Uploaded</legend>
-          <select
-            name="brandfolder-browser-controls-creation-date"
-            class="brandfolder-browser-controls__creation-date"
-            @change=${this._controlsChangeHandler}
-          >
-            ${Object.keys(this.controlSchema.creationDate).map(
-              (creationDateKey: BfDateRange) => {
-                const creationDateName: string = this.controlSchema.creationDate[creationDateKey]
-                const isSelected = this._controlsInput?.creationDate === creationDateKey
-
-                return html`
-                  <option
-                    value=${creationDateKey}
-                    .selected=${isSelected}
                   >
-                    ${creationDateName}
-                  </option>
-                `
-              }
-            )}
-        </fieldset>` : ''
-      }
-      ${(this?.controlSchema?.modificationDate && Object.keys(this.controlSchema.modificationDate)?.length > 1) ? html`
-        <fieldset class="modification-date-container">
-          <legend>Last Updated</legend>
-          <select
-            name="brandfolder-browser-controls-modification-date"
-            class="brandfolder-browser-controls__modification-date"
-            @change=${this._controlsChangeHandler}
-          >
-            ${Object.keys(this.controlSchema.modificationDate).map(
-              (modificationDateKey: BfDateRange) => {
-                const modificationDateName: string = this.controlSchema.modificationDate[modificationDateKey]
-                const isSelected = this._controlsInput?.modificationDate === modificationDateKey
+                    ${Object.keys(this.controlSchema.creationDate).map(
+                      (creationDateKey: BfDateRange) => {
+                        const creationDateName: string = this.controlSchema.creationDate[creationDateKey]
+                        const isSelected = this._controlsInput?.creationDate === creationDateKey
 
-                return html`
-                  <option
-                    value=${modificationDateKey}
-                    .selected=${isSelected}
+                        return html`
+                          <option
+                            value=${creationDateKey}
+                            .selected=${isSelected}
+                          >
+                            ${creationDateName}
+                          </option>
+                        `
+                      }
+                    )}
+                </fieldset>
+              </div>` : ''
+            }
+            ${(this?.controlSchema?.modificationDate && Object.keys(this.controlSchema.modificationDate)?.length > 1) ? html`
+              <div class="bf-control-item">
+                <fieldset class="modification-date-container">
+                  <legend>Last Updated</legend>
+                  <select
+                    name="brandfolder-browser-controls-modification-date"
+                    class="brandfolder-browser-controls__modification-date"
+                    @change=${this._controlsChangeHandler}
                   >
-                    ${modificationDateName}
-                  </option>
-                `
-              }
-            )}
-        </fieldset>` : ''
-      }
-      ${(this?.controlSchema?.publicationDate && Object.keys(this.controlSchema.publicationDate)?.length > 1) ? html`
-        <fieldset class="publication-date-container">
-          <legend>Published</legend>
-          <select
-            name="brandfolder-browser-controls-publication-date"
-            class="brandfolder-browser-controls__publication-date"
-            @change=${this._controlsChangeHandler}
-          >
-            ${Object.keys(this.controlSchema.publicationDate).map(
-              (publicationDateKey: BfDateRange) => {
-                const publicationDateName: string = this.controlSchema.publicationDate[publicationDateKey]
-                const isSelected = this._controlsInput?.publicationDate === publicationDateKey
+                    ${Object.keys(this.controlSchema.modificationDate).map(
+                      (modificationDateKey: BfDateRange) => {
+                        const modificationDateName: string = this.controlSchema.modificationDate[modificationDateKey]
+                        const isSelected = this._controlsInput?.modificationDate === modificationDateKey
 
-                return html`
-                  <option
-                    value=${publicationDateKey}
-                    .selected=${isSelected}
+                        return html`
+                          <option
+                            value=${modificationDateKey}
+                            .selected=${isSelected}
+                          >
+                            ${modificationDateName}
+                          </option>
+                        `
+                      }
+                    )}
+                </fieldset>
+              </div>` : ''
+            }
+            ${(this?.controlSchema?.publicationDate && Object.keys(this.controlSchema.publicationDate)?.length > 1) ? html`
+              <div class="bf-control-item">
+                <fieldset class="publication-date-container">
+                  <legend>Published</legend>
+                  <select
+                    name="brandfolder-browser-controls-publication-date"
+                    class="brandfolder-browser-controls__publication-date"
+                    @change=${this._controlsChangeHandler}
                   >
-                    ${publicationDateName}
-                  </option>
-                `
-              }
-            )}
-        </fieldset>` : ''
-      }
-      ${(this?.controlSchema?.sortCriteria && Object.keys(this.controlSchema.sortCriteria)?.length > 1) ? html`
-        <fieldset class="sorting-container">
-          <legend>Sorting</legend>
-          <div class="brandfolder-browser-controls__sort-criterion-container">
-            <label for="brandfolder-browser-controls-sort-criterion">Sort
-              by:</label>
-            <select
-              name="brandfolder-browser-controls-sort-criterion"
-              class="brandfolder-browser-controls__sort-criterion"
-              @change=${this._controlsChangeHandler}
-            >
-              ${Object.keys(this.controlSchema.sortCriteria).map(
-                (sortCriterion: BfSortCriterion) => {
-                  const sortCriterionName: string = this.controlSchema.sortCriteria[sortCriterion]
-                  const isSelected = this._controlsInput?.sortCriterion === sortCriterion
+                    ${Object.keys(this.controlSchema.publicationDate).map(
+                      (publicationDateKey: BfDateRange) => {
+                        const publicationDateName: string = this.controlSchema.publicationDate[publicationDateKey]
+                        const isSelected = this._controlsInput?.publicationDate === publicationDateKey
 
-                  return html`
-                    <option
-                      value=${sortCriterion}
-                      .selected=${isSelected}
+                        return html`
+                          <option
+                            value=${publicationDateKey}
+                            .selected=${isSelected}
+                          >
+                            ${publicationDateName}
+                          </option>
+                        `
+                      }
+                    )}
+                </fieldset>
+              </div>` : ''
+            }
+            ${(this?.controlSchema?.sortCriteria && Object.keys(this.controlSchema.sortCriteria)?.length > 1) ? html`
+              <div class="bf-control-item">
+                <fieldset class="sorting-container">
+                  <legend>Sorting</legend>
+                  <div
+                    class="brandfolder-browser-controls__sort-criterion-container">
+                    <label for="brandfolder-browser-controls-sort-criterion">Sort
+                      by:</label>
+                    <select
+                      name="brandfolder-browser-controls-sort-criterion"
+                      class="brandfolder-browser-controls__sort-criterion"
+                      @change=${this._controlsChangeHandler}
                     >
-                      ${sortCriterionName}
-                    </option>
-                  `
-                }
-              )}
-            </select>
-          </div>
-          ${(this?.controlSchema?.sortOrder && Object.keys(this.controlSchema.sortOrder)?.length > 1) ? html`
-            <div class="brandfolder-browser-controls__sort-order-container">
-              <label for="brandfolder-browser-controls-sort-order">Sort
-                order:</label>
-              <select
-                name="brandfolder-browser-controls-sort-order"
-                class="brandfolder-browser-controls__sort-order"
-                @change=${this._controlsChangeHandler}
-              >
-                ${Object.keys(this.controlSchema.sortOrder).map(
-                  (sortOrder: BfSortOrder) => {
-                    const sortOrderName: string = this.controlSchema.sortOrder[sortOrder]
-                    const isSelected = this._controlsInput?.sortOrder === sortOrder
+                      ${Object.keys(this.controlSchema.sortCriteria).map(
+                        (sortCriterion: BfSortCriterion) => {
+                          const sortCriterionName: string = this.controlSchema.sortCriteria[sortCriterion]
+                          const isSelected = this._controlsInput?.sortCriterion === sortCriterion
 
-                    return html`
-                      <option
-                        value=${sortOrder}
-                        .selected=${isSelected}
+                          return html`
+                            <option
+                              value=${sortCriterion}
+                              .selected=${isSelected}
+                            >
+                              ${sortCriterionName}
+                            </option>
+                          `
+                        }
+                      )}
+                    </select>
+                  </div>
+                  ${(this?.controlSchema?.sortOrder && Object.keys(this.controlSchema.sortOrder)?.length > 1) ? html`
+                    <div
+                      class="brandfolder-browser-controls__sort-order-container">
+                      <label for="brandfolder-browser-controls-sort-order">Sort
+                        order:</label>
+                      <select
+                        name="brandfolder-browser-controls-sort-order"
+                        class="brandfolder-browser-controls__sort-order"
+                        @change=${this._controlsChangeHandler}
                       >
-                        ${sortOrderName}
-                      </option>
-                    `
+                        ${Object.keys(this.controlSchema.sortOrder).map(
+                          (sortOrder: BfSortOrder) => {
+                            const sortOrderName: string = this.controlSchema.sortOrder[sortOrder]
+                            const isSelected = this._controlsInput?.sortOrder === sortOrder
+
+                            return html`
+                              <option
+                                value=${sortOrder}
+                                .selected=${isSelected}
+                              >
+                                ${sortOrderName}
+                              </option>
+                            `
+                          }
+                        )}
+                      </select>
+                    </div>` : ''
                   }
-                )}
-              </select>
-            </div>` : ''
-          }
-        </fieldset>` : ''
-      }
-      <button @click=${this._controlsResetHandler}>Reset</button>
-      <button @click=${this._controlsSubmissionHandler}>Submit</button>
+                </fieldset>
+              </div>` : ''
+            }
+          </div>
+          <footer class="controls__actions">
+            <button @click=${this._controlsResetHandler}>Reset</button>
+            <button @click=${this._controlsSubmissionHandler}>Submit</button>
+          </footer>
+        </main>
+      </div>
     `
   }
 }

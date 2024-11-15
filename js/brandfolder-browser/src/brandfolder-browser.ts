@@ -1,5 +1,5 @@
 import {css, html, LitElement} from 'lit'
-import {Task, TaskFunction, TaskStatus} from '@lit/task'
+import {Task, TaskStatus} from '@lit/task'
 import {customElement, property, state} from 'lit/decorators.js'
 import {BfAsset} from './brandfolder-asset-base'
 import {BrandfolderAssetPreview} from './brandfolder-asset-preview'
@@ -16,14 +16,19 @@ import './brandfolder-attachment'
 import './brandfolder-browser-controls'
 import './brandfolder-browser-labels-filter'
 
-// type BfAssetFetchResponse = {
-//   assets: BfAsset[]
-//   meta: {
-//     total: number
-//     page: number
-//     per_page: number
-//   }
-// }
+type BfAssetFetchMeta = {
+  current_page: number
+  next_page: number
+  prev_page: number
+  total_pages: number
+  total_count: number
+}
+
+type BfFetchResponse = {
+  assets: BfAsset[]
+  meta: BfAssetFetchMeta
+  controlSchema: BfBrowserControlSchema
+}
 
 type BfBrowserSettings = {
   height: number
@@ -51,16 +56,16 @@ type BfBrowserSettings = {
 export class BrandfolderBrowser extends LitElement {
   static override styles = css`
     :host {
-      --color-gray-50: #f1f1f1;
-      --color-gray-100: #dddddd;
-      --color-gray-200: #c6c6c7;
-      --color-gray-300: #afafb0;
-      --color-gray-400: #9e9e9f;
-      --color-gray-500: #8d8d8e;
-      --color-gray-600: #858586;
-      --color-gray-700: #7a7a7b;
-      --color-gray-800: #707071;
-      --color-gray-900: #5d5d5f;
+      --color-gray-50: #f9f9fa;
+      --color-gray-100: #f2f2f3;
+      --color-gray-200: #e9e9ea;
+      --color-gray-300: #d9d9da;
+      --color-gray-400: #b5b5b6;
+      --color-gray-500: #959596;
+      --color-gray-600: #6d6d6e;
+      --color-gray-700: #59595a;
+      --color-gray-800: #3b3b3c;
+      --color-gray-900: #1a1a1b;
 
       --bf-browser-height: 100%;
 
@@ -97,7 +102,7 @@ export class BrandfolderBrowser extends LitElement {
     }
 
     .bf-browser__results-container {
-      grid-area: 2 / 1 / 3 / -1;
+      grid-area: 2 / 1 / -1 / -1;
       padding: 0.5rem;
       overflow: scroll;
     }
@@ -188,13 +193,7 @@ export class BrandfolderBrowser extends LitElement {
    * including total items, total pages, current page, etc.
    */
   @state()
-  private _assetFetchMeta: {
-    current_page: number
-    next_page: number
-    prev_page: number
-    total_pages: number
-    total_count: number
-  } | null = null
+  private _assetFetchMeta: BfAssetFetchMeta | null = null
 
   /**
    * Constructor.
@@ -319,7 +318,7 @@ export class BrandfolderBrowser extends LitElement {
       }: {
         signal: AbortSignal
       }
-    ): Promise<TaskFunction<never>> => {
+    ) : Promise<BfFetchResponse> => {
       const response = await fetch(
         this._apiEndpoint,
         {
@@ -339,7 +338,7 @@ export class BrandfolderBrowser extends LitElement {
       if (!response.ok) {
         throw new Error(response?.statusText || response?.status.toString())
       }
-      const responseBody = await response.json()
+      const responseBody: BfFetchResponse = await response.json()
 
       // Reset the asset list if we're fetching the first page of results.
       if (!requestedPage || requestedPage === 1) {
