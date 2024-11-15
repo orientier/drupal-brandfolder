@@ -123,9 +123,6 @@ class BrandfolderBrowserController extends ControllerBase {
       'page' => $page_to_fetch,
     ];
 
-    // @todo
-    $tag_key_mapping = $request_data['tagKeyMapping'] ?? [];
-
     // Process user search text and all filters.
     $user_input_mapping = [
       'collection_key' => 'collections',
@@ -142,14 +139,7 @@ class BrandfolderBrowserController extends ControllerBase {
       foreach (array_keys($user_criteria) as $criterion_type) {
         $user_input_key = $user_input_mapping[$criterion_type] ?? $criterion_type;
         if (!empty($request_data['userInput'][$user_input_key])) {
-          $criterion = $request_data['userInput'][$user_input_key];
-          if ($criterion_type == 'tags') {
-            if (isset($tag_key_mapping[$criterion])) {
-              $user_criteria[$criterion_type][] = $tag_key_mapping[$criterion];
-            }
-            continue;
-          }
-          $user_criteria[$criterion_type] = $criterion;
+          $user_criteria[$criterion_type] = $request_data['userInput'][$user_input_key];
         }
       }
     }

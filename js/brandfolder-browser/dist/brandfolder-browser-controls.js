@@ -46,6 +46,7 @@ let BrandfolderBrowserControls = class BrandfolderBrowserControls extends LitEle
          */
         this._isOpen = false;
         this.addEventListener('bfLabelsChanged', this._labelsChangeHandler);
+        this.addEventListener('bfTagsChanged', this._tagsChangeHandler);
     }
     /**
      * Handle use of the "reset" button. Reset all user input.
@@ -122,6 +123,16 @@ let BrandfolderBrowserControls = class BrandfolderBrowserControls extends LitEle
         this._controlsInput = {
             ...this._controlsInput,
             labels: e.detail.selectedLabelsById
+        };
+    }
+    /**
+     * Listen for tag selection changes.
+     */
+    _tagsChangeHandler(e) {
+        this._controlsInput = {
+            ...this._controlsInput,
+            tags: e.detail.selectedTags,
+            tagFilterMode: e.detail.tagFilterMode
         };
     }
     /**
@@ -212,6 +223,14 @@ let BrandfolderBrowserControls = class BrandfolderBrowserControls extends LitEle
                   />
                 </fieldset>
               </div>` : ''}
+            <div class="bf-control-item">
+              <fieldset class="tags-container">
+                <legend>Tags</legend>
+                <bf-browser-tags-control
+                  .selectedTags=${this._controlsInput?.tags}
+                />
+              </fieldset>
+            </div>
             ${(this?.controlSchema?.aspect && Object.keys(this.controlSchema.aspect)?.length > 1) ? html `
               <div class="bf-control-item">
                 <fieldset class="aspect-container">
@@ -431,7 +450,7 @@ BrandfolderBrowserControls.styles = css `
     .controls__inputs {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.5rem;
+      gap: 1rem 0.5rem;
     }
 
     .bf-control-item {
@@ -441,6 +460,14 @@ BrandfolderBrowserControls.styles = css `
     .bf-control-item--search-text {
       flex-basis: 100%;
       display: flex;
+    }
+
+    .bf-control-item fieldset {
+      border: 1px solid var(--color-gray-400);
+      padding: 0.75rem;
+    }
+    .bf-control-item fieldset legend {
+      white-space: nowrap;
     }
 
     .search-text-input {
@@ -453,7 +480,7 @@ BrandfolderBrowserControls.styles = css `
     .input-group {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.5rem;
+      gap: 0.5rem 1rem;
     }
 
     .input-item {

@@ -5,6 +5,7 @@ import './brandfolder-asset-preview';
 import './brandfolder-attachment';
 import './brandfolder-browser-controls';
 import './brandfolder-browser-labels-filter';
+import './bf-browser-tags-control';
 type BfBrowserSettings = {
     height: number;
     format: 'inline' | 'full';

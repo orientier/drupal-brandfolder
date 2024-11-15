@@ -12,6 +12,8 @@ export type BfKvList = {
   [key: string]: string
 }
 
+export type BfTagFilterMode = 'any' | 'all'
+
 export type BfSortCriterion =
   'name'
   | 'score'
@@ -60,6 +62,7 @@ export type BfBrowserUserInput = {
   sections?: string[]
   labels?: Record<string, string>
   tags?: string[]
+  tagFilterMode?: BfTagFilterMode
   aspect?: BfAspectRatio[]
   filetype?: BfFiletype[]
   creationDate?: BfDateRange
@@ -106,7 +109,7 @@ export class BrandfolderBrowserControls extends LitElement {
     .controls__inputs {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.5rem;
+      gap: 1rem 0.5rem;
     }
 
     .bf-control-item {
@@ -116,6 +119,14 @@ export class BrandfolderBrowserControls extends LitElement {
     .bf-control-item--search-text {
       flex-basis: 100%;
       display: flex;
+    }
+
+    .bf-control-item fieldset {
+      border: 1px solid var(--color-gray-400);
+      padding: 0.75rem;
+    }
+    .bf-control-item fieldset legend {
+      white-space: nowrap;
     }
 
     .search-text-input {
@@ -128,7 +139,7 @@ export class BrandfolderBrowserControls extends LitElement {
     .input-group {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.5rem;
+      gap: 0.5rem 1rem;
     }
 
     .input-item {
@@ -254,6 +265,10 @@ export class BrandfolderBrowserControls extends LitElement {
       'bfLabelsChanged',
       this._labelsChangeHandler
     )
+    this.addEventListener(
+      'bfTagsChanged',
+      this._tagsChangeHandler
+    )
   }
 
   /**
@@ -334,6 +349,17 @@ export class BrandfolderBrowserControls extends LitElement {
     this._controlsInput = {
       ...this._controlsInput,
       labels: e.detail.selectedLabelsById
+    }
+  }
+
+  /**
+   * Listen for tag selection changes.
+   */
+  private _tagsChangeHandler(e: CustomEvent) {
+    this._controlsInput = {
+      ...this._controlsInput,
+      tags: e.detail.selectedTags,
+      tagFilterMode: e.detail.tagFilterMode
     }
   }
 
@@ -434,6 +460,14 @@ export class BrandfolderBrowserControls extends LitElement {
                 </fieldset>
               </div>` : ''
             }
+            <div class="bf-control-item">
+              <fieldset class="tags-container">
+                <legend>Tags</legend>
+                <bf-browser-tags-control
+                  .selectedTags=${this._controlsInput?.tags}
+                />
+              </fieldset>
+            </div>
             ${(this?.controlSchema?.aspect && Object.keys(this.controlSchema.aspect)?.length > 1) ? html`
               <div class="bf-control-item">
                 <fieldset class="aspect-container">

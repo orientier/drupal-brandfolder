@@ -3,6 +3,7 @@ import { BfLabelTreeNode } from "./brandfolder-browser-labels-filter";
 export type BfKvList = {
     [key: string]: string;
 };
+export type BfTagFilterMode = 'any' | 'all';
 export type BfSortCriterion = 'name' | 'score' | 'position' | 'updated_at' | 'created_at';
 export type BfSortCriteriaList = {
     [key in BfSortCriterion]: string;
@@ -40,6 +41,7 @@ export type BfBrowserUserInput = {
     sections?: string[];
     labels?: Record<string, string>;
     tags?: string[];
+    tagFilterMode?: BfTagFilterMode;
     aspect?: BfAspectRatio[];
     filetype?: BfFiletype[];
     creationDate?: BfDateRange;
@@ -135,6 +137,10 @@ export declare class BrandfolderBrowserControls extends LitElement {
      * Listen for label selection changes.
      */
     private _labelsChangeHandler;
+    /**
+     * Listen for tag selection changes.
+     */
+    private _tagsChangeHandler;
     /**
      * Render the component.
      *
