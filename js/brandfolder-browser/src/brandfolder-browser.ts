@@ -68,6 +68,8 @@ export class BrandfolderBrowser extends LitElement {
       --color-gray-800: #3b3b3c;
       --color-gray-900: #1a1a1b;
 
+      --color-white: #ffffff;
+
       --bf-browser-height: 100%;
 
       display: block;
@@ -75,6 +77,7 @@ export class BrandfolderBrowser extends LitElement {
       background: white;
       width: 100%;
       height: var(--bf-browser-height);
+      color: var(--color-gray-800);
     }
 
     :host([format='full']) {
@@ -91,19 +94,31 @@ export class BrandfolderBrowser extends LitElement {
     .bf-browser__inner {
       position: relative;
       display: grid;
-      grid-template-rows: auto 1fr;
+      grid-template-rows: auto auto 1fr;
       height: 100%;
     }
 
     .bf-browser__controls-container {
-      grid-area: 1 / 1 / 2 / -1;
+      grid-area: 1 / 1 / span 1 / -1;
       padding: 0.5rem;
-      margin: 0 0 1rem;
-      background: var(--color-gray-50);
+      background-color: var(--color-gray-50);
+    }
+
+    .bf-browser__metadata-container {
+      grid-area: 2 / 1 / span 1 / -1;
+      background: var(--color-white);
+      display: flex;
+      align-items: center;
+    }
+
+    .results-metadata {
+      padding: 0.5rem;
+      font-style: italic;
+      font-size: 0.9em;
     }
 
     .bf-browser__results-container {
-      grid-area: 2 / 1 / -1 / -1;
+      grid-area: 3 / 1 / span 1 / -1;
       padding: 0.5rem;
       overflow: scroll;
     }
@@ -119,8 +134,10 @@ export class BrandfolderBrowser extends LitElement {
       gap: 1rem;
     }
 
-    .asset-list .error-message {
-      grid-column: 1 / -1;
+    .bf-browser__pagination {
+      display: flex;
+      justify-content: center;
+      padding: 2rem 0;
     }
   `
 
@@ -439,14 +456,32 @@ export class BrandfolderBrowser extends LitElement {
    * Define the element's template / rendered HTML.
    */
   override render() {
+    const numAssets = this._assetList?.length
+    const numAssetsTotal = this._assetFetchMeta?.total_count
+    let metadataText = 'Fetching assets...'
+    const taskStatus = this._browserUpdateTask.status
+    if (taskStatus === TaskStatus.COMPLETE) {
+      metadataText = numAssets > 0
+        ? `Showing ${numAssets}${numAssetsTotal ? ` of ${new Intl.NumberFormat().format(numAssetsTotal)} ` : ' '}assets.`
+        : 'No assets found.'
+    }
+    else if (taskStatus === TaskStatus.ERROR) {
+      metadataText = 'There was an error fetching assets.'
+    }
+
     return html`
       <div class="bf-browser__inner">
         <div class="bf-browser__controls-container">
           <brandfolder-browser-controls .controlSchema="${this._controlSchema}" />
         </div>
+        <div class="bf-browser__metadata-container">
+          <div class="results-metadata">
+            ${metadataText}
+          </div>
+        </div>
         <div class="bf-browser__results-container">
           <div class="asset-list">
-            ${this._assetList?.length > 0 ?
+            ${numAssets > 0 ?
               this._assetList.map(
                 (asset) => html`
                   <brandfolder-asset-preview
@@ -456,32 +491,12 @@ export class BrandfolderBrowser extends LitElement {
                   />
                 `
               )
-              : (this._browserUpdateTask.status === TaskStatus.COMPLETE ? html`<p>No assets found.</p>` : '')}
-            ${this._browserUpdateTask.render({
-              pending: () => html`<p>Fetching assets...</p>`,
-              error: (e: string) => {
-                console.error(e)
-
-                return html`
-                  <div class="error-message">
-                    <p>There was an error fetching assets.</p>
-                  </div>
-                `
-              },
-            })}
+              :  ''}
           </div>
           ${this._assetFetchMeta?.next_page
             ? html`
-                <div class="pagination">
-                  <p class="pagination__info">
-                    ...and
-                    ${new Intl.NumberFormat().format(
-                      this._assetFetchMeta.total_count -
-                        this._assetFetchMeta.current_page * this._assetsPerPage
-                    )}
-                    more
-                  </p>
-                  <div class="load-more">
+                <div class="bf-browser__pagination">
+                  <div class="bf-browser__load-more">
                     <button
                       @click=${() =>
                         this._browserUpdateTask.run([

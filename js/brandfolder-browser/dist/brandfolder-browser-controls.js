@@ -53,6 +53,7 @@ let BrandfolderBrowserControls = class BrandfolderBrowserControls extends LitEle
      */
     _controlsResetHandler() {
         this._controlsInput = { ...this.controlsInputDefaults };
+        this.requestUpdate();
     }
     /**
      * Handle the submission of the search/filter/sort form.
@@ -154,8 +155,16 @@ let BrandfolderBrowserControls = class BrandfolderBrowserControls extends LitEle
           <div class="controls__inputs">
             <div class="bf-control-item bf-control-item--search-text">
               <input type="text" class="search-text-input" aria-label="Search"
+                     placeholder="Enter search text..."
                      .value="${this._controlsInput?.searchText ?? ''}"
-                     @change=${this._controlsChangeHandler}/>
+                     @change=${this._controlsChangeHandler}
+                     @keyup=${(e) => {
+            if (e.key === 'Enter') {
+                this._controlsSubmissionHandler();
+            }
+        }}
+
+              />
             </div>
             ${(this?.controlSchema?.collections && Object.keys(this.controlSchema?.collections)?.length > 1) ? html `
               <div class="bf-control-item">
