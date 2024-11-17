@@ -53,7 +53,6 @@ let BrandfolderBrowserControls = class BrandfolderBrowserControls extends LitEle
      */
     _controlsResetHandler() {
         this._controlsInput = { ...this.controlsInputDefaults };
-        this.requestUpdate();
     }
     /**
      * Handle the submission of the search/filter/sort form.
@@ -144,12 +143,17 @@ let BrandfolderBrowserControls = class BrandfolderBrowserControls extends LitEle
     render() {
         return html `
       <div class="controls__inner ${this._isOpen ? 'is-open' : ''}">
-        <header class="controls__header">
-          <h4 class="controls__title">Search/Filter/Sort</h4>
-          <!-- Add an element styled as a dropdown arrow. Clicking it should toggle the open/closed state. -->
-          <button @click=${() => this._isOpen = !this._isOpen}>
-            ${this._isOpen ? 'Close' : 'Open'}
-          </button>
+        <header class="controls__header" @click=${() => this._isOpen = !this._isOpen}>
+          <span class="controls__title">Search & Filter</span>
+          <span class="controls__open-indicator" >
+            <svg
+              class="open-indicator__icon ${this._isOpen ? 'open' : 'closed'}"
+              xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 9"
+            >
+              <path d="M15 1.57812L7.66667 7.57812" />
+              <path d="M1 1.57812L7.66667 7.57813" />
+            </svg>
+          </span>
         </header>
         <main class="controls__main">
           <div class="controls__inputs">
@@ -163,7 +167,6 @@ let BrandfolderBrowserControls = class BrandfolderBrowserControls extends LitEle
                 this._controlsSubmissionHandler();
             }
         }}
-
               />
             </div>
             ${(this?.controlSchema?.collections && Object.keys(this.controlSchema?.collections)?.length > 1) ? html `
@@ -432,16 +435,50 @@ BrandfolderBrowserControls.styles = css `
       color: var(--color-gray-800);
     }
 
+    .controls__header,
+    .controls__main {
+      background: var(--color-gray-50);
+    }
+
     .controls__header {
       display: flex;
       justify-content: flex-end;
-      align-items: center;
-      gap: 1rem;
+      align-items: stretch;
+      gap: 0.25rem;
+      padding: 0.25rem;
+      transition: all 0.3s;
     }
-
+    .controls__header:hover {
+      cursor: pointer;
+      background: var(--color-gray-100);
+    }
+    .controls__title,
+    .controls__open-indicator {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.2rem;
+    }
     .controls__title {
-      margin: 0;
-      font-size: 1rem;
+      font-size: 0.9rem;
+    }
+    .controls__open-indicator {
+      width: 1.5rem;
+      padding: 0 0.2rem;
+    }
+    .open-indicator__icon {
+      width: 0.9rem;
+      transition: transform 0.3s;
+    }
+    .open-indicator__icon path {
+      stroke: var(--color-gray-800);
+      stroke-width: 1;
+    }
+    .controls__header:hover .open-indicator__icon path {
+      stroke-width: 1.5;
+    }
+    .open-indicator__icon.open {
+      transform: scaleY(-1);
     }
 
     .controls__main {
@@ -453,7 +490,7 @@ BrandfolderBrowserControls.styles = css `
 
     .controls__inner.is-open .controls__main {
       max-height: 100vh;
-      padding: 1rem 0 0;
+      padding: 1rem 0.5rem 0.5rem;
     }
 
     .controls__inputs {

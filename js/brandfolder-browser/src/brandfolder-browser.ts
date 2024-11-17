@@ -100,8 +100,6 @@ export class BrandfolderBrowser extends LitElement {
 
     .bf-browser__controls-container {
       grid-area: 1 / 1 / span 1 / -1;
-      padding: 0.5rem;
-      background-color: var(--color-gray-50);
     }
 
     .bf-browser__metadata-container {
