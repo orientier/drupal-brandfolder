@@ -37,6 +37,11 @@ let BrandfolderBrowserControls = class BrandfolderBrowserControls extends LitEle
          */
         this.controlSchema = null;
         /**
+         * A message indicating the status of the current/latest browser fetch
+         * operation.
+         */
+        this.browserFetchStatusMessage = null;
+        /**
          * An object with properties corresponding to user-facing controls, with
          * any corresponding user-supplied values.
          */
@@ -143,16 +148,19 @@ let BrandfolderBrowserControls = class BrandfolderBrowserControls extends LitEle
     render() {
         return html `
       <div class="controls__inner ${this._isOpen ? 'is-open' : ''}">
-        <header class="controls__header" @click=${() => this._isOpen = !this._isOpen}>
-          <span class="controls__title">Search & Filter</span>
-          <span class="controls__open-indicator" >
-            <svg
-              class="open-indicator__icon ${this._isOpen ? 'open' : 'closed'}"
-              xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 9"
-            >
-              <path d="M15 1.57812L7.66667 7.57812" />
-              <path d="M1 1.57812L7.66667 7.57813" />
-            </svg>
+        <header class="controls__header">
+          <span class="browser-fetch-status-message">${this.browserFetchStatusMessage}</span>
+          <span class="controls__toggle" @click=${() => this._isOpen = !this._isOpen}>
+            <span class="controls__title">Search & Filter</span>
+            <span class="controls__open-indicator">
+              <svg
+                class="open-indicator__icon ${this._isOpen ? 'open' : 'closed'}"
+                xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 9"
+              >
+                <path d="M15 1.57812L7.66667 7.57812" />
+                <path d="M1 1.57812L7.66667 7.57813" />
+              </svg>
+            </span>
           </span>
         </header>
         <main class="controls__main">
@@ -442,15 +450,27 @@ BrandfolderBrowserControls.styles = css `
 
     .controls__header {
       display: flex;
-      justify-content: flex-end;
-      align-items: stretch;
-      gap: 0.25rem;
-      padding: 0.25rem;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.5rem;
+      font-size: 1rem;
+    }
+
+    .browser-fetch-status-message {
+      font-family: monospace;
+      padding: 0 0.1rem;
+      font-size: 0.9em;
+      //background: var(--color-gray-300);
+    }
+
+    .controls__toggle {
+      display: flex;
       transition: all 0.3s;
     }
-    .controls__header:hover {
+    .controls__toggle:hover {
       cursor: pointer;
-      background: var(--color-gray-100);
+      font-weight: bolder;
     }
     .controls__title,
     .controls__open-indicator {
@@ -458,9 +478,6 @@ BrandfolderBrowserControls.styles = css `
       align-items: center;
       justify-content: center;
       padding: 0.2rem;
-    }
-    .controls__title {
-      font-size: 0.9rem;
     }
     .controls__open-indicator {
       width: 1.5rem;
@@ -474,7 +491,7 @@ BrandfolderBrowserControls.styles = css `
       stroke: var(--color-gray-800);
       stroke-width: 1;
     }
-    .controls__header:hover .open-indicator__icon path {
+    .controls__toggle:hover .open-indicator__icon path {
       stroke-width: 1.5;
     }
     .open-indicator__icon.open {
@@ -485,12 +502,12 @@ BrandfolderBrowserControls.styles = css `
       max-height: 0;
       overflow: hidden;
       transition: all 0.3s;
-      padding: 0;
+      padding: 0 0.25rem;
     }
 
     .controls__inner.is-open .controls__main {
       max-height: 100vh;
-      padding: 1rem 0.5rem 0.5rem;
+      padding: 0.5rem;
     }
 
     .controls__inputs {
@@ -548,6 +565,9 @@ BrandfolderBrowserControls.styles = css `
 __decorate([
     property({ type: Object, attribute: false })
 ], BrandfolderBrowserControls.prototype, "controlSchema", void 0);
+__decorate([
+    property({ type: String })
+], BrandfolderBrowserControls.prototype, "browserFetchStatusMessage", void 0);
 __decorate([
     state()
 ], BrandfolderBrowserControls.prototype, "_controlsInput", void 0);

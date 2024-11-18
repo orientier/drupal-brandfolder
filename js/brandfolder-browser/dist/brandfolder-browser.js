@@ -293,25 +293,20 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
     render() {
         const numAssets = this._assetList?.length;
         const numAssetsTotal = this._assetFetchMeta?.total_count;
-        let metadataText = 'Fetching assets...';
+        let fetchStatusMessage = 'fetching assets...';
         const taskStatus = this._browserUpdateTask.status;
         if (taskStatus === TaskStatus.COMPLETE) {
-            metadataText = numAssets > 0
-                ? `Showing ${numAssets}${numAssetsTotal ? ` of ${new Intl.NumberFormat().format(numAssetsTotal)} ` : ' '}assets.`
-                : 'No assets found.';
+            fetchStatusMessage = numAssets > 0
+                ? `showing ${numAssets}${numAssetsTotal ? ` of ${new Intl.NumberFormat().format(numAssetsTotal)} ` : ' '}assets`
+                : 'no assets found';
         }
         else if (taskStatus === TaskStatus.ERROR) {
-            metadataText = 'There was an error fetching assets.';
+            fetchStatusMessage = 'there was an error fetching assets';
         }
         return html `
       <div class="bf-browser__inner">
         <div class="bf-browser__controls-container">
-          <brandfolder-browser-controls .controlSchema="${this._controlSchema}" />
-        </div>
-        <div class="bf-browser__metadata-container">
-          <div class="results-metadata">
-            ${metadataText}
-          </div>
+          <brandfolder-browser-controls .controlSchema="${this._controlSchema}" .browserFetchStatusMessage="${fetchStatusMessage}" />
         </div>
         <div class="bf-browser__results-container">
           <div class="asset-list">
@@ -392,29 +387,16 @@ BrandfolderBrowser.styles = css `
     .bf-browser__inner {
       position: relative;
       display: grid;
-      grid-template-rows: auto auto 1fr;
+      grid-template-rows: auto 1fr;
       height: 100%;
     }
 
     .bf-browser__controls-container {
       grid-area: 1 / 1 / span 1 / -1;
     }
-
-    .bf-browser__metadata-container {
-      grid-area: 2 / 1 / span 1 / -1;
-      background: var(--color-white);
-      display: flex;
-      align-items: center;
-    }
-
-    .results-metadata {
-      padding: 0.5rem;
-      font-style: italic;
-      font-size: 0.9em;
-    }
-
+    
     .bf-browser__results-container {
-      grid-area: 3 / 1 / span 1 / -1;
+      grid-area: 2 / 1 / span 1 / -1;
       padding: 0.5rem;
       overflow: scroll;
     }

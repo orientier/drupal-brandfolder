@@ -64,6 +64,11 @@ export declare class BrandfolderBrowserControls extends LitElement {
      */
     controlSchema: BfBrowserControlSchema | null;
     /**
+     * A message indicating the status of the current/latest browser fetch
+     * operation.
+     */
+    browserFetchStatusMessage: string | null;
+    /**
      * An object with properties corresponding to user-facing controls, with
      * any corresponding user-supplied values.
      */
