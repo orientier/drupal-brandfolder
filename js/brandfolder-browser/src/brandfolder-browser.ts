@@ -6,16 +6,21 @@ import {BrandfolderAssetPreview} from './brandfolder-asset-preview'
 import {
   BfBrowserControlSchema,
   BfBrowserUserInput,
-} from './brandfolder-browser-controls'
+} from './controls/bf-browser-controls'
 // Import all subcomponents and class dependencies so we can compile
 // everything into a single JS file with this file as the sole entry point.
 import './brandfolder-asset-base'
 import './brandfolder-asset-detail'
 import './brandfolder-asset-preview'
 import './brandfolder-attachment'
-import './brandfolder-browser-controls'
-import './brandfolder-browser-labels-filter'
-import './bf-browser-tags-control'
+import './controls/bf-browser-controls'
+import './controls/bf-browser-control-base'
+import './controls/bf-browser-control-item'
+import './controls/bf-browser-control--checkboxes'
+import './controls/bf-browser-control--labels'
+import './controls/bf-browser-control--search'
+import './controls/bf-browser-control--select'
+import './controls/bf-browser-control--tags'
 
 type BfAssetFetchMeta = {
   current_page: number
@@ -101,7 +106,7 @@ export class BrandfolderBrowser extends LitElement {
     .bf-browser__controls-container {
       grid-area: 1 / 1 / span 1 / -1;
     }
-    
+
     .bf-browser__results-container {
       grid-area: 2 / 1 / span 1 / -1;
       padding: 0.5rem;

@@ -1,5 +1,6 @@
-import {css, html, LitElement, TemplateResult} from 'lit'
-import {customElement, property, query,} from 'lit/decorators.js'
+import {css, html, TemplateResult} from 'lit'
+import {customElement, query} from 'lit/decorators.js'
+import {BfBrowserControlBase} from "./bf-browser-control-base";
 
 export type BfLabelTreeNode = {
   label: BfLabel | null
@@ -23,31 +24,31 @@ export type BfLabelAttributes = {
 /**
  * UI for a selecting Brandfolder labels.
  */
-@customElement('brandfolder-browser-labels-filter')
-export class BrandfolderBrowserLabelsFilter extends LitElement {
+@customElement('brandfolder-browser-control--labels')
+export class BfBrowserLabelsControl extends BfBrowserControlBase {
   static override styles = css`
-    .brandfolder-browser-controls__labels {
+    .labels-select {
       max-height: 12rem;
     }
   `
 
-  /**
-   * All eligible labels.
-   */
-  @property({type: Object, attribute: false})
-  allLabels: BfLabelTreeNode[] | null = null
-
-  /**
-   * A list of all currently selected labels. An object keyed by label ID with
-   * label names as values.
-   */
-  @property({type: Object, attribute: false})
-  selectedLabels: Record<string, string> | null = null
+  // /**
+  //  * All eligible labels.
+  //  */
+  // @property({type: Object, attribute: false})
+  // allLabels: BfLabelTreeNode[] | null = null
+  //
+  // /**
+  //  * A list of all currently selected labels. An object keyed by label ID with
+  //  * label names as values.
+  //  */
+  // @property({type: Object, attribute: false})
+  // selectedLabels: Record<string, string> | null = null
 
   /**
    * Create a reference to the select element.
    */
-  @query('.brandfolder-browser-controls__labels')
+  @query('.brandfolder-browser-controls__labels-select')
   labelsSelect: HTMLSelectElement
 
   /**
@@ -62,16 +63,9 @@ export class BrandfolderBrowserLabelsFilter extends LitElement {
       },
       {} as Record<string, string>
     )
-    this.selectedLabels = selectedLabelsById
-    this.dispatchEvent(
-      new CustomEvent('bfLabelsChanged', {
-        detail: {
-          selectedLabelsById
-        },
-        bubbles: true,
-        composed: true,
-      })
-    )
+
+    this.controlInput.labels = selectedLabelsById
+    this._dispatchChangeEvent()
   }
 
   /**
@@ -85,7 +79,7 @@ export class BrandfolderBrowserLabelsFilter extends LitElement {
     return html`
       <option
         value=${labelObject?.id}
-        .selected=${!!this.selectedLabels?.[labelObject?.id]}
+        .selected=${!!this?.controlInput?.labels?.[labelObject?.id]}
       >
         ${depthIndicator} ${labelObject?.attributes?.name}
       </option>
@@ -95,13 +89,16 @@ export class BrandfolderBrowserLabelsFilter extends LitElement {
     `
   }
 
+  /**
+   * Render the labels control.
+   */
   override render() {
-    const labelsArray = Object.values(this.allLabels ?? [])
+    const labelsArray = Object.values(this?.controlSchema?.labels ?? [])
 
     return html`
       <select
         name="brandfolder-browser-controls-labels"
-        class="brandfolder-browser-controls__labels"
+        class="brandfolder-browser-controls__labels-select"
         multiple
         size="${Math.max(labelsArray.length, 5)}"
         @change=${this._changeHandler}
@@ -114,6 +111,6 @@ export class BrandfolderBrowserLabelsFilter extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'brandfolder-browser-labels-filter': BrandfolderBrowserLabelsFilter
+    'brandfolder-browser-control--labels': BfBrowserLabelsControl
   }
 }

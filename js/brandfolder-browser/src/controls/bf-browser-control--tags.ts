@@ -1,13 +1,12 @@
-import {css, html, LitElement} from 'lit'
-import {customElement, property, query,} from 'lit/decorators.js'
-import {BfTagFilterMode} from "./brandfolder-browser-controls";
-
+import {css, html} from 'lit'
+import {customElement, query} from 'lit/decorators.js'
+import {BfBrowserControlBase} from "./bf-browser-control-base";
 
 /**
  * UI for specifying Brandfolder tags for asset filtering.
  */
-@customElement('bf-browser-tags-control')
-export class BfBrowserTagsControl extends LitElement {
+@customElement('brandfolder-browser-control--tags')
+export class BfBrowserTagsControl extends BfBrowserControlBase {
   static override styles = css`
     .bf-browser-tags-control__inner {
       display: flex;
@@ -69,20 +68,32 @@ export class BfBrowserTagsControl extends LitElement {
     }
   `
 
-  /**
-   * A list of all currently selected tags.
-   */
-  @property({type: Object, attribute: false})
-  selectedTags: string[] = []
+  // /**
+  //  * A list of all currently selected tags.
+  //  */
+  // @property({type: Object, attribute: false})
+  // selectedTags: string[] = []
+  //
+  // /**
+  //  * The selected tag filter mode.
+  //  */
+  // @property({type: String, attribute: false})
+  // tagFilterMode: BfTagFilterMode | null = 'any'
+
+  // /**
+  //  * A list of all currently selected tags.
+  //  */
+  // @state()
+  // private _selectedTags: string[] = []
+  //
+  // /**
+  //  * The selected tag filter mode.
+  //  */
+  // @state()
+  // private _tagFilterMode: BfTagFilterMode | null = 'any'
 
   /**
-   * The selected tag filter mode.
-   */
-  @property({type: String, attribute: false})
-  tagFilterMode: BfTagFilterMode | null = 'any'
-
-  /**
-   * Create a reference to the select element.
+   * Create a reference to the input element.
    */
   @query('.tag-text-input')
   tagTextInput: HTMLInputElement
@@ -97,9 +108,9 @@ export class BfBrowserTagsControl extends LitElement {
       tagText = tagText.toLowerCase()
       // Add the tag and notify our ancestors (unless the tag is already in
       // the list).
-      if (!this.selectedTags.includes(tagText)) {
-        this.selectedTags = [...this.selectedTags, tagText]
-        this._dispatchTagChangeEvent()
+      if (!this.controlInput.tags.includes(tagText)) {
+        this.controlInput.tags = [...this.controlInput.tags, tagText]
+        this._dispatchChangeEvent()
       }
       // Reset the text input.
       this.tagTextInput.value = ''
@@ -111,26 +122,13 @@ export class BfBrowserTagsControl extends LitElement {
    */
   private _removeTag(event: Event) {
     const tagText = (event.target as HTMLElement).dataset.tagText
-    this.selectedTags = this.selectedTags.filter(tag => tag !== tagText)
-    this._dispatchTagChangeEvent()
+    this.controlInput.tags = this.controlInput.tags.filter(tag => tag !== tagText)
+    this._dispatchChangeEvent()
   }
 
   /**
-   * Dispatch a "tags changed" event.
+   * Render the tags control.
    */
-  private _dispatchTagChangeEvent() {
-    this.dispatchEvent(
-      new CustomEvent('bfTagsChanged', {
-        detail: {
-          selectedTags: this.selectedTags,
-          tagFilterMode: this.tagFilterMode,
-        },
-        bubbles: true,
-        composed: true,
-      })
-    )
-  }
-
   override render() {
     return html`
       <div class="bf-browser-tags-control__inner" >
@@ -153,9 +151,9 @@ export class BfBrowserTagsControl extends LitElement {
             Add
           </button>
         </div>
-        ${this.selectedTags.length > 0 ? html`
+        ${this.controlInput.tags.length > 0 ? html`
           <div class="tag-list">
-            ${this.selectedTags.map((tag) => html`
+            ${this.controlInput.tags.map((tag) => html`
               <span class="tag">
                 <span class="tag-text">${tag}</span>
                 <span
@@ -169,7 +167,7 @@ export class BfBrowserTagsControl extends LitElement {
             `)}
           </div>
         ` : ''}
-        ${this.selectedTags.length > 1 ? html`
+        ${this.controlInput.tags.length > 1 ? html`
           <div class="tag-filter-mode">
             <span class="tag-filter-mode__intro">Include assets matching:</span>
             <label class="tag-filter-mode__option">
@@ -177,10 +175,10 @@ export class BfBrowserTagsControl extends LitElement {
                 type="radio"
                 name="tag-filter-mode"
                 value="any"
-                .checked=${this.tagFilterMode === 'any'}
+                .checked=${this.controlInput.tagFilterMode === 'any'}
                 @change=${() => {
-                  this.tagFilterMode = 'any'
-                  this._dispatchTagChangeEvent()
+                  this.controlInput.tagFilterMode = 'any'
+                  this._dispatchChangeEvent()
                 }}
               />
               <span class="tag-filter-mode__option-text">
@@ -192,10 +190,10 @@ export class BfBrowserTagsControl extends LitElement {
                 type="radio"
                 name="tag-filter-mode"
                 value="all"
-                .checked=${this.tagFilterMode === 'all'}
+                .checked=${this.controlInput.tagFilterMode === 'all'}
                 @change=${() => {
-                  this.tagFilterMode = 'all'
-                  this._dispatchTagChangeEvent()
+                  this.controlInput.tagFilterMode = 'all'
+                  this._dispatchChangeEvent()
                 }}
               />
               <span class="tag-filter-mode__option-text">
@@ -212,6 +210,6 @@ export class BfBrowserTagsControl extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'bf-browser-tags-control': BfBrowserTagsControl
+    'brandfolder-browser-control--tags': BfBrowserTagsControl
   }
 }

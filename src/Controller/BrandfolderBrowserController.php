@@ -206,10 +206,25 @@ class BrandfolderBrowserController extends ControllerBase {
 
     $response_data = FALSE;
     if ($result) {
-
-      // Assemble data related to browser controls
-      // (user search/filtering/sorting/etc.).
+      // Assemble data related to browser controls (user search/filtering/etc.).
       // @todo: Consider proactively customizing/winnowing this list based on which filter combinations will yield results.
+      $control_schema = [
+        'searchText' => '',
+        'tags' => [],
+      ];
+      $collections = $gatekeeper->getCollections();
+      if (!empty($collections)) {
+        $control_schema['collections'] = $collections;
+      }
+      $sections = $gatekeeper->getSections();
+      if (!empty($sections)) {
+        $control_schema['sections'] = $sections;
+      }
+      $labels = $gatekeeper->getLabels();
+      if (!empty($labels)) {
+        $control_schema['labels'] = $labels;
+      }
+
       $predefined_date_range_options = [
         'all'        => t('All'),
         '30m' => t('Last 30 Minutes'),
@@ -219,10 +234,7 @@ class BrandfolderBrowserController extends ControllerBase {
         '60d'    => t('Last 60 Days'),
         '90d'    => t('Last 90 Days'),
       ];
-      $control_schema = [
-        'collections' => $gatekeeper->getCollections(),
-        'sections' => $gatekeeper->getSections(),
-        'labels' => $gatekeeper->getLabels(),
+      $control_schema += [
         'aspect' => [
           'landscape' => t('Horizontal'),
           'portrait' => t('Vertical'),
@@ -231,19 +243,16 @@ class BrandfolderBrowserController extends ControllerBase {
         ],
         // @todo: maintain a registry of file types that are actually used and popular for the given Brandfolder and use those.
         'filetype' => [
-          'jpg',
-          'png',
-          'svg',
-          'gif',
-          'webp',
+          'jpg' => 'JPG/JPEG',
+          'png' => 'PNG',
+          'svg' => 'SVG',
+          'gif' => 'GIF',
+          'webp' => 'WebP',
           //    'mp4',
         ],
         'creationDate' => $predefined_date_range_options,
         'modificationDate' => $predefined_date_range_options,
         'publicationDate' => $predefined_date_range_options,
-
-        // @todo: Tags.
-
         'sortCriteria' => [
           'name'       => t('Name'),
           'score'      => t('Score'),
