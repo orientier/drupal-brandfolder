@@ -11,6 +11,7 @@ export class BrandfolderMediaContainer extends BrandfolderAssetBase {
     .brandfolder-media-container__inner {
       width: 100%;
       height: 100%;
+      min-height: 5rem;
       padding: 0.5rem;
       box-sizing: border-box;
       overflow: hidden;

@@ -33,6 +33,10 @@ import './controls/bf-browser-control--tags';
 //   allowed: bfGatekeeperCriteriaBase
 //   disallowed: bfGatekeeperCriteriaBase
 // }
+/**
+ * Format a date (or date+time) string according to our preferred
+ * date-only format.
+ */
 export function bfBrowserFormatDate(date) {
     return new Intl.DateTimeFormat('en-US', {
         year: 'numeric',
@@ -40,6 +44,9 @@ export function bfBrowserFormatDate(date) {
         day: 'numeric',
     }).format(new Date(date));
 }
+/**
+ * Format a date+time string according to our preferred format.
+ */
 export function bfBrowserFormatDateAndTime(datetime) {
     return new Intl.DateTimeFormat('en-US', {
         year: 'numeric',
@@ -48,6 +55,23 @@ export function bfBrowserFormatDateAndTime(datetime) {
         hour: 'numeric',
         minute: 'numeric',
     }).format(new Date(datetime));
+}
+/**
+ * Format a file size (in bytes) as a human-readable string.
+ */
+export function bfBrowserFormatFilesize(size) {
+    let sizeString = '';
+    if (size) {
+        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        let unitIndex = 0;
+        let sizeInUnits = size;
+        while (sizeInUnits >= 1024 && unitIndex < units.length - 1) {
+            sizeInUnits /= 1024;
+            unitIndex++;
+        }
+        sizeString = `${sizeInUnits.toFixed(1)} ${units[unitIndex]}`;
+    }
+    return sizeString;
 }
 /**
  * An interface for viewing/searching/filtering/selecting assets and attachments

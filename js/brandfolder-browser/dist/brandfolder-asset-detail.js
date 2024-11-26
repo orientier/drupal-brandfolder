@@ -31,7 +31,6 @@ let BrandfolderAssetDetail = class BrandfolderAssetDetail extends BrandfolderAss
         };
     }
     render() {
-        console.log('asset', this?.asset);
         let imgUrl = this?.thumbnailUrl;
         if (this?.cdnUrl) {
             const urlSansQuery = this.cdnUrl.replace(/^([^?]*)(\?.*)?$/, '$1');
@@ -115,6 +114,7 @@ BrandfolderAssetDetail.styles = css `
       height: 100%;
       display: grid;
       grid-template-columns: clamp(4rem, 20%, 10rem) 1fr;
+      container-type: size;
     }
 
     .backward-navigation-pane {
@@ -152,6 +152,12 @@ BrandfolderAssetDetail.styles = css `
       box-sizing: border-box;
     }
 
+    @container (max-width: 768px) {
+      .brandfolder-asset__content {
+        grid-template-columns: 1fr;
+      }
+    }
+
     img {
       max-width: 100%;
       height: auto;
@@ -161,7 +167,6 @@ BrandfolderAssetDetail.styles = css `
     .brandfolder-asset__info,
     .brandfolder-asset__attachments {
       padding: 1rem;
-      justify-items: flex-start;
     }
 
     .brandfolder-asset__name {
@@ -172,7 +177,7 @@ BrandfolderAssetDetail.styles = css `
     .brandfolder-asset__metadata {
       display: flex;
       flex-direction: column;
-      gap: 0.25rem;
+      gap: 0.5em;
       font-size: 0.75em;
       color: var(--color-gray-500);
       padding: 0.5rem 0;

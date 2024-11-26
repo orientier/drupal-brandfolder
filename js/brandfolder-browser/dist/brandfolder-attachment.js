@@ -6,6 +6,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 };
 import { css, html, LitElement } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import { bfBrowserFormatFilesize } from "./brandfolder-browser";
 /**
  * An element corresponding to an attachment in Brandfolder.
  */
@@ -114,19 +115,6 @@ let BrandfolderAttachment = class BrandfolderAttachment extends LitElement {
             const urlSansQuery = this.cdnUrl.replace(/^([^?]*)(\?.*)?$/, '$1');
             imgUrl = urlSansQuery + '?width=480&auto=webp&quality=80';
         }
-        // Generate a string with a human-readable file size and unit.
-        const size = this?.size;
-        let sizeString = '';
-        if (size) {
-            const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-            let unitIndex = 0;
-            let sizeInUnits = size;
-            while (sizeInUnits >= 1024 && unitIndex < units.length - 1) {
-                sizeInUnits /= 1024;
-                unitIndex++;
-            }
-            sizeString = `${sizeInUnits.toFixed(1)} ${units[unitIndex]}`;
-        }
         return html `
       <!--      @todo: UI indicating and facilitating selected status/selection.-->
       <div
@@ -155,7 +143,7 @@ let BrandfolderAttachment = class BrandfolderAttachment extends LitElement {
               ${this?.width} x ${this?.height}
             </div>
             <div class="bf-attachment__metadata-item">
-              ${sizeString}
+              ${bfBrowserFormatFilesize(this?.size)}
             </div>
         </div>
       </div>
