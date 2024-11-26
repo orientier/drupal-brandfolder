@@ -4,7 +4,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-import { html, css } from 'lit';
+import { css, html } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { BrandfolderAssetBase } from './brandfolder-asset-base';
 /**
@@ -13,42 +13,22 @@ import { BrandfolderAssetBase } from './brandfolder-asset-base';
 let BrandfolderAssetPreview = class BrandfolderAssetPreview extends BrandfolderAssetBase {
     render() {
         return html `
-      <img
-        class="brandfolder-asset__image"
-        src="${this?.asset?.attributes?.thumbnail_url}"
-        alt="${this?.asset?.attributes?.name}"
-      />
+      <brandfolder-media-container .isLink=${true}>
+        <img
+          slot="media"
+          class="brandfolder-asset__image"
+          src="${this?.asset?.attributes?.thumbnail_url}"
+          alt="${this?.asset?.attributes?.name}"
+        />
+      </brandfolder-media-container>
     `;
     }
 };
 BrandfolderAssetPreview.styles = css `
     :host {
-      overflow: hidden;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      background-image: conic-gradient(
-        var(--color-gray-50) 90deg,
-        var(--color-gray-100) 90deg 180deg,
-        var(--color-gray-50) 180deg 270deg,
-        var(--color-gray-100) 270deg
-      );
-      background-position: top left;
-      background-size: 0.5rem 0.5rem;
-    }
-
-    img {
-      max-width: 100%;
-      height: auto;
-    }
-
-    :host(:hover) {
-      cursor: pointer;
-    }
-
-    :host(:hover) img {
-      transition: scale 0.2s;
-      scale: 1.1;
+      //display: flex;
+      //justify-content: center;
+      //align-items: center;
     }
   `;
 BrandfolderAssetPreview = __decorate([

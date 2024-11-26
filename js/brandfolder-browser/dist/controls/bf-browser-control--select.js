@@ -35,6 +35,9 @@ let BfBrowserSelectControl = class BfBrowserSelectControl extends BfBrowserContr
         };
         this._dispatchChangeEvent();
     }
+    /**
+     * Render the select control.
+     */
     render() {
         const schema = this?.controlSchema;
         const schemaKey = this?.controlSchemaKey;
@@ -43,7 +46,6 @@ let BfBrowserSelectControl = class BfBrowserSelectControl extends BfBrowserContr
         const controlInputKey = this?.controlInputKey;
         const userInputValue = userInput && controlInputKey ? userInput[controlInputKey] : null;
         const elementId = `brandfolder-browser-controls-${controlInputKey}`;
-        console.log('schemaData:', schemaData);
         return schemaData && controlInputKey ? html `
       <div class="bf-browser-select-control__inner">
         ${this?.label ? html `

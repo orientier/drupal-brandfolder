@@ -47,6 +47,9 @@ let BfBrowserCheckboxesControl = class BfBrowserCheckboxesControl extends BfBrow
         };
         this._dispatchChangeEvent();
     }
+    /**
+     * Render the checkboxes control.
+     */
     render() {
         const schema = this?.controlSchema;
         const schemaKey = this?.controlSchemaKey;

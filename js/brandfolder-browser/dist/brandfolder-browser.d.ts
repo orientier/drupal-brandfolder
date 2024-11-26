@@ -3,6 +3,7 @@ import './brandfolder-asset-base';
 import './brandfolder-asset-detail';
 import './brandfolder-asset-preview';
 import './brandfolder-attachment';
+import './brandfolder-media-container';
 import './controls/bf-browser-controls';
 import './controls/bf-browser-control-base';
 import './controls/bf-browser-control-item';

@@ -37,6 +37,9 @@ let BfBrowserTagsControl = class BfBrowserTagsControl extends BfBrowserControlBa
         this.controlInput.tags = this.controlInput.tags.filter(tag => tag !== tagText);
         this._dispatchChangeEvent();
     }
+    /**
+     * Render the tags control.
+     */
     render() {
         return html `
       <div class="bf-browser-tags-control__inner" >

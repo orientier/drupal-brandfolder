@@ -15,7 +15,6 @@ export type BfAttachment = {
  * An element corresponding to an attachment in Brandfolder.
  */
 export declare class BrandfolderAttachment extends LitElement {
-    static styles: import("lit").CSSResult;
     /**
      * Brandfolder's unique ID for the attachment.
      */

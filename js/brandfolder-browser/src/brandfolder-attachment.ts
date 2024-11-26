@@ -1,4 +1,4 @@
-import {html, css, LitElement} from 'lit'
+import {html, LitElement} from 'lit'
 import {customElement, property} from 'lit/decorators.js'
 
 export type BfAttachment = {
@@ -19,21 +19,6 @@ export type BfAttachment = {
  */
 @customElement('brandfolder-attachment')
 export class BrandfolderAttachment extends LitElement {
-  static override styles = css`
-    img {
-      max-width: 100%;
-      height: auto;
-    }
-
-    :host(:hover) {
-      cursor: pointer;
-    }
-
-    :host(:hover) img {
-      transition: scale 0.2s;
-      scale: 1.1;
-    }
-  `
 
   /**
    * Brandfolder's unique ID for the attachment.
@@ -108,11 +93,14 @@ export class BrandfolderAttachment extends LitElement {
     return html`
       <!--      @todo: UI indicating and facilitating selected status/selection.-->
       <div @click=${this._attachmentSelectionHandler}>
-        <img
-          class="brandfolder-attachment__image"
-          src="${this?.thumbnail_url}"
-          alt="${this?.filename}"
-        />
+        <brandfolder-media-container .isLink=${true}>
+          <img
+            slot="media"
+            class="brandfolder-attachment__image"
+            src="${this?.thumbnail_url}"
+            alt="${this?.filename}"
+          />
+        </brandfolder-media-container>
         <p>${this?.filename}</p>
       </div>
     `

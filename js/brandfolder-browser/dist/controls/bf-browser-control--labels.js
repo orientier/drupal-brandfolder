@@ -42,6 +42,9 @@ let BfBrowserLabelsControl = class BfBrowserLabelsControl extends BfBrowserContr
             : ''}
     `;
     }
+    /**
+     * Render the labels control.
+     */
     render() {
         const labelsArray = Object.values(this?.controlSchema?.labels ?? []);
         return html `

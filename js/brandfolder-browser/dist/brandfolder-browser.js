@@ -13,6 +13,7 @@ import './brandfolder-asset-base';
 import './brandfolder-asset-detail';
 import './brandfolder-asset-preview';
 import './brandfolder-attachment';
+import './brandfolder-media-container';
 import './controls/bf-browser-controls';
 import './controls/bf-browser-control-base';
 import './controls/bf-browser-control-item';
@@ -365,6 +366,7 @@ BrandfolderBrowser.styles = css `
       --color-gray-700: #59595a;
       --color-gray-800: #3b3b3c;
       --color-gray-900: #1a1a1b;
+      --color-gray-900-trans: #1a1a1bdd;
 
       --color-white: #ffffff;
 

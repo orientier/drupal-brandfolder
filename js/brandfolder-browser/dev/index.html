@@ -7,6 +7,10 @@
     <script src="../node_modules/@webcomponents/webcomponentsjs/webcomponents-loader.js"></script>
     <script src="../node_modules/lit/polyfill-support.js"></script>
     <script type="module" src="../dist/brandfolder-browser.js"></script>
+    <script type="module" src="../dist/brandfolder-asset-preview.js"></script>
+    <script type="module" src="../dist/brandfolder-asset-detail.js"></script>
+    <script type="module" src="../dist/brandfolder-attachment.js"></script>
+    <script type="module" src="../dist/brandfolder-media-container.js"></script>
     <script type="module" src="../dist/controls/bf-browser-controls.js"></script>
     <script type="module" src="../dist/controls/bf-browser-control-item.js"></script>
     <script type="module" src="../dist/controls/bf-browser-control--checkboxes.js"></script>
@@ -14,13 +18,10 @@
     <script type="module" src="../dist/controls/bf-browser-control--search.js"></script>
     <script type="module" src="../dist/controls/bf-browser-control--select.js"></script>
     <script type="module" src="../dist/controls/bf-browser-control--tags.js"></script>
-    <script type="module" src="../dist/brandfolder-asset-preview.js"></script>
-    <script type="module" src="../dist/brandfolder-asset-detail.js"></script>
-    <script type="module" src="../dist/brandfolder-attachment.js"></script>
   </head>
   <body style="margin: 0;">
     <div class="brandfolder-browser-test-container" style="height: 95vh; width: 85vw; margin: 1rem auto; border: 1px solid red;">
-      <brandfolder-browser bf-browser-id="abc123" settings='{"apiEndpoint":"https://brandfolder-drupal-11.orien.tier/brandfolder-browser-update?XDEBUG_SESSION_START=PHPSTORM","assetsPerPage":10}'></brandfolder-browser>
+      <brandfolder-browser bf-browser-id="abc123" settings='{"apiEndpoint":"http://brandfolder-drupal-11.orien.tier/brandfolder-browser-update?XDEBUG_SESSION_START=PHPSTORM","assetsPerPage":50}'></brandfolder-browser>
     </div>
   </body>
 </html>

@@ -54,30 +54,33 @@ let BrandfolderAttachment = class BrandfolderAttachment extends LitElement {
         return html `
       <!--      @todo: UI indicating and facilitating selected status/selection.-->
       <div @click=${this._attachmentSelectionHandler}>
-        <img
-          class="brandfolder-attachment__image"
-          src="${this?.thumbnail_url}"
-          alt="${this?.filename}"
-        />
+        <brandfolder-media-container .isLink=${true}>
+          <img
+            slot="media"
+            class="brandfolder-attachment__image"
+            src="${this?.thumbnail_url}"
+            alt="${this?.filename}"
+          />
+        </brandfolder-media-container>
         <p>${this?.filename}</p>
       </div>
     `;
     }
 };
 BrandfolderAttachment.styles = css `
-    img {
-      max-width: 100%;
-      height: auto;
-    }
-
-    :host(:hover) {
-      cursor: pointer;
-    }
-
-    :host(:hover) img {
-      transition: scale 0.2s;
-      scale: 1.1;
-    }
+    //img {
+    //  max-width: 100%;
+    //  height: auto;
+    //}
+    //
+    //:host(:hover) {
+    //  cursor: pointer;
+    //}
+    //
+    //:host(:hover) img {
+    //  transition: scale 0.2s;
+    //  scale: 1.1;
+    //}
   `;
 __decorate([
     property({ type: String, attribute: 'bf-attachment-id' })

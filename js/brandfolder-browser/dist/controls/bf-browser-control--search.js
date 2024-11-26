@@ -18,6 +18,9 @@ let BfBrowserSearchControl = class BfBrowserSearchControl extends BfBrowserContr
         this.controlInput.searchText = this.searchTextInput.value;
         this._dispatchChangeEvent();
     }
+    /**
+     * Render the search control.
+     */
     render() {
         return html `
       <input type="text" class="search-text-input" aria-label="Search"
