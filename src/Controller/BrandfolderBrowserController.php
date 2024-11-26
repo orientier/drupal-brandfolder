@@ -201,6 +201,7 @@ class BrandfolderBrowserController extends ControllerBase {
     $gatekeeper = $this->brandfolderGatekeeper;
     $gatekeeper->setCriteria($gatekeeper_criteria);
     $query_params['include'] = 'attachments';
+    $query_params['fields'] = 'cdn_url,availability,created_at,updated_at,availability_start,availability_end';
 
     $result = $gatekeeper->fetchAssets($query_params);
 

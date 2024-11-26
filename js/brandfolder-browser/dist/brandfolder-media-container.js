@@ -18,13 +18,17 @@ let BrandfolderMediaContainer = class BrandfolderMediaContainer extends Brandfol
          */
         this.isLink = false;
         /**
+         * Whether this item is actively being engaged with.
+         */
+        this.isActive = false;
+        /**
          * Optional display format.
          */
         this.displayFormat = 'small';
     }
     render() {
         return html `
-      <div class="brandfolder-media-container__inner display-format--${this.displayFormat} ${this.isLink ? 'is-link' : ''}">
+      <div class="brandfolder-media-container__inner display-format--${this.displayFormat} ${this.isLink ? 'is-link' : ''} ${this.isActive ? 'is-active' : ''}" >
         <slot name="media"></slot>
       </div>
     `;
@@ -59,10 +63,9 @@ BrandfolderMediaContainer.styles = css `
     .brandfolder-media-container__inner ::slotted(img) {
       max-width: 100%;
       height: auto;
-    }
-    .brandfolder-media-container__inner.is-link ::slotted(img) {
       transition: scale 0.2s;
     }
+    .brandfolder-media-container__inner.is-active ::slotted(img),
     .brandfolder-media-container__inner.is-link:hover ::slotted(img) {
       scale: 1.1;
     }
@@ -70,6 +73,9 @@ BrandfolderMediaContainer.styles = css `
 __decorate([
     property({ type: Boolean, attribute: false })
 ], BrandfolderMediaContainer.prototype, "isLink", void 0);
+__decorate([
+    property({ type: Boolean, attribute: false })
+], BrandfolderMediaContainer.prototype, "isActive", void 0);
 __decorate([
     property({ type: String, attribute: false })
 ], BrandfolderMediaContainer.prototype, "displayFormat", void 0);

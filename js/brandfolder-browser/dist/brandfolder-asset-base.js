@@ -17,9 +17,82 @@ export class BrandfolderAssetBase extends LitElement {
          */
         this.assetId = null;
         /**
-         * The Brandfolder asset.
+         * The asset.
          */
         this.asset = null;
+        /**
+         * The asset name.
+         */
+        this.name = null;
+        /**
+         * Thumbnail URL.
+         */
+        this.thumbnailUrl = null;
+        /**
+         * Description.
+         */
+        this.description = null;
+        /**
+         * CDN URL.
+         */
+        this.cdnUrl = null;
+        /**
+         * Attachments.
+         */
+        this.attachments = null;
+        /**
+         * Tags.
+         */
+        this.tags = null;
+        /**
+         * Labels to which the asset belongs.
+         */
+        this.labels = null;
+        /**
+         * Collections to which the asset belongs.
+         */
+        this.collections = null;
+        /**
+         * Date the asset was created.
+         */
+        this.creationDate = null;
+        /**
+         * Date the asset was last modified.
+         */
+        this.modificationDate = null;
+        /**
+         * Date the asset was published.
+         */
+        this.publicationDate = null;
+        /**
+         * Date the asset expires.
+         */
+        this.expirationDate = null;
+        /**
+         * A string used in CDN URLs for assets and attachments in this asset's
+         * Brandfolder.
+         */
+        this.bfCdnUrlBase = null;
+    }
+    /**
+     * Connected callback. Set as many properties as possible from the asset.
+     */
+    connectedCallback() {
+        super.connectedCallback();
+        if (this.asset) {
+            this.assetId = this.asset.id;
+            this.name = this.asset.attributes.name;
+            this.thumbnailUrl = this.asset.attributes.thumbnail_url;
+            this.description = this.asset.attributes.description;
+            this.attachments = this.asset.attachments;
+            this.creationDate = this.asset.attributes.created_at;
+            this.modificationDate = this.asset.attributes.updated_at;
+            this.publicationDate = this.asset.attributes.availability_start;
+            this.expirationDate = this.asset.attributes.availability_end;
+            const cdnUrl = this.asset.attributes.cdn_url;
+            this.cdnUrl = cdnUrl;
+            this.bfCdnUrlBase = cdnUrl.replace(/^(.*)\/as\/.*$/, '$1');
+        }
     }
 }
 __decorate([
@@ -28,4 +101,43 @@ __decorate([
 __decorate([
     property({ type: Object, attribute: false })
 ], BrandfolderAssetBase.prototype, "asset", void 0);
+__decorate([
+    property({ type: String, attribute: false })
+], BrandfolderAssetBase.prototype, "name", void 0);
+__decorate([
+    property({ type: String, attribute: false })
+], BrandfolderAssetBase.prototype, "thumbnailUrl", void 0);
+__decorate([
+    property({ type: String, attribute: false })
+], BrandfolderAssetBase.prototype, "description", void 0);
+__decorate([
+    property({ type: String, attribute: false })
+], BrandfolderAssetBase.prototype, "cdnUrl", void 0);
+__decorate([
+    property({ type: Array, attribute: false })
+], BrandfolderAssetBase.prototype, "attachments", void 0);
+__decorate([
+    property({ type: Array, attribute: false })
+], BrandfolderAssetBase.prototype, "tags", void 0);
+__decorate([
+    property({ type: Array, attribute: false })
+], BrandfolderAssetBase.prototype, "labels", void 0);
+__decorate([
+    property({ type: Object, attribute: false })
+], BrandfolderAssetBase.prototype, "collections", void 0);
+__decorate([
+    property({ type: String, attribute: false })
+], BrandfolderAssetBase.prototype, "creationDate", void 0);
+__decorate([
+    property({ type: String, attribute: false })
+], BrandfolderAssetBase.prototype, "modificationDate", void 0);
+__decorate([
+    property({ type: String, attribute: false })
+], BrandfolderAssetBase.prototype, "publicationDate", void 0);
+__decorate([
+    property({ type: String, attribute: false })
+], BrandfolderAssetBase.prototype, "expirationDate", void 0);
+__decorate([
+    property({ type: String, attribute: false })
+], BrandfolderAssetBase.prototype, "bfCdnUrlBase", void 0);
 //# sourceMappingURL=brandfolder-asset-base.js.map

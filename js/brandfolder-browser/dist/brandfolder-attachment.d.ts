@@ -15,6 +15,7 @@ export type BfAttachment = {
  * An element corresponding to an attachment in Brandfolder.
  */
 export declare class BrandfolderAttachment extends LitElement {
+    static styles: import("lit").CSSResult;
     /**
      * Brandfolder's unique ID for the attachment.
      */
@@ -23,15 +24,51 @@ export declare class BrandfolderAttachment extends LitElement {
      * An object matching the Brandfolder attachment schema.
      */
     attachment: BfAttachment | null;
+    /**
+     * The MIME type of the file.
+     */
     mimetype: string | null;
-    extension: string;
-    filename: string;
-    size: number;
-    width: number;
-    height: number;
-    thumbnail_url: string;
-    cdn_url: string;
-    url: string;
+    /**
+     * The file extension.
+     */
+    extension: string | null;
+    /**
+     * The filename of the file.
+     */
+    filename: string | null;
+    /**
+     * The size of the file in bytes.
+     */
+    size: number | null;
+    /**
+     * The width of the file in pixels.
+     */
+    width: number | null;
+    /**
+     * The height of the file in pixels.
+     */
+    height: number | null;
+    /**
+     * The URL of the thumbnail image.
+     */
+    thumbnailUrl: string | null;
+    /**
+     * CDN URL.
+     */
+    cdnUrl: string | null;
+    /**
+     * The standard URL of the attachment. Not as performant or manipulable as
+     * the CDN URL.
+     */
+    url: string | null;
+    /**
+     * The base URL for all CDN URLs for this attachment's Brandfolder.
+     */
+    bfCdnUrlBase: string | null;
+    /**
+     * State tracking whether the user is hovering over the attachment.
+     */
+    private _isHovered;
     /**
      * Callback executed when the element is added to the document.
      */

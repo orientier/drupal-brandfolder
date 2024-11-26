@@ -36,10 +36,9 @@ export class BrandfolderMediaContainer extends BrandfolderAssetBase {
     .brandfolder-media-container__inner ::slotted(img) {
       max-width: 100%;
       height: auto;
-    }
-    .brandfolder-media-container__inner.is-link ::slotted(img) {
       transition: scale 0.2s;
     }
+    .brandfolder-media-container__inner.is-active ::slotted(img),
     .brandfolder-media-container__inner.is-link:hover ::slotted(img) {
       scale: 1.1;
     }
@@ -52,6 +51,12 @@ export class BrandfolderMediaContainer extends BrandfolderAssetBase {
   isLink = false
 
   /**
+   * Whether this item is actively being engaged with.
+   */
+  @property({type: Boolean, attribute: false})
+  isActive = false
+
+  /**
    * Optional display format.
    */
   @property({type: String, attribute: false})
@@ -59,7 +64,7 @@ export class BrandfolderMediaContainer extends BrandfolderAssetBase {
 
   override render() {
     return html`
-      <div class="brandfolder-media-container__inner display-format--${this.displayFormat} ${this.isLink ? 'is-link' : ''}">
+      <div class="brandfolder-media-container__inner display-format--${this.displayFormat} ${this.isLink ? 'is-link' : ''} ${this.isActive ? 'is-active' : ''}" >
         <slot name="media"></slot>
       </div>
     `

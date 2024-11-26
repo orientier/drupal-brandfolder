@@ -1,6 +1,8 @@
 import {html, css} from 'lit'
 import {customElement} from 'lit/decorators.js'
+import { unsafeHTML } from 'lit/directives/unsafe-html.js'
 import {BrandfolderAssetBase} from './brandfolder-asset-base'
+import {bfBrowserFormatDateAndTime} from "./brandfolder-browser";
 
 /**
  * An element displaying the details of an individual asset and allowing users
@@ -53,16 +55,34 @@ export class BrandfolderAssetDetail extends BrandfolderAssetBase {
       gap: 1rem;
       height: 100%;
       overflow: scroll;
+      box-sizing: border-box;
     }
 
     img {
       max-width: 100%;
       height: auto;
+      max-height: max(20rem, 50vh);
     }
 
     .brandfolder-asset__info,
     .brandfolder-asset__attachments {
       padding: 1rem;
+      justify-items: flex-start;
+    }
+
+    .brandfolder-asset__name {
+      margin: 0 0 1rem;
+      font-size: 1.5rem;
+    }
+
+    .brandfolder-asset__metadata {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      font-size: 0.75em;
+      color: var(--color-gray-500);
+      padding: 0.5rem 0;
+      font-style: italic;
     }
 
     .brandfolder-asset__attachments-header {
@@ -85,6 +105,15 @@ export class BrandfolderAssetDetail extends BrandfolderAssetBase {
       gap: 1rem;
       align-items: center;
     }
+
+    .brandfolder-asset__attachment-list-item {
+      width: 100%;
+      box-shadow: 0.2rem 0.2rem 0.5rem var(--color-gray-300);
+      border: 1px solid var(--color-gray-50);
+      border-radius: 0.25rem;
+      box-sizing: border-box;
+      padding: 0.5rem;
+    }
   `
 
   /**
@@ -102,12 +131,13 @@ export class BrandfolderAssetDetail extends BrandfolderAssetBase {
   }
 
   override render() {
-    let imgUrl = this?.asset?.attributes?.thumbnail_url
-    if (this?.asset?.attributes?.cdn_url) {
-      imgUrl = this.asset.attributes.cdn_url.replace(/\?.*$/, '') + '?width=720&auto=webp&quality=80'
+    let imgUrl = this?.thumbnailUrl
+    if (this?.cdnUrl) {
+      const urlSansQuery = this.cdnUrl.replace(/^([^?]*)(\?.*)?$/, '$1')
+      imgUrl = urlSansQuery + '?width=720&auto=webp&quality=80'
     }
 
-    const attachments = Object.values(this?.asset?.attachments ?? {})
+    const attachments = Object.values(this?.attachments ?? {})
     const numAttachments = attachments.length
 
     return html`
@@ -121,20 +151,40 @@ export class BrandfolderAssetDetail extends BrandfolderAssetBase {
         </div>
         <div class="brandfolder-asset__content">
           <div class="brandfolder-asset__info">
-            <h2>${this?.asset?.attributes?.name}</h2>
+            <h2 class="brandfolder-asset__name">${this?.name}</h2>
             <div class="brandfolder-asset__image-wrapper">
               <brandfolder-media-container .displayFormat=${'large'}>
                 <img
                   slot="media"
                   class="brandfolder-asset__image"
                   src="${imgUrl}"
-                  alt="${this?.asset?.attributes?.name}"
+                  alt="${this?.name}"
                 />
               </brandfolder-media-container>
             </div>
-            ${
-              this?.asset?.attributes?.description &&
-              `<p>${this.asset.attributes.description}</p>`
+            <div class="brandfolder-asset__metadata">
+              <div class="brandfolder-asset__metadata-item">
+                Created on ${bfBrowserFormatDateAndTime(this?.creationDate)}
+              </div>
+              <div class="brandfolder-asset__metadata-item">
+                Updated on ${bfBrowserFormatDateAndTime(this?.modificationDate)}
+              </div>
+              ${this?.publicationDate ? html`
+                <div class="brandfolder-asset__metadata-item">
+                  Published on ${bfBrowserFormatDateAndTime(this.publicationDate)}
+                </div>
+              ` : ''
+              }
+              ${this?.expirationDate ? html`
+                <div class="brandfolder-asset__metadata-item">
+                  Expires on ${bfBrowserFormatDateAndTime(this.expirationDate)}
+                </div>
+              ` : ''
+              }
+            </div>
+            ${this?.description ? html`
+              <div class="brandfolder-asset__description">${unsafeHTML(this.description)}</div>
+              ` : ''
             }
           </div>
           <div class="brandfolder-asset__attachments">
@@ -147,11 +197,10 @@ export class BrandfolderAssetDetail extends BrandfolderAssetBase {
               </span>
             </header>
             <ul class="brandfolder-asset__attachments-list">
-            ${Object.values(this?.asset?.attachments).map(
+            ${Object.values(this?.attachments).map(
               (attachment) => html`
                 <li class="brandfolder-asset__attachment-list-item">
-                  <!-- @todo: include attachment cdn_url in data set if possible without extra API calls. -->
-                  <brandfolder-attachment .attachment=${attachment} />
+                  <brandfolder-attachment .attachment=${attachment} .bfCdnUrlBase="${this?.bfCdnUrlBase}" />
                 </li>
               `
             )}

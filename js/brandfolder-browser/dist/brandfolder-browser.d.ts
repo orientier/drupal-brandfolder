@@ -18,6 +18,19 @@ type BfBrowserSettings = {
     endpoint: string;
 };
 /**
+ * Format a date (or date+time) string according to our preferred
+ * date-only format.
+ */
+export declare function bfBrowserFormatDate(date: string): string;
+/**
+ * Format a date+time string according to our preferred format.
+ */
+export declare function bfBrowserFormatDateAndTime(datetime: string): string;
+/**
+ * Format a file size (in bytes) as a human-readable string.
+ */
+export declare function bfBrowserFormatFilesize(size: number): string;
+/**
  * An interface for viewing/searching/filtering/selecting assets and attachments
  * from Brandfolder.
  */

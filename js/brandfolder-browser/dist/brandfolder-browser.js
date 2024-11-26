@@ -33,6 +33,22 @@ import './controls/bf-browser-control--tags';
 //   allowed: bfGatekeeperCriteriaBase
 //   disallowed: bfGatekeeperCriteriaBase
 // }
+export function bfBrowserFormatDate(date) {
+    return new Intl.DateTimeFormat('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+    }).format(new Date(date));
+}
+export function bfBrowserFormatDateAndTime(datetime) {
+    return new Intl.DateTimeFormat('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+    }).format(new Date(datetime));
+}
 /**
  * An interface for viewing/searching/filtering/selecting assets and attachments
  * from Brandfolder.
@@ -378,6 +394,7 @@ BrandfolderBrowser.styles = css `
       width: 100%;
       height: var(--bf-browser-height);
       color: var(--color-gray-800);
+      box-sizing: border-box;
     }
 
     :host([format='full']) {

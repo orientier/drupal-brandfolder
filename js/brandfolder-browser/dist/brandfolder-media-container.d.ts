@@ -9,6 +9,10 @@ export declare class BrandfolderMediaContainer extends BrandfolderAssetBase {
      */
     isLink: boolean;
     /**
+     * Whether this item is actively being engaged with.
+     */
+    isActive: boolean;
+    /**
      * Optional display format.
      */
     displayFormat: string;
