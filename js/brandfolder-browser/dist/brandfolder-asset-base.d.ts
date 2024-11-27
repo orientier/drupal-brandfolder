@@ -1,4 +1,4 @@
-import { LitElement } from 'lit';
+import { LitElement, PropertyValues } from 'lit';
 import { BfAttachment } from './brandfolder-attachment';
 import { BfLabelTreeNode } from "./controls/bf-browser-control--labels";
 import { BfKvList } from "./controls/bf-browser-controls";
@@ -83,9 +83,10 @@ export declare class BrandfolderAssetBase extends LitElement {
      */
     bfCdnUrlBase: string | null;
     /**
-     * Connected callback. Set as many properties as possible from the asset.
+     * Lifecycle method called before update() to compute values needed during
+     * the update.
      */
-    connectedCallback(): void;
+    willUpdate(changedProperties: PropertyValues<this>): void;
 }
 export {};
 //# sourceMappingURL=brandfolder-asset-base.d.ts.map

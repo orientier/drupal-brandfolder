@@ -7,6 +7,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 import { css, html, LitElement } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { bfBrowserFormatFilesize } from "./brandfolder-browser";
+import { bfBrowserContext } from "./brandfolder-browser-context";
+import { consume } from "@lit/context";
+import { live } from "lit/directives/live.js";
 /**
  * An element corresponding to an attachment in Brandfolder.
  */
@@ -63,17 +66,25 @@ let BrandfolderAttachment = class BrandfolderAttachment extends LitElement {
          */
         this.bfCdnUrlBase = null;
         /**
+         * The format/variant in which the attachment should be displayed.
+         */
+        this.displayFormat = 'default';
+        /**
          * State tracking whether the user is hovering over the attachment.
          */
         this._isHovered = false;
+        /**
+         * Property tracking whether the attachment is selected.
+         */
+        this._isSelected = false;
     }
     /**
-     * Callback executed when the element is added to the document.
+     * Lifecycle method called before update() to compute values needed during
+     * the update.
      */
-    connectedCallback() {
-        super.connectedCallback();
-        // If the attachment property is set, use it to set other properties.
-        if (this.attachment) {
+    willUpdate(changedProperties) {
+        // Use the attachment property to populate numerous derivative properties.
+        if (changedProperties.has('attachment') && this.attachment) {
             this.attachmentId = this.attachment?.id;
             this.mimetype = this.attachment?.mimetype;
             this.extension = this.attachment?.extension;
@@ -96,19 +107,36 @@ let BrandfolderAttachment = class BrandfolderAttachment extends LitElement {
                     urlFilename = 'attachment.jpg';
                 }
                 cdnUrl = `${this.bfCdnUrlBase}/at/${this.attachmentId}/${urlFilename}`;
+                // Add the computed CDN URL to the attachment object if it was
+                // missing. This will be useful when accessing the attachment elsewhere
+                // in the app, outside an asset context.
+                this.attachment.cdn_url = cdnUrl;
             }
             this.cdnUrl = cdnUrl;
         }
+        if (this?.attachmentId && this?.browserContext?.selectedAttachments) {
+            this._isSelected = !!this.browserContext.selectedAttachments[this.attachmentId];
+        }
     }
+    /**
+     * Handle selection/deselection of this attachment.
+     */
     _attachmentSelectionHandler() {
-        // @todo: Internal state tracking selected status, and UI indicating it.
+        this._isSelected = !this._isSelected;
         const options = {
-            detail: { attachmentId: this.attachmentId },
+            detail: {
+                attachmentId: this.attachmentId,
+                attachment: this.attachment,
+                isSelected: this._isSelected,
+            },
             bubbles: true,
             composed: true,
         };
         this.dispatchEvent(new CustomEvent('bfAttachmentSelection', options));
     }
+    /**
+     * Render the component.
+     */
     render() {
         let imgUrl = this?.thumbnailUrl;
         if (this?.cdnUrl) {
@@ -116,12 +144,8 @@ let BrandfolderAttachment = class BrandfolderAttachment extends LitElement {
             imgUrl = urlSansQuery + '?width=480&auto=webp&quality=80';
         }
         return html `
-      <!--      @todo: UI indicating and facilitating selected status/selection.-->
       <div
         class="bf-attachment__inner"
-        @mouseenter=${() => { this._isHovered = true; }}
-        @mouseleave=${() => { this._isHovered = false; }}
-        @click=${this._attachmentSelectionHandler}
       >
         <div class="bf-attachment__image-wrapper">
           <brandfolder-media-container .isActive=${this._isHovered}>
@@ -135,17 +159,44 @@ let BrandfolderAttachment = class BrandfolderAttachment extends LitElement {
         </div>
         <div class="bf-attachment__info">
           <div class="bf-attachment__name">${this?.filename}</div>
-          <div class="bf-attachment__metadata">
-            <div class="bf-attachment__metadata-item">
-              ${this?.mimetype}
+          ${this?.displayFormat !== 'tray' ? html `
+            <div class="bf-attachment__metadata">
+              <div class="bf-attachment__metadata-item">
+                ${this?.mimetype}
+              </div>
+              <div class="bf-attachment__metadata-item">
+                ${this?.width} x ${this?.height}
+              </div>
+              <div class="bf-attachment__metadata-item">
+                ${bfBrowserFormatFilesize(this?.size)}
+              </div>
             </div>
-            <div class="bf-attachment__metadata-item">
-              ${this?.width} x ${this?.height}
-            </div>
-            <div class="bf-attachment__metadata-item">
-              ${bfBrowserFormatFilesize(this?.size)}
-            </div>
+          ` : ''}
         </div>
+        ${this?.displayFormat === 'tray' ? html `
+          <div class="attachment__deselection">
+            <button
+              @click=${this._attachmentSelectionHandler}
+            >
+              Deselect
+            </button
+          </div>
+        ` : html `
+          <div class="attachment__selection">
+            <div class="attachment__selection-status">
+              <input
+                id="attachment-selection--${this.attachmentId}"
+                name="attachment-selection--${this.attachmentId}"
+                type="checkbox"
+                .checked=${live(this._isSelected)}
+                @change=${this._attachmentSelectionHandler}
+              />
+              <label for="attachment-selection--${this.attachmentId}">
+                Select this attachment
+              </label>
+            </div>
+          </div>
+        `}
       </div>
     `;
     }
@@ -184,7 +235,7 @@ BrandfolderAttachment.styles = css `
     }
   `;
 __decorate([
-    property({ type: String, attribute: 'bf-attachment-id' })
+    property({ type: String, attribute: 'bf-attachment-id', reflect: true })
 ], BrandfolderAttachment.prototype, "attachmentId", void 0);
 __decorate([
     property({ type: Object, attribute: false })
@@ -220,8 +271,17 @@ __decorate([
     property({ type: String, attribute: false })
 ], BrandfolderAttachment.prototype, "bfCdnUrlBase", void 0);
 __decorate([
+    property({ type: String, attribute: false })
+], BrandfolderAttachment.prototype, "displayFormat", void 0);
+__decorate([
     state()
 ], BrandfolderAttachment.prototype, "_isHovered", void 0);
+__decorate([
+    state()
+], BrandfolderAttachment.prototype, "_isSelected", void 0);
+__decorate([
+    consume({ context: bfBrowserContext, subscribe: true })
+], BrandfolderAttachment.prototype, "browserContext", void 0);
 BrandfolderAttachment = __decorate([
     customElement('brandfolder-attachment')
 ], BrandfolderAttachment);

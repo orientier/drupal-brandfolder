@@ -4,6 +4,7 @@ import './brandfolder-asset-detail';
 import './brandfolder-asset-preview';
 import './brandfolder-attachment';
 import './brandfolder-media-container';
+import './brandfolder-browser-selection-tray';
 import './controls/bf-browser-controls';
 import './controls/bf-browser-control-base';
 import './controls/bf-browser-control-item';
@@ -84,6 +85,13 @@ export declare class BrandfolderBrowser extends LitElement {
      * including total items, total pages, current page, etc.
      */
     private _assetFetchMeta;
+    /**
+     * Our custom BF Browser context, which is used to store things like the list
+     * of selected attachments so descendant components can access it by consuming
+     * the context, rather than us having to pass data down through the component
+     * tree manually.
+     */
+    private _browserContext;
     /**
      * Constructor.
      */

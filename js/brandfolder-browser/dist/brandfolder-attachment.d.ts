@@ -1,4 +1,6 @@
-import { LitElement } from 'lit';
+import { LitElement, PropertyValues } from 'lit';
+import { BfAsset } from "./brandfolder-asset-base";
+import { BfBrowserContext } from "./brandfolder-browser-context";
 export type BfAttachment = {
     id: string;
     mimetype: string;
@@ -10,6 +12,10 @@ export type BfAttachment = {
     thumbnail_url: string;
     cdn_url: string;
     url: string;
+    asset?: BfAsset;
+};
+export type BfAttachmentList = {
+    [key: string]: BfAttachment;
 };
 /**
  * An element corresponding to an attachment in Brandfolder.
@@ -66,14 +72,34 @@ export declare class BrandfolderAttachment extends LitElement {
      */
     bfCdnUrlBase: string | null;
     /**
+     * The format/variant in which the attachment should be displayed.
+     */
+    displayFormat: string;
+    /**
      * State tracking whether the user is hovering over the attachment.
      */
     private _isHovered;
     /**
-     * Callback executed when the element is added to the document.
+     * Property tracking whether the attachment is selected.
      */
-    connectedCallback(): void;
+    private _isSelected;
+    /**
+     * Consume the browser context so we can cleanly access browser-wide data
+     * (and subscribe to be made aware of any changes).
+     */
+    browserContext: BfBrowserContext;
+    /**
+     * Lifecycle method called before update() to compute values needed during
+     * the update.
+     */
+    willUpdate(changedProperties: PropertyValues<this>): void;
+    /**
+     * Handle selection/deselection of this attachment.
+     */
     private _attachmentSelectionHandler;
+    /**
+     * Render the component.
+     */
     render(): import("lit-html").TemplateResult<1>;
 }
 declare global {

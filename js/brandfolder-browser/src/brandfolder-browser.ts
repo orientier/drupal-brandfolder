@@ -1,6 +1,11 @@
 import {css, html, LitElement} from 'lit'
 import {Task, TaskStatus} from '@lit/task'
+import {provide} from '@lit/context'
 import {customElement, property, state} from 'lit/decorators.js'
+import {
+  BfBrowserContext,
+  bfBrowserContext
+} from "./brandfolder-browser-context";
 import {BfAsset} from './brandfolder-asset-base'
 import {BrandfolderAssetPreview} from './brandfolder-asset-preview'
 import {
@@ -14,6 +19,7 @@ import './brandfolder-asset-detail'
 import './brandfolder-asset-preview'
 import './brandfolder-attachment'
 import './brandfolder-media-container'
+import './brandfolder-browser-selection-tray'
 import './controls/bf-browser-controls'
 import './controls/bf-browser-control-base'
 import './controls/bf-browser-control-item'
@@ -146,7 +152,7 @@ export class BrandfolderBrowser extends LitElement {
     .bf-browser__inner {
       position: relative;
       display: grid;
-      grid-template-rows: auto 1fr;
+      grid-template-rows: auto 1fr auto;
       height: 100%;
     }
 
@@ -160,9 +166,9 @@ export class BrandfolderBrowser extends LitElement {
       overflow: scroll;
     }
 
-    :host.is-asset-detail-open .bf-browser__controls-container,
-    :host.is-asset-detail-open .bf-browser__results-container {
-      display: none;
+    .bf-browser__selection-tray-container {
+      grid-area: 3 / 1 / span 1 / -1;
+      padding: 0.5rem;
     }
 
     .asset-list {
@@ -249,6 +255,18 @@ export class BrandfolderBrowser extends LitElement {
    */
   @state()
   private _assetFetchMeta: BfAssetFetchMeta | null = null
+
+  /**
+   * Our custom BF Browser context, which is used to store things like the list
+   * of selected attachments so descendant components can access it by consuming
+   * the context, rather than us having to pass data down through the component
+   * tree manually.
+   */
+  @provide({context: bfBrowserContext})
+  @state()
+  private _browserContext: BfBrowserContext = {
+    selectedAttachments: {},
+  }
 
   /**
    * Constructor.
@@ -464,11 +482,25 @@ export class BrandfolderBrowser extends LitElement {
    * Handle attachment selection events.
    */
   private _attachmentSelectionHandler = (e: CustomEvent) => {
-    // @todo: Manage selection limits, maintain a tray showing all selected items, etc.
-    const attachmentId = e.detail.attachmentId
+    // @todo: Manage selection limits
+    const {attachmentId, attachment, isSelected} = e.detail
     if (!attachmentId?.length) {
       return
     }
+    // Update the browser context to indicate whether the attachment is
+    // selected. Do this in a way that will trigger an update.
+    const selectedAttachments = this._browserContext.selectedAttachments
+    if (isSelected) {
+      selectedAttachments[attachmentId] = attachment
+    }
+    else {
+      delete selectedAttachments[attachmentId]
+    }
+    this._browserContext = {
+      ...this._browserContext,
+      selectedAttachments
+    }
+
     // Find the closest form ancestor, then find the hidden input element
     // named "selected_bf_attachment_ids" and append the attachment ID to its
     // value if it's not already present.
@@ -479,12 +511,7 @@ export class BrandfolderBrowser extends LitElement {
         'input[name="selected_bf_attachment_ids"]'
       ) as HTMLInputElement
       if (selectedAttachmentIdsInput) {
-        const inputVal = selectedAttachmentIdsInput.value.trim()
-        const selectedAttachmentIds = inputVal.split(',').filter((id) => id)
-        if (!selectedAttachmentIds.includes(attachmentId)) {
-          selectedAttachmentIds.push(attachmentId)
-          selectedAttachmentIdsInput.value = selectedAttachmentIds.join(',')
-        }
+        selectedAttachmentIdsInput.value = Object.keys(this._browserContext.selectedAttachments).join(',')
       }
     }
   }
@@ -550,6 +577,12 @@ export class BrandfolderBrowser extends LitElement {
               />
             `
           : ''}
+        ${Object.values(this._browserContext.selectedAttachments).length > 0 ? html`
+          <div class="bf-browser__selection-tray-container">
+            <brandfolder-browser-selection-tray></brandfolder-browser-selection-tray>
+          </div>
+          ` : ''
+        }
       </div>
     `
   }

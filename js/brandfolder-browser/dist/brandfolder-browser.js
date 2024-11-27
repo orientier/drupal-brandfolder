@@ -6,7 +6,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 };
 import { css, html, LitElement } from 'lit';
 import { Task, TaskStatus } from '@lit/task';
+import { provide } from '@lit/context';
 import { customElement, property, state } from 'lit/decorators.js';
+import { bfBrowserContext } from "./brandfolder-browser-context";
 // Import all subcomponents and class dependencies so we can compile
 // everything into a single JS file with this file as the sole entry point.
 import './brandfolder-asset-base';
@@ -14,6 +16,7 @@ import './brandfolder-asset-detail';
 import './brandfolder-asset-preview';
 import './brandfolder-attachment';
 import './brandfolder-media-container';
+import './brandfolder-browser-selection-tray';
 import './controls/bf-browser-controls';
 import './controls/bf-browser-control-base';
 import './controls/bf-browser-control-item';
@@ -136,6 +139,15 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
          */
         this._assetFetchMeta = null;
         /**
+         * Our custom BF Browser context, which is used to store things like the list
+         * of selected attachments so descendant components can access it by consuming
+         * the context, rather than us having to pass data down through the component
+         * tree manually.
+         */
+        this._browserContext = {
+            selectedAttachments: {},
+        };
+        /**
          * Callback executed when the element is removed from the document.
          */
         // override disconnectedCallback() {
@@ -239,11 +251,24 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
          * Handle attachment selection events.
          */
         this._attachmentSelectionHandler = (e) => {
-            // @todo: Manage selection limits, maintain a tray showing all selected items, etc.
-            const attachmentId = e.detail.attachmentId;
+            // @todo: Manage selection limits
+            const { attachmentId, attachment, isSelected } = e.detail;
             if (!attachmentId?.length) {
                 return;
             }
+            // Update the browser context to indicate whether the attachment is
+            // selected. Do this in a way that will trigger an update.
+            const selectedAttachments = this._browserContext.selectedAttachments;
+            if (isSelected) {
+                selectedAttachments[attachmentId] = attachment;
+            }
+            else {
+                delete selectedAttachments[attachmentId];
+            }
+            this._browserContext = {
+                ...this._browserContext,
+                selectedAttachments
+            };
             // Find the closest form ancestor, then find the hidden input element
             // named "selected_bf_attachment_ids" and append the attachment ID to its
             // value if it's not already present.
@@ -252,12 +277,7 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
             if (form) {
                 const selectedAttachmentIdsInput = form.querySelector('input[name="selected_bf_attachment_ids"]');
                 if (selectedAttachmentIdsInput) {
-                    const inputVal = selectedAttachmentIdsInput.value.trim();
-                    const selectedAttachmentIds = inputVal.split(',').filter((id) => id);
-                    if (!selectedAttachmentIds.includes(attachmentId)) {
-                        selectedAttachmentIds.push(attachmentId);
-                        selectedAttachmentIdsInput.value = selectedAttachmentIds.join(',');
-                    }
+                    selectedAttachmentIdsInput.value = Object.keys(this._browserContext.selectedAttachments).join(',');
                 }
             }
         };
@@ -390,6 +410,11 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
               />
             `
             : ''}
+        ${Object.values(this._browserContext.selectedAttachments).length > 0 ? html `
+          <div class="bf-browser__selection-tray-container">
+            <brandfolder-browser-selection-tray></brandfolder-browser-selection-tray>
+          </div>
+          ` : ''}
       </div>
     `;
     }
@@ -435,7 +460,7 @@ BrandfolderBrowser.styles = css `
     .bf-browser__inner {
       position: relative;
       display: grid;
-      grid-template-rows: auto 1fr;
+      grid-template-rows: auto 1fr auto;
       height: 100%;
     }
 
@@ -449,9 +474,9 @@ BrandfolderBrowser.styles = css `
       overflow: scroll;
     }
 
-    :host.is-asset-detail-open .bf-browser__controls-container,
-    :host.is-asset-detail-open .bf-browser__results-container {
-      display: none;
+    .bf-browser__selection-tray-container {
+      grid-area: 3 / 1 / span 1 / -1;
+      padding: 0.5rem;
     }
 
     .asset-list {
@@ -493,6 +518,10 @@ __decorate([
 __decorate([
     state()
 ], BrandfolderBrowser.prototype, "_assetFetchMeta", void 0);
+__decorate([
+    provide({ context: bfBrowserContext }),
+    state()
+], BrandfolderBrowser.prototype, "_browserContext", void 0);
 BrandfolderBrowser = __decorate([
     customElement('brandfolder-browser')
 ], BrandfolderBrowser);

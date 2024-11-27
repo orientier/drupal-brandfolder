@@ -1,4 +1,4 @@
-import {LitElement} from 'lit'
+import {LitElement, PropertyValues} from 'lit'
 import {property} from 'lit/decorators.js'
 import {BfAttachment} from './brandfolder-attachment'
 import {BfLabelTreeNode} from "./controls/bf-browser-control--labels";
@@ -117,11 +117,12 @@ export class BrandfolderAssetBase extends LitElement {
   bfCdnUrlBase: string | null = null
 
   /**
-   * Connected callback. Set as many properties as possible from the asset.
+   * Lifecycle method called before update() to compute values needed during
+   * the update.
    */
-  override connectedCallback() {
-    super.connectedCallback()
-    if (this.asset) {
+  override willUpdate(changedProperties: PropertyValues<this>) {
+    // Use the asset property to populate numerous derivative properties.
+    if (changedProperties.has('asset') && this.asset) {
       this.assetId = this.asset.id
       this.name = this.asset.attributes.name
       this.thumbnailUrl = this.asset.attributes.thumbnail_url

@@ -14,7 +14,7 @@ export class BrandfolderAssetDetail extends BrandfolderAssetBase {
     :host {
       z-index: 2;
       background: var(--color-gray-900-trans);
-      grid-area: 1 / 1 / -1 / -1;
+      grid-area: 1 / 1 / -2 / -1;
     }
 
     .brandfolder-asset__container {

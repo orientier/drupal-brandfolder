@@ -1,6 +1,13 @@
-import {css, html, LitElement} from 'lit'
+import {css, html, LitElement, PropertyValues} from 'lit'
 import {customElement, property, state} from 'lit/decorators.js'
 import {bfBrowserFormatFilesize} from "./brandfolder-browser";
+import {BfAsset} from "./brandfolder-asset-base";
+import {
+  BfBrowserContext,
+  bfBrowserContext
+} from "./brandfolder-browser-context";
+import {consume} from "@lit/context";
+import {live} from "lit/directives/live.js";
 
 export type BfAttachment = {
   id: string
@@ -13,6 +20,11 @@ export type BfAttachment = {
   thumbnail_url: string
   cdn_url: string
   url: string
+  asset?: BfAsset
+}
+
+export type BfAttachmentList = {
+  [key: string]: BfAttachment
 }
 
 /**
@@ -57,7 +69,7 @@ export class BrandfolderAttachment extends LitElement {
   /**
    * Brandfolder's unique ID for the attachment.
    */
-  @property({type: String, attribute: 'bf-attachment-id'})
+  @property({type: String, attribute: 'bf-attachment-id', reflect: true})
   attachmentId: string | null = null
 
   /**
@@ -128,18 +140,37 @@ export class BrandfolderAttachment extends LitElement {
   bfCdnUrlBase: string | null = null
 
   /**
+   * The format/variant in which the attachment should be displayed.
+   */
+  @property({type: String, attribute: false})
+  displayFormat = 'default'
+
+  /**
    * State tracking whether the user is hovering over the attachment.
    */
   @state()
   private _isHovered = false
 
   /**
-   * Callback executed when the element is added to the document.
+   * Property tracking whether the attachment is selected.
    */
-  override connectedCallback() {
-    super.connectedCallback()
-    // If the attachment property is set, use it to set other properties.
-    if (this.attachment) {
+  @state()
+  private _isSelected = false
+
+  /**
+   * Consume the browser context so we can cleanly access browser-wide data
+   * (and subscribe to be made aware of any changes).
+   */
+  @consume({context: bfBrowserContext, subscribe: true})
+  browserContext: BfBrowserContext
+
+  /**
+   * Lifecycle method called before update() to compute values needed during
+   * the update.
+   */
+  override willUpdate(changedProperties: PropertyValues<this>) {
+    // Use the attachment property to populate numerous derivative properties.
+    if (changedProperties.has('attachment') && this.attachment) {
       this.attachmentId = this.attachment?.id
       this.mimetype = this.attachment?.mimetype
       this.extension = this.attachment?.extension
@@ -163,21 +194,38 @@ export class BrandfolderAttachment extends LitElement {
           urlFilename = 'attachment.jpg'
         }
         cdnUrl = `${this.bfCdnUrlBase}/at/${this.attachmentId}/${urlFilename}`
+        // Add the computed CDN URL to the attachment object if it was
+        // missing. This will be useful when accessing the attachment elsewhere
+        // in the app, outside an asset context.
+        this.attachment.cdn_url = cdnUrl
       }
       this.cdnUrl = cdnUrl
     }
+    if (this?.attachmentId && this?.browserContext?.selectedAttachments) {
+      this._isSelected = !!this.browserContext.selectedAttachments[this.attachmentId]
+    }
   }
 
+  /**
+   * Handle selection/deselection of this attachment.
+   */
   private _attachmentSelectionHandler() {
-    // @todo: Internal state tracking selected status, and UI indicating it.
+    this._isSelected = !this._isSelected
     const options = {
-      detail: {attachmentId: this.attachmentId},
+      detail: {
+        attachmentId: this.attachmentId,
+        attachment: this.attachment,
+        isSelected: this._isSelected,
+      },
       bubbles: true,
       composed: true,
     }
     this.dispatchEvent(new CustomEvent('bfAttachmentSelection', options))
   }
 
+  /**
+   * Render the component.
+   */
   override render() {
     let imgUrl = this?.thumbnailUrl
     if (this?.cdnUrl) {
@@ -186,12 +234,8 @@ export class BrandfolderAttachment extends LitElement {
     }
 
     return html`
-      <!--      @todo: UI indicating and facilitating selected status/selection.-->
       <div
         class="bf-attachment__inner"
-        @mouseenter=${() => {this._isHovered = true}}
-        @mouseleave=${() => {this._isHovered = false}}
-        @click=${this._attachmentSelectionHandler}
       >
         <div class="bf-attachment__image-wrapper">
           <brandfolder-media-container .isActive=${this._isHovered}>
@@ -205,17 +249,44 @@ export class BrandfolderAttachment extends LitElement {
         </div>
         <div class="bf-attachment__info">
           <div class="bf-attachment__name">${this?.filename}</div>
-          <div class="bf-attachment__metadata">
-            <div class="bf-attachment__metadata-item">
-              ${this?.mimetype}
+          ${this?.displayFormat !== 'tray' ? html`
+            <div class="bf-attachment__metadata">
+              <div class="bf-attachment__metadata-item">
+                ${this?.mimetype}
+              </div>
+              <div class="bf-attachment__metadata-item">
+                ${this?.width} x ${this?.height}
+              </div>
+              <div class="bf-attachment__metadata-item">
+                ${bfBrowserFormatFilesize(this?.size)}
+              </div>
             </div>
-            <div class="bf-attachment__metadata-item">
-              ${this?.width} x ${this?.height}
-            </div>
-            <div class="bf-attachment__metadata-item">
-              ${bfBrowserFormatFilesize(this?.size)}
-            </div>
+          ` : ''}
         </div>
+        ${this?.displayFormat === 'tray' ? html`
+          <div class="attachment__deselection">
+            <button
+              @click=${this._attachmentSelectionHandler}
+            >
+              Deselect
+            </button
+          </div>
+        ` : html`
+          <div class="attachment__selection">
+            <div class="attachment__selection-status">
+              <input
+                id="attachment-selection--${this.attachmentId}"
+                name="attachment-selection--${this.attachmentId}"
+                type="checkbox"
+                .checked=${live(this._isSelected)}
+                @change=${this._attachmentSelectionHandler}
+              />
+              <label for="attachment-selection--${this.attachmentId}">
+                Select this attachment
+              </label>
+            </div>
+          </div>
+        `}
       </div>
     `
   }

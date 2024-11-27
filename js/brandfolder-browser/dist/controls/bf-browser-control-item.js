@@ -31,7 +31,8 @@ let BfBrowserControlItem = class BfBrowserControlItem extends LitElement {
     }
 };
 BfBrowserControlItem.styles = css `
-    fieldset {
+    fieldset.bf-control-item__inner {
+      box-sizing: border-box;
       border: 1px solid var(--color-gray-400);
       padding: 0.75rem;
       flex: 1;
@@ -44,6 +45,7 @@ BfBrowserControlItem.styles = css `
       display: flex;
       flex-direction: column;
       gap: 0.5rem;
+      width: 100%;
     }
   `;
 __decorate([

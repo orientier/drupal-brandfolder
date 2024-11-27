@@ -7,7 +7,8 @@ import {customElement, property} from 'lit/decorators.js'
 @customElement('brandfolder-browser-control-item')
 export class BfBrowserControlItem extends LitElement {
   static override styles = css`
-    fieldset {
+    fieldset.bf-control-item__inner {
+      box-sizing: border-box;
       border: 1px solid var(--color-gray-400);
       padding: 0.75rem;
       flex: 1;
@@ -20,6 +21,7 @@ export class BfBrowserControlItem extends LitElement {
       display: flex;
       flex-direction: column;
       gap: 0.5rem;
+      width: 100%;
     }
   `
 
