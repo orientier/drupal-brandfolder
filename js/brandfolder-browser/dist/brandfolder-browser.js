@@ -152,6 +152,7 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
          */
         this._browserContext = {
             selectedAttachments: {},
+            selectionLimit: null,
         };
         /**
          * Callback executed when the element is removed from the document.
@@ -313,6 +314,12 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
             }
             if (settings.assetsPerPage) {
                 this._assetsPerPage = settings.assetsPerPage;
+            }
+            if (settings.selectedAttachments) {
+                this._browserContext.selectedAttachments = settings.selectedAttachments;
+            }
+            if (settings.selectionLimit) {
+                this._browserContext.selectionLimit = settings.selectionLimit;
             }
             // if (settings.format) {
             //   this._format = settings.format

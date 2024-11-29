@@ -50,12 +50,6 @@ BrandfolderAttachmentSelection.styles = css `
       display: grid;
       grid-template: 1fr auto / 1fr;
     }
-    //img {
-    //  max-width: 100%;
-    //  height: auto;
-    //  max-height: max(8rem, 32vh);
-    //}
-
     .bf-attachment__image-wrapper,
     .bf-attachment__content {
       grid-area: 1 / 1 / 2 / 2;

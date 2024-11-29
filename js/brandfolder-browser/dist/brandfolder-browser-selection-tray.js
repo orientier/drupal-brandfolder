@@ -38,11 +38,12 @@ let BrandfolderBrowserSelectionTray = class BrandfolderBrowserSelectionTray exte
     render() {
         const attachments = Object.values(this.browserContext.selectedAttachments);
         const numAttachments = attachments.length;
+        const selectionLimit = this.browserContext?.selectionLimit;
         return html `
       <div class="selection-tray__inner ${this.isOpen ? 'is-open' : 'is-closed'} ${numAttachments > 0 ? 'is-openable' : 'is-not-openable'}">
         <header class="selection-tray__header" @click=${this._headerClickHandler}>
           <span class="selection-tray__title">
-            ${numAttachments} item${numAttachments == 1 ? '' : 's'} selected
+            ${numAttachments}${selectionLimit ? ' of ' + selectionLimit : ''} item${numAttachments == 1 ? '' : 's'} selected
           </span>
           ${numAttachments > 0 ? html `
           <span class="selection-tray__open-indicator">
@@ -132,7 +133,8 @@ BrandfolderBrowserSelectionTray.styles = css `
     }
     .selection-tray__inner.is-open .selection-tray__attachments-list {
       padding: 0.5rem;
-      max-height: 90vh;
+      max-height: 10rem;
+      overflow: scroll;
     }
     .selection-tray__attachment-item {
       height: var(--selection-item-size);

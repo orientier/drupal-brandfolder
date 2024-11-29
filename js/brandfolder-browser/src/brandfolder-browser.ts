@@ -274,6 +274,7 @@ export class BrandfolderBrowser extends LitElement {
   @state()
   private _browserContext: BfBrowserContext = {
     selectedAttachments: {},
+    selectionLimit: null,
   }
 
   /**
@@ -309,6 +310,12 @@ export class BrandfolderBrowser extends LitElement {
       }
       if (settings.assetsPerPage) {
         this._assetsPerPage = settings.assetsPerPage
+      }
+      if (settings.selectedAttachments) {
+        this._browserContext.selectedAttachments = settings.selectedAttachments
+      }
+      if (settings.selectionLimit) {
+        this._browserContext.selectionLimit = settings.selectionLimit
       }
       // if (settings.format) {
       //   this._format = settings.format

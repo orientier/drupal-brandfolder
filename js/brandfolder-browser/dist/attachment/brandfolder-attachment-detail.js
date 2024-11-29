@@ -17,6 +17,8 @@ let BrandfolderAttachmentDetail = class BrandfolderAttachmentDetail extends Bran
      * Render the component.
      */
     render() {
+        const isSelectionLimitReached = this.browserContext?.selectionLimit && Object.keys(this.browserContext.selectedAttachments).length >= this.browserContext.selectionLimit;
+        // @todo: When selection limit has been reached, show a helpful tooltip (when user hovers over disabled checkbox) in addition to disabling selection of additional items.
         return html `
       <div class="bf-attachment__inner">
         <div class="bf-attachment__image-wrapper">
@@ -50,6 +52,7 @@ let BrandfolderAttachmentDetail = class BrandfolderAttachmentDetail extends Bran
               name="attachment-selection--${this.attachmentId}"
               type="checkbox"
               .checked=${live(this._isSelected)}
+              ?disabled=${isSelectionLimitReached && !this._isSelected}
               @change=${this._attachmentSelectionHandler}
             />
             <label for="attachment-selection--${this.attachmentId}">
