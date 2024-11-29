@@ -1,4 +1,4 @@
-import { BfAttachmentList } from "./brandfolder-attachment";
+import { BfAttachmentList } from "./attachment/brandfolder-attachment-base";
 export type BfBrowserContext = {
     selectedAttachments: BfAttachmentList;
 };

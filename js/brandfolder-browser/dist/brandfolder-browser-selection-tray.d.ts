@@ -11,6 +11,14 @@ export declare class BrandfolderBrowserSelectionTray extends LitElement {
      */
     browserContext: BfBrowserContext;
     /**
+     * Manage open/closed state.
+     */
+    isOpen: boolean;
+    /**
+     * Header click handler. Toggle open state if there are attachments to show.
+     */
+    private _headerClickHandler;
+    /**
      * Render the component.
      */
     render(): import("lit-html").TemplateResult<1>;

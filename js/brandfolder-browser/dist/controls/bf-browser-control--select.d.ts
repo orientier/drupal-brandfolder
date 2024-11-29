@@ -19,7 +19,7 @@ export declare class BfBrowserSelectControl extends BfBrowserControlBase {
     /**
      * Render the select control.
      */
-    render(): import("lit-html").TemplateResult<1> | "";
+    render(): "" | import("lit-html").TemplateResult<1>;
 }
 declare global {
     interface HTMLElementTagNameMap {

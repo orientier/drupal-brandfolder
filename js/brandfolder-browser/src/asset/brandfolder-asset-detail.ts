@@ -2,7 +2,7 @@ import {html, css} from 'lit'
 import {customElement} from 'lit/decorators.js'
 import { unsafeHTML } from 'lit/directives/unsafe-html.js'
 import {BrandfolderAssetBase} from './brandfolder-asset-base'
-import {bfBrowserFormatDateAndTime} from "./brandfolder-browser";
+import {bfBrowserFormatDateAndTime} from "../brandfolder-browser";
 
 /**
  * An element displaying the details of an individual asset and allowing users
@@ -206,7 +206,7 @@ export class BrandfolderAssetDetail extends BrandfolderAssetBase {
             ${Object.values(this?.attachments).map(
               (attachment) => html`
                 <li class="brandfolder-asset__attachment-list-item">
-                  <brandfolder-attachment .attachment=${attachment} .bfCdnUrlBase="${this?.bfCdnUrlBase}" />
+                  <brandfolder-attachment-detail .attachment=${attachment} .bfCdnUrlBase="${this?.bfCdnUrlBase}" />
                 </li>
               `
             )}

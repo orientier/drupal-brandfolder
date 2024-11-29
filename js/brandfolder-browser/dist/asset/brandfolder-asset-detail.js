@@ -8,7 +8,7 @@ import { html, css } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { BrandfolderAssetBase } from './brandfolder-asset-base';
-import { bfBrowserFormatDateAndTime } from "./brandfolder-browser";
+import { bfBrowserFormatDateAndTime } from "../brandfolder-browser";
 /**
  * An element displaying the details of an individual asset and allowing users
  * to select one or more of the asset's attachments.

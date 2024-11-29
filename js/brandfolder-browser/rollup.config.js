@@ -1,9 +1,3 @@
-/**
- * @license
- * Copyright 2018 Google LLC
- * SPDX-License-Identifier: BSD-3-Clause
- */
-
 // import {copy} from '@web/rollup-plugin-copy';
 import minifyHTML from 'rollup-plugin-minify-html-literals'
 import resolve from '@rollup/plugin-node-resolve'

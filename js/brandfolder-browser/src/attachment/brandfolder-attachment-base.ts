@@ -1,13 +1,11 @@
-import {css, html, LitElement, PropertyValues} from 'lit'
-import {customElement, property, state} from 'lit/decorators.js'
-import {bfBrowserFormatFilesize} from "./brandfolder-browser";
-import {BfAsset} from "./brandfolder-asset-base";
+import {LitElement, PropertyValues} from 'lit'
+import {property, state} from 'lit/decorators.js'
+import {BfAsset} from "../asset/brandfolder-asset-base";
 import {
   BfBrowserContext,
   bfBrowserContext
-} from "./brandfolder-browser-context";
+} from "../brandfolder-browser-context";
 import {consume} from "@lit/context";
-import {live} from "lit/directives/live.js";
 
 export type BfAttachment = {
   id: string
@@ -28,43 +26,9 @@ export type BfAttachmentList = {
 }
 
 /**
- * An element corresponding to an attachment in Brandfolder.
+ * A base class for custom elements pertaining to Brandfolder attachments.
  */
-@customElement('brandfolder-attachment')
-export class BrandfolderAttachment extends LitElement {
-  static override styles = css`
-    .bf-attachment__inner {
-      cursor: pointer;
-    }
-
-    img {
-      max-width: 100%;
-      height: auto;
-      max-height: max(8rem, 32vh);
-    }
-
-    .bf-attachment__info {
-      padding: 0.25rem 0;
-    }
-
-    .bf-attachment__name {
-      font-weight: bold;
-      padding: 0.25rem;
-    }
-
-    .bf-attachment__metadata {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      font-size: 0.75em;
-    }
-
-    .bf-attachment__metadata-item {
-      color: var(--color-gray-500);
-      font-style: italic;
-      padding: 0.25rem;
-    }
-  `
+export class BrandfolderAttachmentBase extends LitElement {
 
   /**
    * Brandfolder's unique ID for the attachment.
@@ -121,12 +85,6 @@ export class BrandfolderAttachment extends LitElement {
   thumbnailUrl: string | null = null
 
   /**
-   * CDN URL.
-   */
-  @property({type: String, attribute: false})
-  cdnUrl: string | null = null
-
-  /**
    * The standard URL of the attachment. Not as performant or manipulable as
    * the CDN URL.
    */
@@ -140,22 +98,31 @@ export class BrandfolderAttachment extends LitElement {
   bfCdnUrlBase: string | null = null
 
   /**
-   * The format/variant in which the attachment should be displayed.
+   * CDN URL.
    */
   @property({type: String, attribute: false})
-  displayFormat = 'default'
+  cdnUrl: string | null = null
+
+  /**
+   * Default image URL for display. Derived from the CDN URL. It's more
+   * performant to use the same exact image URL for all instances of the same
+   * attachment, so we can benefit from browser caching (even though we could
+   * use a smaller image in the attachment selection tray, for example).
+   */
+  @property({type: String, attribute: false})
+  imageSrcUrl: string | null = null
 
   /**
    * State tracking whether the user is hovering over the attachment.
    */
   @state()
-  private _isHovered = false
+  protected _isHovered = false
 
   /**
    * Property tracking whether the attachment is selected.
    */
   @state()
-  private _isSelected = false
+  protected _isSelected = false
 
   /**
    * Consume the browser context so we can cleanly access browser-wide data
@@ -199,7 +166,16 @@ export class BrandfolderAttachment extends LitElement {
         // in the app, outside an asset context.
         this.attachment.cdn_url = cdnUrl
       }
-      this.cdnUrl = cdnUrl
+      if (cdnUrl) {
+        // Store the basic CDN URL without any default query params.
+        this.cdnUrl = cdnUrl.replace(/^([^?]*)(\?.*)?$/, '$1')
+        // Set the default image URL for display, with CDN image
+        // transformations/directives.
+        this.imageSrcUrl = this.cdnUrl + '?width=480&auto=webp&quality=80'
+      }
+      else {
+        this.imageSrcUrl = this.thumbnailUrl
+      }
     }
     if (this?.attachmentId && this?.browserContext?.selectedAttachments) {
       this._isSelected = !!this.browserContext.selectedAttachments[this.attachmentId]
@@ -209,7 +185,7 @@ export class BrandfolderAttachment extends LitElement {
   /**
    * Handle selection/deselection of this attachment.
    */
-  private _attachmentSelectionHandler() {
+  protected _attachmentSelectionHandler() {
     this._isSelected = !this._isSelected
     const options = {
       detail: {
@@ -221,79 +197,5 @@ export class BrandfolderAttachment extends LitElement {
       composed: true,
     }
     this.dispatchEvent(new CustomEvent('bfAttachmentSelection', options))
-  }
-
-  /**
-   * Render the component.
-   */
-  override render() {
-    let imgUrl = this?.thumbnailUrl
-    if (this?.cdnUrl) {
-      const urlSansQuery = this.cdnUrl.replace(/^([^?]*)(\?.*)?$/, '$1')
-      imgUrl = urlSansQuery + '?width=480&auto=webp&quality=80'
-    }
-
-    return html`
-      <div
-        class="bf-attachment__inner"
-      >
-        <div class="bf-attachment__image-wrapper">
-          <brandfolder-media-container .isActive=${this._isHovered}>
-            <img
-              slot="media"
-              class="bf-attachment__image"
-              src="${imgUrl}"
-              alt="${this?.filename}"
-            />
-          </brandfolder-media-container>
-        </div>
-        <div class="bf-attachment__info">
-          <div class="bf-attachment__name">${this?.filename}</div>
-          ${this?.displayFormat !== 'tray' ? html`
-            <div class="bf-attachment__metadata">
-              <div class="bf-attachment__metadata-item">
-                ${this?.mimetype}
-              </div>
-              <div class="bf-attachment__metadata-item">
-                ${this?.width} x ${this?.height}
-              </div>
-              <div class="bf-attachment__metadata-item">
-                ${bfBrowserFormatFilesize(this?.size)}
-              </div>
-            </div>
-          ` : ''}
-        </div>
-        ${this?.displayFormat === 'tray' ? html`
-          <div class="attachment__deselection">
-            <button
-              @click=${this._attachmentSelectionHandler}
-            >
-              Deselect
-            </button
-          </div>
-        ` : html`
-          <div class="attachment__selection">
-            <div class="attachment__selection-status">
-              <input
-                id="attachment-selection--${this.attachmentId}"
-                name="attachment-selection--${this.attachmentId}"
-                type="checkbox"
-                .checked=${live(this._isSelected)}
-                @change=${this._attachmentSelectionHandler}
-              />
-              <label for="attachment-selection--${this.attachmentId}">
-                Select this attachment
-              </label>
-            </div>
-          </div>
-        `}
-      </div>
-    `
-  }
-}
-
-declare global {
-  interface HTMLElementTagNameMap {
-    'brandfolder-attachment': BrandfolderAttachment
   }
 }

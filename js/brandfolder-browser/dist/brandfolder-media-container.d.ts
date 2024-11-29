@@ -1,4 +1,4 @@
-import { BrandfolderAssetBase } from './brandfolder-asset-base';
+import { BrandfolderAssetBase } from './asset/brandfolder-asset-base';
 /**
  * An element for displaying a media item, e.g. an image.
  */

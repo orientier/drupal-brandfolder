@@ -1,10 +1,12 @@
 import { LitElement } from 'lit';
-import './brandfolder-asset-base';
-import './brandfolder-asset-detail';
-import './brandfolder-asset-preview';
-import './brandfolder-attachment';
 import './brandfolder-media-container';
 import './brandfolder-browser-selection-tray';
+import './asset/brandfolder-asset-base';
+import './asset/brandfolder-asset-detail';
+import './asset/brandfolder-asset-preview';
+import './attachment/brandfolder-attachment-base';
+import './attachment/brandfolder-attachment-detail';
+import './attachment/brandfolder-attachment-selection';
 import './controls/bf-browser-controls';
 import './controls/bf-browser-control-base';
 import './controls/bf-browser-control-item';
@@ -67,6 +69,10 @@ export declare class BrandfolderBrowser extends LitElement {
      * Active asset.
      */
     private _activeAsset;
+    /**
+     * Whether the selection tray is open.
+     */
+    private _isSelectionTrayOpen;
     /**
      * An array of BfAsset items representing the current result set.
      */

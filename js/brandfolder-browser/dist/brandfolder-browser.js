@@ -11,12 +11,14 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { bfBrowserContext } from "./brandfolder-browser-context";
 // Import all subcomponents and class dependencies so we can compile
 // everything into a single JS file with this file as the sole entry point.
-import './brandfolder-asset-base';
-import './brandfolder-asset-detail';
-import './brandfolder-asset-preview';
-import './brandfolder-attachment';
 import './brandfolder-media-container';
 import './brandfolder-browser-selection-tray';
+import './asset/brandfolder-asset-base';
+import './asset/brandfolder-asset-detail';
+import './asset/brandfolder-asset-preview';
+import './attachment/brandfolder-attachment-base';
+import './attachment/brandfolder-attachment-detail';
+import './attachment/brandfolder-attachment-selection';
 import './controls/bf-browser-controls';
 import './controls/bf-browser-control-base';
 import './controls/bf-browser-control-item';
@@ -120,6 +122,10 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
          * Active asset.
          */
         this._activeAsset = null;
+        /**
+         * Whether the selection tray is open.
+         */
+        this._isSelectionTrayOpen = false;
         /**
          * An array of BfAsset items representing the current result set.
          */
@@ -246,6 +252,9 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
         this._assetDetailCloseHandler = () => {
             this._activeAsset = null;
             this.classList.remove('is-asset-detail-open');
+            // Close the selection tray when the asset detail pane is closed, to
+            // conserve screen real estate. User can always reopen it if they desire.
+            this._isSelectionTrayOpen = false;
         };
         /**
          * Handle attachment selection events.
@@ -261,6 +270,9 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
             const selectedAttachments = this._browserContext.selectedAttachments;
             if (isSelected) {
                 selectedAttachments[attachmentId] = attachment;
+                // Always ensure the selection tray is open when an attachment is newly
+                // selected.
+                this._isSelectionTrayOpen = true;
             }
             else {
                 delete selectedAttachments[attachmentId];
@@ -284,6 +296,9 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
         this.addEventListener('bfAssetDetailClose', this._assetDetailCloseHandler);
         this.addEventListener('bfAttachmentSelection', this._attachmentSelectionHandler);
         this.addEventListener('bfBrowserControlsSubmission', this._controlsSubmissionHandler);
+        this.addEventListener('bfSelectionTrayToggle', () => {
+            this._isSelectionTrayOpen = !this._isSelectionTrayOpen;
+        });
     }
     /**
      * Callback executed when the element is added to the document.
@@ -410,11 +425,10 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
               />
             `
             : ''}
-        ${Object.values(this._browserContext.selectedAttachments).length > 0 ? html `
-          <div class="bf-browser__selection-tray-container">
-            <brandfolder-browser-selection-tray></brandfolder-browser-selection-tray>
-          </div>
-          ` : ''}
+        <div class="bf-browser__selection-tray-container">
+          <brandfolder-browser-selection-tray .isOpen=${this._isSelectionTrayOpen && Object.values(this._browserContext.selectedAttachments).length > 0}>
+          </brandfolder-browser-selection-tray>
+        </div>
       </div>
     `;
     }
@@ -476,7 +490,7 @@ BrandfolderBrowser.styles = css `
 
     .bf-browser__selection-tray-container {
       grid-area: 3 / 1 / span 1 / -1;
-      padding: 0.5rem;
+      z-index: 3;
     }
 
     .asset-list {
@@ -506,6 +520,9 @@ __decorate([
 __decorate([
     state()
 ], BrandfolderBrowser.prototype, "_activeAsset", void 0);
+__decorate([
+    state()
+], BrandfolderBrowser.prototype, "_isSelectionTrayOpen", void 0);
 __decorate([
     state()
 ], BrandfolderBrowser.prototype, "_assetList", void 0);

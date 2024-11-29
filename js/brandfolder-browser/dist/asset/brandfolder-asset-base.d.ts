@@ -1,7 +1,7 @@
 import { LitElement, PropertyValues } from 'lit';
-import { BfAttachment } from "./attachment/brandfolder-attachment-base";
-import { BfLabelTreeNode } from "./controls/bf-browser-control--labels";
-import { BfKvList } from "./controls/bf-browser-controls";
+import { BfAttachment } from "../attachment/brandfolder-attachment-base";
+import { BfLabelTreeNode } from "../controls/bf-browser-control--labels";
+import { BfKvList } from "../controls/bf-browser-controls";
 export type BfAsset = {
     id: string;
     attributes: BfAssetAttributes;

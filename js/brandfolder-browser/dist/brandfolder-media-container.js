@@ -6,7 +6,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 };
 import { html, css } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import { BrandfolderAssetBase } from './brandfolder-asset-base';
+import { BrandfolderAssetBase } from './asset/brandfolder-asset-base';
 /**
  * An element for displaying a media item, e.g. an image.
  */
@@ -24,7 +24,7 @@ let BrandfolderMediaContainer = class BrandfolderMediaContainer extends Brandfol
         /**
          * Optional display format.
          */
-        this.displayFormat = 'small';
+        this.displayFormat = 'default';
     }
     render() {
         return html `
@@ -58,6 +58,12 @@ BrandfolderMediaContainer.styles = css `
     .brandfolder-media-container__inner.display-format--large {
       min-height: 12rem;
     }
+    .brandfolder-media-container__inner.display-format--mini {
+      padding: 0;
+      min-height: 3rem;
+      height: 6rem;
+      width: 6rem;
+    }
     .brandfolder-media-container__inner.is-link {
       cursor: pointer;
     }
@@ -65,6 +71,11 @@ BrandfolderMediaContainer.styles = css `
       max-width: 100%;
       height: auto;
       transition: scale 0.2s;
+    }
+    .brandfolder-media-container__inner.display-format--mini ::slotted(img) {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
     .brandfolder-media-container__inner.is-active ::slotted(img),
     .brandfolder-media-container__inner.is-link:hover ::slotted(img) {
