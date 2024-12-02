@@ -83,6 +83,12 @@ export declare class BrandfolderAssetBase extends LitElement {
      */
     bfCdnUrlBase: string | null;
     /**
+     * Default image URL for display.
+     *
+     * @todo: Use low-res version of the CDN image as a preview while the thumbnail is loading.
+     */
+    imagePlaceholderUrl: string | null;
+    /**
      * Lifecycle method called before update() to compute values needed during
      * the update.
      */

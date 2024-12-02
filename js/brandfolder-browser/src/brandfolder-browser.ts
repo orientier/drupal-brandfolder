@@ -30,6 +30,7 @@ import './controls/bf-browser-control--labels'
 import './controls/bf-browser-control--search'
 import './controls/bf-browser-control--select'
 import './controls/bf-browser-control--tags'
+import {BfAttachmentList} from "./attachment/brandfolder-attachment-base";
 
 type BfAssetFetchMeta = {
   current_page: number
@@ -46,22 +47,13 @@ type BfFetchResponse = {
 }
 
 type BfBrowserSettings = {
-  height: number
-  format: 'inline' | 'full'
-  endpoint: string
+  height?: number
+  format?: 'inline' | 'full'
+  apiEndpoint?: string
+  assetsPerPage?: number
+  selectedAttachments?: BfAttachmentList
+  selectionLimit?: number
 }
-
-// type bfGatekeeperCriteriaBase = {
-//   collection?: string[]
-//   section?: string[]
-//   label?: string[]
-//   filetype?: string[]
-// }
-//
-// type bfGatekeeperCriteria = {
-//   allowed: bfGatekeeperCriteriaBase
-//   disallowed: bfGatekeeperCriteriaBase
-// }
 
 /**
  * Format a date (or date+time) string according to our preferred
@@ -138,6 +130,7 @@ export class BrandfolderBrowser extends LitElement {
       height: var(--bf-browser-height);
       color: var(--color-gray-800);
       box-sizing: border-box;
+      overflow: hidden;
     }
 
     :host([format='full']) {
@@ -145,10 +138,6 @@ export class BrandfolderBrowser extends LitElement {
       top: 0;
       left: 0;
       z-index: 1;
-    }
-
-    :host(.is-asset-detail-open) {
-      overflow: hidden;
     }
 
     .bf-browser__inner {
@@ -164,7 +153,7 @@ export class BrandfolderBrowser extends LitElement {
 
     .bf-browser__results-container {
       grid-area: 2 / 1 / span 1 / -1;
-      padding: 0.5rem;
+      padding: 0.5rem 0.5rem 1.5rem;
       overflow: scroll;
     }
 
@@ -304,7 +293,7 @@ export class BrandfolderBrowser extends LitElement {
 
     // Apply any configurable settings.
     if (this.settings && typeof this.settings === 'string') {
-      const settings = JSON.parse(this.settings)
+      const settings: BfBrowserSettings = JSON.parse(this.settings)
       if (settings.apiEndpoint) {
         this._apiEndpoint = settings.apiEndpoint
       }

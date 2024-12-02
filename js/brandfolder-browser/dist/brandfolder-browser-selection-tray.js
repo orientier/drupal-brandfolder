@@ -43,7 +43,7 @@ let BrandfolderBrowserSelectionTray = class BrandfolderBrowserSelectionTray exte
       <div class="selection-tray__inner ${this.isOpen ? 'is-open' : 'is-closed'} ${numAttachments > 0 ? 'is-openable' : 'is-not-openable'}">
         <header class="selection-tray__header" @click=${this._headerClickHandler}>
           <span class="selection-tray__title">
-            ${numAttachments}${selectionLimit ? ' of ' + selectionLimit : ''} item${numAttachments == 1 ? '' : 's'} selected
+            ${numAttachments}${selectionLimit ? ' of ' + selectionLimit : ''} item${(selectionLimit ?? numAttachments) == 1 ? '' : 's'} selected
           </span>
           ${numAttachments > 0 ? html `
           <span class="selection-tray__open-indicator">

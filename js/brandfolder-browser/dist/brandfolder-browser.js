@@ -27,17 +27,6 @@ import './controls/bf-browser-control--labels';
 import './controls/bf-browser-control--search';
 import './controls/bf-browser-control--select';
 import './controls/bf-browser-control--tags';
-// type bfGatekeeperCriteriaBase = {
-//   collection?: string[]
-//   section?: string[]
-//   label?: string[]
-//   filetype?: string[]
-// }
-//
-// type bfGatekeeperCriteria = {
-//   allowed: bfGatekeeperCriteriaBase
-//   disallowed: bfGatekeeperCriteriaBase
-// }
 /**
  * Format a date (or date+time) string according to our preferred
  * date-only format.
@@ -306,6 +295,7 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
      */
     connectedCallback() {
         super.connectedCallback();
+        let previouslySelectedAttachmentIds = null;
         // Apply any configurable settings.
         if (this.settings && typeof this.settings === 'string') {
             const settings = JSON.parse(this.settings);
@@ -315,8 +305,22 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
             if (settings.assetsPerPage) {
                 this._assetsPerPage = settings.assetsPerPage;
             }
-            if (settings.selectedAttachments) {
-                this._browserContext.selectedAttachments = settings.selectedAttachments;
+            if (settings.selectedAttachmentIds) {
+                previouslySelectedAttachmentIds = settings.selectedAttachmentIds;
+                // Generate an object keyed by the given IDs, where each value is a
+                // basic object with placeholder attachments.
+                this._browserContext.selectedAttachments = previouslySelectedAttachmentIds.reduce((acc, id) => {
+                    acc[id] = {
+                        id,
+                        mimetype: 'image/jpeg',
+                        extension: 'jpg',
+                        filename: `loading-${id}.jpg`,
+                        size: 12345,
+                        width: 800,
+                        height: 600,
+                    };
+                    return acc;
+                }, {});
             }
             if (settings.selectionLimit) {
                 this._browserContext.selectionLimit = settings.selectionLimit;

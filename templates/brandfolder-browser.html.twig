@@ -5,13 +5,10 @@
  *
  * Available variables:
  * - bf_browser_id: HTML attributes for the containing element.
- * - browser_format: String prescribing a particular display format (e.g.
- *    "full" or "inline").
  * - browser_settings: Array of optional settings for the browser.
  *
  * @ingroup themeable
  */
 #}
 {{ attach_library('brandfolder/brandfolder-browser') }}
-{#<brandfolder-browser bf-browser-id="{{ bf_browser_id }}" format="{{ browser_format }}" settings="{{ browser_settings | json_encode }}"></brandfolder-browser>#}
-<brandfolder-browser bf-browser-id="{{ bf_browser_id }}" format="{{ browser_format }}"></brandfolder-browser>
+<brandfolder-browser bf-browser-id="{{ bf_browser_id }}" settings="{{ browser_settings | json_encode }}"></brandfolder-browser>

@@ -3,15 +3,15 @@ import { BfAsset } from "../asset/brandfolder-asset-base";
 import { BfBrowserContext } from "../brandfolder-browser-context";
 export type BfAttachment = {
     id: string;
-    mimetype: string;
-    extension: string;
-    filename: string;
-    size: number;
-    width: number;
-    height: number;
-    thumbnail_url: string;
+    mimetype?: string;
+    extension?: string;
+    filename?: string;
+    size?: number;
+    width?: number;
+    height?: number;
+    thumbnail_url?: string;
     cdn_url: string;
-    url: string;
+    url?: string;
     asset?: BfAsset;
 };
 export type BfAttachmentList = {

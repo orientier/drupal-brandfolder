@@ -184,7 +184,7 @@ export class BfBrowserControls extends LitElement {
 
     .controls__actions {
       display: flex;
-      justify-content: flex-start;
+      justify-content: space-between;
       align-items: center;
       gap: 1rem;
       padding: 1rem 0.25rem 0.5rem;
@@ -458,8 +458,8 @@ export class BfBrowserControls extends LitElement {
             }
           </div>
           <div class="controls__actions">
-            <button @click=${this._controlsResetHandler}>Reset</button>
             <button @click=${this._controlsSubmissionHandler}>Submit</button>
+            <button @click=${this._controlsResetHandler}>Reset</button>
           </div>
         </main>
       </div>

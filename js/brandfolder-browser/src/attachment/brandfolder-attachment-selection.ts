@@ -71,12 +71,14 @@ export class BrandfolderAttachmentSelection extends BrandfolderAttachmentBase {
             .isActive=${this._isHovered}
             .displayFormat=${'mini'}
           >
+            ${this?.imageSrcUrl ? html`
             <img
               slot="media"
               class="bf-attachment__image"
               src="${this.imageSrcUrl}"
               alt="${this?.filename}"
             />
+            ` : ''}
           </brandfolder-media-container>
         </div>
         <div class="bf-attachment__content">

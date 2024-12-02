@@ -198,10 +198,10 @@ class BrandfolderBrowser extends WidgetBase {
     $gatekeeper->loadFromMediaSource($media_source);
 
     // @todo: Test in field contexts where we might have previously selected entities on first browser load.
-    $selected_bf_attachment_ids = [];
+    $selected_bf_attachments = [];
     $selected_entities = &$form_state->get(['entity_browser', 'selected_entities']);
     if (!empty($selected_entities)) {
-      $selected_bf_attachment_ids = array_walk($selected_entities, 'brandfolder_map_media_entity_to_attachment');
+      $selected_bf_attachments = brandfolder_map_media_entities_to_attachments($selected_entities);
     }
 
     $selection_limit = NULL;
@@ -212,13 +212,15 @@ class BrandfolderBrowser extends WidgetBase {
 
     $entity_browser_id = $this->configuration['entity_browser_id'];
     $entity_browser = \Drupal::service('entity_type.manager')->getStorage('entity_browser')->load($entity_browser_id);
-    $bf_browser_format = $entity_browser->display == 'iframe' ? 'full' : NULL;
     $bf_browser_settings = [];
+    if ($entity_browser->display == 'iframe') {
+      $bf_browser_settings['format'] = 'full';
+    }
     if ($entity_browser->display_configuration['height']) {
       $bf_browser_settings['height'] = $entity_browser->display_configuration['height'];
     }
 
-    brandfolder_browser_init($form, $form_state, $gatekeeper, $selected_bf_attachment_ids, [], $selection_limit, $context_string, $bf_browser_format, $bf_browser_settings);
+    brandfolder_browser_init($form, $form_state, $gatekeeper, $selected_bf_attachments, $selection_limit, $context_string, $bf_browser_settings);
 
     return $form;
   }

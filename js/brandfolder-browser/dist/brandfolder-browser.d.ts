@@ -15,10 +15,14 @@ import './controls/bf-browser-control--labels';
 import './controls/bf-browser-control--search';
 import './controls/bf-browser-control--select';
 import './controls/bf-browser-control--tags';
+import { BfAttachmentList } from "./attachment/brandfolder-attachment-base";
 type BfBrowserSettings = {
-    height: number;
-    format: 'inline' | 'full';
-    endpoint: string;
+    height?: number;
+    format?: 'inline' | 'full';
+    apiEndpoint?: string;
+    assetsPerPage?: number;
+    selectedAttachments?: BfAttachmentList;
+    selectionLimit?: number;
 };
 /**
  * Format a date (or date+time) string according to our preferred

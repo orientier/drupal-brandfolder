@@ -107,6 +107,13 @@ class BrandfolderGatekeeper {
   protected $bf_client;
 
   /**
+   * The default Brandfolder ID.
+   *
+   * @var string
+   */
+  protected $default_brandfolder_id;
+
+  /**
    * BrandfolderGatekeeper constructor.
    *
    * @param \Drupal\Core\StringTranslation\TranslationInterface $string_translation
@@ -130,6 +137,7 @@ class BrandfolderGatekeeper {
     }
     $brandfolder_id = $bf_config->get('brandfolder_id');
     if ($api_key && $brandfolder_id) {
+      $this->default_brandfolder_id = $brandfolder_id;
       // @todo: Brandfolder as a service; DI, etc.
       $this->bf_client = new BrandfolderClient($api_key, $brandfolder_id);
       if ($bf_config->get('verbose_log_mode')) {
@@ -222,7 +230,7 @@ class BrandfolderGatekeeper {
     ];
     foreach ($type_ops as $bf_entity_type => $fetch_method) {
       if (!empty($bf_entities[$bf_entity_type])) {
-        // @todo: Fetch multiple assets/attachments by ID in a single call if/when Brandfolder confirms that this is possible.
+        // @todo: Fetch multiple assets/attachments by ID in a single call now that Brandfolder supports it.
         foreach ($bf_entities[$bf_entity_type] as $bf_entity_id) {
           if ($bf_entity = $this->bf_client->{$fetch_method}($bf_entity_id, $api_params)) {
             $bf_entity_data_for_validation = [
@@ -398,6 +406,47 @@ class BrandfolderGatekeeper {
     }
 
     return $assets;
+  }
+
+  /**
+   * Fetch one or more attachments by ID. The given attachments will be returned
+   * as long as they exist in the Brandfolder associated with this Gatekeeper.
+   * No other validation will be performed.
+   */
+  public function fetchAttachmentsById(array $attachment_ids, array $query_params = []) {
+    $default_params = [
+      'per' => 100,
+      'page' => 1,
+      'fields' => 'cdn_url',
+      'include' => 'asset',
+    ];
+    $query_params = array_merge($default_params, $query_params);
+
+    $quoted_attachment_ids = array_map(function ($id) {
+      return "\"$id\"";
+    }, $attachment_ids);
+    $search_query_components[] = 'attachment_key:(' . implode(' OR ', $quoted_attachment_ids) . ')';
+
+    // Assemble the search query string (this pattern makes it easy for us to
+    // add more query components later as needed).
+    if (!empty($search_query_components)) {
+      array_walk($search_query_components, function(&$subquery) {
+        $subquery = "($subquery)";
+      });
+      $query_params['search'] = implode(' AND ', $search_query_components);
+    }
+
+    $result = $this->bf_client->listAttachmentsForBrandfolder($this->default_brandfolder_id, $query_params);
+
+    $bf_config = $this->configFactory->get('brandfolder.settings');
+    if ($bf_config->get('verbose_log_mode')) {
+      foreach ($this->bf_client->getLogData() as $log_entry) {
+        $this->logger->debug($log_entry);
+      }
+      $this->bf_client->clearLogData();
+    }
+
+    return $result;
   }
 
   /**

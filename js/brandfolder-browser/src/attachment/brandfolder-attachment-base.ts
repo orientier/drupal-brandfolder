@@ -9,15 +9,15 @@ import {consume} from "@lit/context";
 
 export type BfAttachment = {
   id: string
-  mimetype: string
-  extension: string
-  filename: string
-  size: number
-  width: number
-  height: number
-  thumbnail_url: string
+  mimetype?: string
+  extension?: string
+  filename?: string
+  size?: number
+  width?: number
+  height?: number
+  thumbnail_url?: string
   cdn_url: string
-  url: string
+  url?: string
   asset?: BfAsset
 }
 
@@ -171,7 +171,13 @@ export class BrandfolderAttachmentBase extends LitElement {
         this.cdnUrl = cdnUrl.replace(/^([^?]*)(\?.*)?$/, '$1')
         // Set the default image URL for display, with CDN image
         // transformations/directives.
-        this.imageSrcUrl = this.cdnUrl + '?width=480&auto=webp&quality=80'
+        let imageSrcUrl = this.cdnUrl
+        // Add URL params for supported URL/image types.
+        const imgIsSvg = (this.mimetype && !this.mimetype?.includes('svg')) || (this.extension && !this.extension?.includes('svg') || imageSrcUrl.match(/\.svg$/))
+        if (!imgIsSvg) {
+          imageSrcUrl += '?width=480&auto=webp&quality=75'
+        }
+        this.imageSrcUrl = imageSrcUrl
       }
       else {
         this.imageSrcUrl = this.thumbnailUrl

@@ -281,6 +281,8 @@ function brandfolder_views_pre_render(ViewExecutable $view) {
 
 /**
  * Implements hook_views_pre_build().
+ *
+ * @todo: Remove/short-circuit more Views processes that are unnecessary for Brandfolder media given that we're replacing the view with our custom browser.
  */
 function brandfolder_views_pre_build(ViewExecutable $view) {
   // If this is a Media Library view pertaining to a Brandfolder-sourced media
@@ -306,8 +308,6 @@ function brandfolder_views_pre_build(ViewExecutable $view) {
  * @param $form
  * @param \Drupal\Core\Form\FormStateInterface $form_state
  * @param \Drupal\media\Entity\MediaType $media_type
- *
- * @todo: Replace with more elegant and feature-rich browser construct.
  */
 function brandfolder_browser_media_library_form_manipulator(&$form, FormStateInterface $form_state, MediaType $media_type) {
   $media_source = $media_type->getSource();
@@ -341,17 +341,15 @@ function brandfolder_browser_media_library_form_manipulator(&$form, FormStateInt
     }
   }
 
-  $selected_bf_attachment_ids = array_map('brandfolder_map_media_entity_to_attachment', $selected_media_entity_ids);
-  $selected_bf_attachment_ids = array_filter($selected_bf_attachment_ids);
+  $selected_bf_attachments = brandfolder_map_media_entities_to_attachments($selected_media_entity_ids);
 
   $context_string = implode('-', $context);
-  brandfolder_browser_init($form, $form_state, $gatekeeper, $selected_bf_attachment_ids, [], $selection_limit, $context_string);
+  brandfolder_browser_init($form, $form_state, $gatekeeper, $selected_bf_attachments, $selection_limit, $context_string);
 
   // Completely replace standard validation with our own custom
   // validators/processors.
   $form['#validate'] = [
     'brandfolder_browser_to_media_library_selection_converter',
-//    'brandfolder_browser_host_form_validator',
   ];
 
   // Relocate the BF browser element, using it to replace the standard Media
@@ -370,17 +368,13 @@ function brandfolder_browser_media_library_form_manipulator(&$form, FormStateInt
  * @param array $form
  * @param \Drupal\Core\Form\FormStateInterface $form_state
  * @param \Drupal\brandfolder\Service\BrandfolderGatekeeper $gatekeeper
- * @param array $disabled_attachment_ids
- * @param array $selected_attachment_ids
+ * @param array $selected_attachments
  * @param int $selection_limit
  *  This should be -1 if there is no limit.
  * @param string|null $context_id
- * @param string $browser_format
  * @param array $bf_browser_settings
- *
- * @todo: Relocate and make pluggable. See also brandfolder_browser_controls().
  */
-function brandfolder_browser_init(&$form, FormStateInterface $form_state, BrandfolderGatekeeper $gatekeeper, array $disabled_attachment_ids = [], array $selected_attachment_ids = [], int $selection_limit = -1, string $context_id = NULL, $browser_format = 'inline', $bf_browser_settings = []) {
+function brandfolder_browser_init(array &$form, FormStateInterface $form_state, BrandfolderGatekeeper $gatekeeper, array $selected_attachments = [], int $selection_limit = -1, string $context_id = NULL, array $bf_browser_settings = []): void {
 
   $bf_browser_id = $form_state->getValue('brandfolder_browser_id');
   if (empty($bf_browser_id)) {
@@ -394,11 +388,18 @@ function brandfolder_browser_init(&$form, FormStateInterface $form_state, Brandf
     }
   }
 
+  $bf_browser_settings_defaults = [
+    'selectedAttachments' => $selected_attachments,
+    'selectionLimit' => $selection_limit,
+  ];
+
+  $bf_browser_settings = array_merge($bf_browser_settings_defaults, $bf_browser_settings);
+
   $bf_browser_data = [
     'selection_limit' => $selection_limit,
     'gatekeeper_criteria' => $gatekeeper->getCriteria(FALSE),
-    'disabled_attachment_ids' => $disabled_attachment_ids,
-    'selected_attachment_ids' => $selected_attachment_ids,
+    'selected_attachments' => $selected_attachments,
+    'context_id' => $context_id,
   ];
   $shared_tempstore = \Drupal::service('tempstore.shared');
   $bf_browser_shared_storage = $shared_tempstore->get('brandfolder_browser_data');
@@ -407,16 +408,7 @@ function brandfolder_browser_init(&$form, FormStateInterface $form_state, Brandf
   $form['brandfolder_browser'] = [
     '#theme' => 'brandfolder_browser',
     '#bf_browser_id' => $bf_browser_id,
-    '#browser_format' => $browser_format,
     '#browser_settings' => $bf_browser_settings,
-  ];
-
-  $form['disabled_bf_attachment_ids'] = [
-    '#type' => 'hidden',
-    '#attributes' => [
-      'class' => 'disabled-bf-attachment-ids',
-    ],
-    '#default_value' => implode(',', $disabled_attachment_ids),
   ];
 
   $form['selected_bf_attachment_ids'] = [
@@ -424,695 +416,8 @@ function brandfolder_browser_init(&$form, FormStateInterface $form_state, Brandf
     '#attributes' => [
       'class' => 'selected-bf-attachment-ids',
     ],
-    '#default_value' => implode(',', $selected_attachment_ids),
+    '#default_value' => implode(',', array_keys($selected_attachments)),
   ];
-}
-
-/**
- * Basic, agnostic function to embellish a form with elements needed for the
- * core BF browsing experience.
- *
- * @param array $form
- * @param \Drupal\Core\Form\FormStateInterface $form_state
- * @param \Drupal\brandfolder\Service\BrandfolderGatekeeper $gatekeeper
- * @param string $bf_asset_list
- * @param int $selection_limit
- *  This should be -1 if there is no limit.
- * @param string|null $context_id
- * @param object|null $bf_assets_metadata
- *
- * @todo: Relocate and make pluggable. See also brandfolder_browser_controls().
- */
-function brandfolder_browser_core(array &$form, FormStateInterface $form_state, BrandfolderGatekeeper $gatekeeper, string $bf_asset_list, int $selection_limit = -1, string $context_id = NULL, object $bf_assets_metadata = NULL) {
-  $bf_browser_id = $form_state->getValue('brandfolder_browser_id');
-  if (empty($bf_browser_id)) {
-    $all_input = $form_state->getUserInput();
-    if (!empty($all_input['brandfolder_browser_id'])) {
-      $bf_browser_id = $all_input['brandfolder_browser_id'];
-    }
-    else {
-      $id_components = [
-        'brandfolder-browser'
-      ];
-      if ($context_id) {
-        $id_components[] = $context_id;
-      }
-      $bf_browser_id = Html::getUniqueId(implode('-', $id_components));
-    }
-  }
-
-  $form['brandfolder_browser'] = [
-    '#type' => 'fieldset',
-    '#collabsible' => FALSE,
-    '#prefix' => "<div id=\"$bf_browser_id\" class=\"brandfolder-browser\" data-selection-limit=\"{$selection_limit}\">",
-    '#suffix' => "</div>",
-  ];
-  $form['brandfolder_browser']['brandfolder_browser_id'] = [
-    '#type' => 'hidden',
-    '#value' => $bf_browser_id,
-  ];
-  $form['brandfolder_browser']['brandfolder_browser_selection_limit'] = [
-    '#type' => 'hidden',
-    '#value' => $selection_limit,
-  ];
-  $form['brandfolder_browser']['brandfolder_browser_controls'] = [
-    '#type' => 'fieldset',
-    '#collabsible' => FALSE,
-    '#attributes' => [
-      'class' => [
-        'brandfolder-browser-controls',
-      ],
-    ],
-  ];
-
-  $controls = brandfolder_browser_controls($gatekeeper, $bf_browser_id, $form, $form_state);
-  $form['brandfolder_browser']['brandfolder_browser_controls'] += $controls;
-
-  $form['brandfolder_browser']['brandfolder_browser_assets'] = [
-    '#markup' => "<div class=\"brandfolder-assets\">
-                    $bf_asset_list
-                  </div>",
-  ];
-
-  if ($bf_assets_metadata) {
-    $form['brandfolder_browser']['brandfolder_browser_pagination'] = brandfolder_browser_pagination($bf_assets_metadata, $bf_browser_id, $form);
-  }
-
-  $gatekeeper_criteria = $gatekeeper->getCriteria(FALSE);
-
-  $form['brandfolder_browser']['bf_gatekeeper_criteria'] = [
-    '#type' => 'hidden',
-    '#value' => json_encode($gatekeeper_criteria),
-  ];
-}
-
-function brandfolder_browser_pagination($assets_metadata, $bf_browser_id, $form) {
-
-  $pagination = [
-    '#type' => 'container',
-    '#attributes' => [
-      'class' => [
-        'brandfolder-browser__pagination',
-      ],
-    ],
-  ];
-
-  $ajax_defaults = [
-    'callback' => [
-      'Drupal\brandfolder\Controller\AssetFetchController',
-      'assetFetchFormAjaxCallback',
-    ],
-    'wrapper' => $bf_browser_id,
-    'progress' => [
-      'type' => 'throbber',
-      'message' => t('Fetching assets...'),
-    ],
-  ];
-  if (isset($form['#action'])) {
-    $url = brandfolder_get_browser_form_action_url($form);
-    $ajax_defaults['url'] = $url;
-  }
-
-  if ($assets_metadata->total_count) {
-    $first_asset_number = ($assets_metadata->current_page - 1) * $assets_metadata->items_per_page + 1;
-    $pagination['assets_summary'] = [
-      '#markup' => '<p>' . t('Showing @start-@end of @total assets', [
-        '@start' => $first_asset_number,
-        '@end' => $assets_metadata->next_page ? $first_asset_number + $assets_metadata->items_per_page - 1 : $assets_metadata->total_count,
-        '@total' => $assets_metadata->total_count,
-      ]) . '</p>',
-    ];
-    if ($assets_metadata->total_pages > 1) {
-      $pagination['pages_summary'] = [
-        '#markup' => '<p>' . t('Showing page @page of @pages', [
-          '@page'  => $assets_metadata->current_page,
-          '@pages' => $assets_metadata->total_pages,
-        ]) . '</p>',
-      ];
-      if ($assets_metadata->prev_page) {
-        $name = 'brandfolder_pagination_page_selector_previous';
-        $pagination[$name] = [
-          '#type' => 'button',
-          '#title' => t('Previous page'),
-          '#name' => $name,
-          '#ajax' => $ajax_defaults,
-          '#value' => $assets_metadata->prev_page,
-        ];
-      }
-      if ($assets_metadata->next_page) {
-        $name = 'brandfolder_pagination_page_selector_next';
-        $pagination[$name] = [
-          '#type' => 'button',
-          '#title' => t('Next page'),
-          '#name' => $name,
-          '#ajax' => $ajax_defaults,
-          '#value' => $assets_metadata->next_page,
-        ];
-      }
-    }
-  }
-
-  return $pagination;
-}
-
-/**
- * Helper function to convert an array of assets provided by the Brandfolder
- * API/SDK into an HTML list.
- *
- * @param object $assets
- * @param array $disabled_attachment_ids
- * @param array $selected_attachment_ids
- *
- * @return string
- *
- * @todo: Theme pattern, tpl, etc.
- */
-function brandfolder_format_asset_list(object $assets, array $disabled_attachment_ids = [], array $selected_attachment_ids = []): string {
-  $bf_asset_list_items = array_map(function ($asset) use ($disabled_attachment_ids, $selected_attachment_ids) {
-    $output = '';
-    if (!empty($asset->attachments)) {
-      $output = "<li class=\"brandfolder-asset\" data-bf-asset-id=\"{$asset->id}\">"
-        .         "<span class=\"brandfolder-asset__close_button\">&#8592;</span>"
-        .         "<div class=\"brandfolder-asset__overview\">"
-        .           "<h2 class=\"brandfolder-asset__heading\">{$asset->attributes->name}</h2>"
-        .           "<figure>"
-        .             "<img class=\"brandfolder-asset__thumb\" src=\"{$asset->attributes->thumbnail_url}\" />"
-        .             "<figcaption class=\"brandfolder-asset__info\">"
-        .               "<div class=\"bf-asset-metadata bf-asset-metadata--name\">{$asset->attributes->name}</div>"
-        .               "<div class=\"bf-asset-metadata bf-asset-metadata--description\">{$asset->attributes->description}</div>"
-        .             "</figcaption>"
-        .           "</figure>"
-        .          "</div>"
-        .         "<div class=\"brandfolder-asset__attachments\">"
-        .           "<h3 class=\"brandfolder-asset__attachment-list-heading\">" . t('Attachments') . "</h3>"
-        .           "<ul class=\"brandfolder-asset__attachment-list\">";
-
-      // @todo: Add this functionality to new browser.
-      // Exclude unsupported attachment types (which would be returned if
-      // their parent asset has other attachments that are of a supported type).
-      // @todo: Sync with media type config.
-      $supported_mimetypes = [
-        'image/gif',
-        'image/jpeg',
-        'image/png',
-        'image/svg+xml',
-        'image/tiff',
-        'image/webp',
-      ];
-
-      foreach ($asset->attachments as $attachment_id => $attachment) {
-        if (!in_array($attachment->mimetype, $supported_mimetypes)) {
-          continue;
-        }
-        $attachment_classes_array = ['brandfolder-attachment'];
-        if (in_array($attachment_id, $disabled_attachment_ids)) {
-          $attachment_classes_array[] = 'brandfolder-attachment--disabled';
-        }
-        if (in_array($attachment_id, $selected_attachment_ids)) {
-          $attachment_classes_array[] = 'brandfolder-attachment--selected';
-        }
-        $attachment_classes = implode(' ', $attachment_classes_array);
-        $output .= "<li class=\"$attachment_classes\" data-bf-attachment-id=\"{$attachment_id}\">"
-          .     "<figure>"
-          .       "<img class=\"brandfolder-attachment__image\" src=\"\" data-img-src=\"{$attachment->thumbnail_url}\" />"
-          .       "<figcaption>"
-          .         "<div class=\"bf-attachment-metadata\"><strong>" . t('Filename') . ":</strong> {$attachment->filename}</div>"
-          .         "<div class=\"bf-attachment-metadata\"><strong>" . t('File Size') . ":</strong> " . DeprecationHelper::backwardsCompatibleCall(\Drupal::VERSION, '10.2.0', fn() => \Drupal\Core\StringTranslation\ByteSizeMarkup::create($attachment->size), fn() => format_size($attachment->size)) . "</div>"
-          .         "<div class=\"bf-attachment-metadata\"><strong>" . t('Dimensions') . ":</strong> {$attachment->width}x{$attachment->height}</div>"
-          .       "</figcaption>"
-          .     "</figure>"
-          .   "</li>";
-      }
-      $output .= "</ul>"
-        .     "</div>"
-        .   "</li>";
-    }
-
-    return $output;
-  }, $assets->data);
-
-  $bf_asset_list = '<ul class="brandfolder-asset-list">' . implode(' ', $bf_asset_list_items) . '</ul>';
-
-  return $bf_asset_list;
-}
-
-/**
- * Helper function to build a URL to use for Brandfolder browser forms.
- *
- * @param array $form
- *
- * @return \Drupal\Core\GeneratedUrl|string
- */
-function brandfolder_get_browser_form_action_url(array $form): \Drupal\Core\GeneratedUrl|string {
-  // Form AJAX requests will always post to the $form['#action'] URL, if one
-  // exists. Ensure that our URL has certain query params so that the AJAX
-  // submissions are handled properly.
-  // @see This core issue and related discussion: https://www.drupal.org/project/drupal/issues/2504115.
-  $ajax_form_request_param = FormBuilderInterface::AJAX_FORM_REQUEST;
-  try {
-    $url = Url::fromUserInput($form['#action']);
-    $url->mergeOptions([
-      'query' => [
-        $ajax_form_request_param => 1,
-        'form_id'                => $form['#form_id']
-      ]
-    ]);
-    $url = $url->toString();
-  } catch (\InvalidArgumentException $e) {
-    $url = $form['#action'];
-    if (!(strpos($url, '?') > 0)) {
-      $url .= '?';
-    }
-    else {
-      $url .= '&';
-    }
-    $params = [];
-    if (!(strpos($url, FormBuilderInterface::AJAX_FORM_REQUEST) > 0)) {
-      $params[] = "{$ajax_form_request_param}=1";
-    }
-    if (!(strpos($url, 'form_id') > 0)) {
-      $params[] = "form_id={$form['#form_id']}";
-    }
-    if (count($params) > 0) {
-      $url .= implode('&', $params);
-    }
-  }
-
-  return $url;
-}
-
-/**
- * Helper function to generate form elements to allow users to search for,
- * filter, sort, etc. assets in a Brandfolder browser context.
- *
- * @param \Drupal\brandfolder\Service\BrandfolderGatekeeper $gatekeeper
- * @param string $bf_browser_id
- * @param array $form
- * @param \Drupal\Core\Form\FormStateInterface $form_state
- *
- * @return array
- */
-function brandfolder_browser_controls(BrandfolderGatekeeper $gatekeeper, string $bf_browser_id, array &$form, FormStateInterface &$form_state): array {
-  $controls = [];
-
-  $all_user_input = $form_state->getUserInput();
-
-  $ajax_defaults = [
-    'callback' => [
-      'Drupal\brandfolder\Controller\AssetFetchController',
-      'assetFetchFormAjaxCallback',
-    ],
-    'wrapper' => $bf_browser_id,
-    'progress' => [
-      'type' => 'throbber',
-      'message' => t('Searching...'),
-    ],
-  ];
-  if (isset($form['#action'])) {
-    $url = brandfolder_get_browser_form_action_url($form);
-    $form['#action'] = $ajax_defaults['url'] = $url;
-  }
-
-  $attribute_defaults = [
-    'class' => [
-      'brandfolder-browser-control'
-    ]
-  ];
-
-  $controls['search'] = [
-    '#type' => 'fieldset',
-    '#collapsible' => FALSE,
-    '#attributes' => [
-      'class' => [
-        'brandfolder-browser-control-group',
-        'brandfolder-browser-control-group--search',
-      ],
-    ],
-  ];
-
-  $ajax = $ajax_defaults;
-  $ajax['event'] = 'change';
-  $controls['search']['brandfolder_controls_search_text'] = [
-    '#type' => 'search',
-    '#length' => 120,
-    '#ajax' => $ajax,
-    '#attributes' => $attribute_defaults,
-  ];
-
-  $controls['search']['brandfolder_controls_search_submit'] = [
-    '#type' => 'button',
-    '#value' => t('Search'),
-    '#ajax' => $ajax_defaults,
-    '#attributes' => $attribute_defaults,
-    '#limit_validation_errors' => [],
-  ];
-
-  // Get all possible collections. If there are more than one, allow users to
-  // filter by collection.
-  $allowed_collections = $gatekeeper->getCollections();
-  if (count($allowed_collections) > 1) {
-    $controls['collections'] = [
-      '#type' => 'fieldset',
-      '#title' => t('Collections'),
-      '#collapsible' => TRUE,
-      '#collapsed' => TRUE,
-      '#attributes' => [
-        'class' => [
-          'brandfolder-browser-control-group',
-          'brandfolder-browser-control-group--collections',
-        ],
-      ],
-    ];
-    foreach ($allowed_collections as $collection_id => $collection_name) {
-      $controls['collections']["brandfolder_controls_collection_key_$collection_id"] = [
-        '#type'       => 'checkbox',
-        '#title'      => $collection_name,
-        '#ajax'       => $ajax_defaults,
-        '#attributes' => $attribute_defaults,
-      ];
-    }
-  }
-
-  // Get all possible sections. If there are more than one, allow users to
-  // filter by section.
-  $allowed_sections = $gatekeeper->getSections();
-  if (count($allowed_sections) > 1) {
-    $controls['sections'] = [
-      '#type' => 'fieldset',
-      '#title' => t('Sections'),
-      '#collapsible' => TRUE,
-      '#collapsed' => TRUE,
-      '#attributes' => [
-        'class' => [
-          'brandfolder-browser-control-group',
-          'brandfolder-browser-control-group--sections',
-        ],
-      ],
-    ];
-    foreach ($allowed_sections as $section_id => $section_name) {
-      $controls['sections']["brandfolder_controls_section_key_$section_id"] = [
-        '#type'       => 'checkbox',
-        '#title'      => $section_name,
-        '#ajax'       => $ajax_defaults,
-        '#attributes' => $attribute_defaults,
-      ];
-    }
-  }
-
-  // Get all possible labels. If there are more than one, allow users to
-  // filter by label.
-  $allowed_labels_tree = $gatekeeper->getLabels();
-  $label_options = [];
-  brandfolder_build_labels_select_list($allowed_labels_tree, $label_options);
-  if (count($label_options) > 1) {
-    $controls['labels'] = [
-      '#type'        => 'fieldset',
-      //    '#title' => t('Labels'),
-      '#collapsible' => TRUE,
-      '#collapsed'   => TRUE,
-      '#attributes'  => [
-        'class' => [
-          'brandfolder-browser-control-group',
-          'brandfolder-browser-control-group--labels',
-        ],
-      ],
-    ];
-    $attributes = $attribute_defaults;
-    $attributes['size'] = min(count($label_options), 10);
-    $controls['labels']['brandfolder_controls_labels'] = [
-      '#type' => 'select',
-      '#title' => t('Labels'),
-      '#attributes' => $attributes,
-      '#ajax'       => $ajax_defaults,
-      '#options' => $label_options,
-      '#multiple' => TRUE,
-    ];
-  }
-
-  // Orientation/aspect.
-  $controls['orientation'] = [
-    '#type'        => 'fieldset',
-    '#title' => t('Orientation'),
-    '#collapsible' => TRUE,
-    '#collapsed'   => TRUE,
-    '#attributes'  => [
-      'class' => [
-        'brandfolder-browser-control-group',
-        'brandfolder-browser-control-group--orientation',
-      ],
-    ],
-  ];
-  $orientation_options = [
-    'landscape' => t('Horizontal'),
-    'portrait' => t('Vertical'),
-    'square' => t('Square'),
-    'panorama' => t('Panoramic'),
-  ];
-  foreach ($orientation_options as $key => $label) {
-    $controls['orientation']["brandfolder_controls_aspect_$key"] = [
-      '#type'       => 'checkbox',
-      '#title'      => $label,
-      '#ajax'       => $ajax_defaults,
-      '#attributes' => $attribute_defaults,
-    ];
-  }
-
-  // File type.
-  // @todo: maintain a registry of file types that are actually used and popular for the given Brandfolder and use those.
-  $controls['filetype'] = [
-    '#type'        => 'fieldset',
-    '#title' => t('Popular File Types'),
-    '#collapsible' => TRUE,
-    '#collapsed'   => TRUE,
-    '#attributes'  => [
-      'class' => [
-        'brandfolder-browser-control-group',
-        'brandfolder-browser-control-group--filetype',
-      ],
-    ],
-  ];
-  $filetype_options = [
-    'jpg',
-    'png',
-    'svg',
-    'gif',
-    'webp',
-//    'mp4',
-  ];
-  foreach ($filetype_options as $type) {
-    $controls['filetype']["brandfolder_controls_filetype_$type"] = [
-      '#type'       => 'checkbox',
-      '#title'      => $type,
-      '#ajax'       => $ajax_defaults,
-      '#attributes' => $attribute_defaults,
-    ];
-  }
-
-  // Upload recency.
-  $controls['upload_date'] = [
-    '#type'        => 'fieldset',
-    '#collapsible' => TRUE,
-    '#collapsed'   => TRUE,
-    '#attributes'  => [
-      'class' => [
-        'brandfolder-browser-control-group',
-        'brandfolder-browser-control-group--upload-date',
-      ],
-    ],
-  ];
-  $controls['upload_date']['brandfolder_controls_upload_date'] = [
-    '#type'       => 'radios',
-    '#title'      => t('Upload Date'),
-    '#options'    => [
-      'all'        => t('All'),
-      '30m' => t('Last 30 Minutes'),
-      '1d'   => t('Last 24 Hours'),
-      '7d'     => t('Last 7 Days'),
-      '30d'    => t('Last 30 Days'),
-    ],
-    '#ajax'       => $ajax_defaults,
-    '#attributes' => $attribute_defaults,
-  ];
-
-  // Tags.
-  $controls['tags'] = [
-    '#type'        => 'fieldset',
-    '#title' => t('Tags'),
-    '#collapsible' => TRUE,
-    '#collapsed'   => TRUE,
-    '#attributes'  => [
-      'class' => [
-        'brandfolder-browser-control-group',
-        'brandfolder-browser-control-group--tags',
-      ],
-    ],
-  ];
-  // Allow users to choose whether the selected tags should be combined
-  // inclusively or exclusively.
-  $controls['tags']['brandfolder_controls_tag_filter_mode'] = [
-    '#type'       => 'radios',
-    '#options'      => [
-      'any' => t('Any selected'),
-      'all' => t('All selected'),
-    ],
-    '#default_value'       => 'any',
-    '#ajax'       => $ajax_defaults,
-    '#attributes' => $attribute_defaults,
-    '#prefix' => '<div class="brandfolder-browser-controls__tag-filter-mode">',
-    '#suffix' => '</div>',
-  ];
-  $controls['tags']['tag_list'] = [
-    '#type'        => 'fieldset',
-    '#collapsible' => FALSE,
-    '#attributes'  => [
-      'class' => [
-        'brandfolder-browser-controls__tag_list',
-      ],
-    ],
-  ];
-  $num_tag_checkboxes = 0;
-  $tag_key_mapping_string = $form_state->getValue('brandfolder_controls_tag_key_mapping');
-  if (empty($tag_key_mapping_string)) {
-    if (isset($all_user_input['brandfolder_controls_tag_key_mapping'])) {
-      $tag_key_mapping_string = $all_user_input['brandfolder_controls_tag_key_mapping'];
-    }
-  }
-  $tag_key_mapping = empty($tag_key_mapping_string) ? [] : json_decode($tag_key_mapping_string, TRUE);
-  foreach ($tag_key_mapping as $tag_key => $tag_name) {
-    $controls['tags']['tag_list']["brandfolder_controls_tags_$tag_key"] = [
-      '#type'       => 'checkbox',
-      '#title'      => $tag_name,
-      '#ajax'       => $ajax_defaults,
-      '#attributes' => $attribute_defaults,
-    ];
-    $num_tag_checkboxes++;
-  }
-
-  $tag_text_input_should_be_cleared = FALSE;
-
-  $new_tag_name = $form_state->getValue('brandfolder_controls_tag_text_input');
-  if (empty($new_tag_name)) {
-    if (isset($all_user_input['brandfolder_controls_tag_text_input'])) {
-      $new_tag_name = $all_user_input['brandfolder_controls_tag_text_input'];
-    }
-  }
-  // If the user has just entered the name of a tag to use in filtering...
-  if (!empty($new_tag_name)) {
-    // Declare that the text input field should be cleared/reset.
-    $tag_text_input_should_be_cleared = TRUE;
-    // Generate a reliable key that can be mapped to the tag's human-readable
-    // name.
-    $tag_key = md5($new_tag_name);
-    // Add a (pre-checked) checkbox to the form for filtering results by the
-    // given tag. Users will then be able to uncheck it as desired. Such
-    // checkboxes will persist for the life of the Brandfolder browser form,
-    // whether checked or unchecked.
-    $tag_checkbox_identifier = "brandfolder_controls_tags_$tag_key";
-    $controls['tags']['tag_list'][$tag_checkbox_identifier] = [
-      '#type'       => 'checkbox',
-      '#default_value' => TRUE,
-      '#title'      => $new_tag_name,
-      '#ajax'       => $ajax_defaults,
-      '#attributes' => $attribute_defaults,
-    ];
-    $num_tag_checkboxes++;
-    // Ensure that the dynamically-generated checkbox has a positive value
-    // for immediate processing. Technically, this may be more suited to a
-    // validation function, but keep it here for now for clarity.
-    $form_state->setValue($tag_checkbox_identifier, TRUE);
-    $all_user_input[$tag_checkbox_identifier] = TRUE;
-    $form_state->setUserInput($all_user_input);
-    // Add the new tag to our key:name mapping.
-    $tag_key_mapping[$tag_key] = $new_tag_name;
-  }
-
-  // If there are no tag checkboxes at this time, remove the container and
-  // tag filter mode selector.
-  if ($num_tag_checkboxes == 0) {
-    unset($controls['tags']['tag_list']);
-    unset($controls['tags']['brandfolder_controls_tag_filter_mode']);
-  }
-
-  $controls['tags']['new_tag_input_group'] = [
-    '#type'        => 'fieldset',
-    '#collapsible' => FALSE,
-    '#attributes'  => [
-      'class' => [
-        'brandfolder-browser-controls__new_tag_input_group',
-      ],
-    ],
-  ];
-  $ajax = $ajax_defaults;
-  $ajax['event'] = 'change';
-  $attributes = $attribute_defaults;
-  $attributes['class'][] = 'brandfolder-browser-control--tag-text-input';
-  $controls['tags']['new_tag_input_group']['brandfolder_controls_tag_text_input'] = [
-    '#type' => 'textfield',
-    '#length' => 120,
-    '#ajax' => $ajax,
-    '#attributes' => $attributes,
-  ];
-  if ($tag_text_input_should_be_cleared) {
-    $controls['tags']['new_tag_input_group']['brandfolder_controls_tag_text_input']['#value'] = '';
-  }
-  $controls['tags']['new_tag_input_group']['brandfolder_controls_tag_text_input_submit'] = [
-    '#type' => 'button',
-    '#value' => t('Add'),
-    '#ajax' => $ajax_defaults,
-    '#attributes' => $attribute_defaults,
-    '#limit_validation_errors' => [],
-  ];
-
-  $controls['brandfolder_controls_tag_key_mapping'] = [
-    '#type' => 'hidden',
-    '#value' => json_encode($tag_key_mapping),
-    '#attributes' => [
-      'class' => [
-        'brandfolder-controls-tag-key-mapping',
-      ]
-    ],
-  ];
-
-  // Sorting.
-  $controls['sort'] = [
-    '#type'        => 'fieldset',
-    //    '#title' => t('Sort'),
-    '#collapsible' => TRUE,
-    '#collapsed'   => TRUE,
-    '#attributes'  => [
-      'class' => [
-        'brandfolder-browser-control-group',
-        'brandfolder-browser-control-group--sort',
-      ],
-    ],
-  ];
-  $controls['sort']['brandfolder_controls_sort_criterion'] = [
-    '#title'         => t('Sort by'),
-    '#type'          => 'select',
-    '#options'       => [
-      'name'       => t('Name'),
-      'score'      => t('Score'),
-      'position'   => t('Position'),
-      'updated_at' => t('Updated'),
-      'created_at' => t('Upload Date'),
-    ],
-    '#default_value' => 'created_at',
-    '#ajax'          => $ajax_defaults,
-    '#attributes'    => $attribute_defaults,
-  ];
-  $controls['sort']['brandfolder_controls_sort_order'] = [
-    '#title'         => t('Sort Order'),
-    '#type'          => 'select',
-    '#options'       => [
-      'asc'  => t('Ascending'),
-      'desc' => t('Descending'),
-    ],
-    '#default_value' => 'desc',
-    '#ajax'          => $ajax_defaults,
-    '#attributes'    => $attribute_defaults,
-  ];
-
-  return $controls;
 }
 
 /**
@@ -1143,42 +448,6 @@ function brandfolder_build_labels_select_list($labels, &$select_options) {
   }
 }
 
-///**
-// * Check to see whether a form submission was triggered by one of our
-// * Brandfolder browser controls (e.g. search, filters, etc.).
-// *
-// * @param \Drupal\Core\Form\FormStateInterface $form_state
-// *
-// * @return bool
-// */
-//function is_form_submission_triggered_by_bf_browser_controls(FormStateInterface $form_state): bool {
-//  $triggering_element = $form_state->getTriggeringElement();
-//  if (isset($triggering_element['#attributes']['class'])) {
-//    $classes = $triggering_element['#attributes']['class'];
-//    if (is_array($classes) && in_array('brandfolder-browser-control', $classes)) {
-//      return TRUE;
-//    }
-//  }
-//
-//  return FALSE;
-//}
-
-/**
- * Form validation handler to be applied to forms containing a Brandfolder
- * Browser, after other validation handlers have executed.
- *
- * @param array $form
- * @param \Drupal\Core\Form\FormStateInterface $form_state
- */
-//function brandfolder_browser_host_form_validator(array &$form, FormStateInterface &$form_state) {
-//  // If the submission was triggered by one of our browser controls, the only
-//  // outcome should be to update the browser contents. We do not care about
-//  // other validation logic/errors.
-//  if (is_form_submission_triggered_by_bf_browser_controls($form_state)) {
-//    $form_state->clearErrors();
-//  }
-//}
-
 /**
  * Helper function to translate Brandfolder browser selections to Drupal form
  * values in a Media Library context. To be used as a form validation handler.
@@ -1187,13 +456,6 @@ function brandfolder_build_labels_select_list($labels, &$select_options) {
  * @param \Drupal\Core\Form\FormStateInterface $form_state
  */
 function brandfolder_browser_to_media_library_selection_converter(array &$form, FormStateInterface &$form_state) {
-  // We don't need or want to perform validation when the submission is
-  // triggered by one of our browser controls.
-//  if (is_form_submission_triggered_by_bf_browser_controls($form_state)) {
-//
-//    return;
-//  }
-
   $selected_media_entities = [];
   $selected_media_entities_list = '';
   $selected_attachment_list = $form_state->getValue('selected_bf_attachment_ids');
@@ -1511,23 +773,74 @@ function brandfolder_map_attachment_to_media_entity($attachment, $media_type_id,
  * @return bool|string
  *   The attachment ID on success; FALSE on failure.
  */
-function brandfolder_map_media_entity_to_attachment(int $media_entity_id) {
+function brandfolder_map_media_entity_to_attachment(int $media_entity_id): bool|string {
   $attachment_id = FALSE;
-  if ($media = \Drupal::entityTypeManager()->getStorage('media')->load($media_entity_id)) {
-    // @todo: Global constant, config, etc.?
-    $bf_media_source_field_name = 'field_brandfolder_attachment_id';
-    $field_item_list = $media->get($bf_media_source_field_name);
-    if ($field_item_list->count() > 0) {
-      $attachment_id = $field_item_list->first()->getValue()['value'];
+  try {
+    /* @var MediaInterface $media */
+    $media = \Drupal::entityTypeManager()->getStorage('media')->load($media_entity_id);
+    if ($media) {
+      $attachment_id = $media?->getSource()?->getSourceFieldValue($media);
     }
   }
+  catch (\Exception $e) {}
 
   if (!$attachment_id) {
     $logger = \Drupal::logger('brandfolder');
     $logger->error('Could not determine a Brandfolder attachment ID for media entity ID !media_entity_id', ['!media_entity_id' => $media_entity_id]);
+    $attachment_id = FALSE;
   }
 
   return $attachment_id;
+}
+
+/**
+ * Given a Drupal media entity ID, return a Brandfolder attachment ID.
+ *
+ * @param array $media_entity_ids
+ *
+ * @return string[] | false
+ *  An array keyed by attachment ID, whose values are lightweight attachment
+ *  arrays (currently consisting only of id and cdn_url). FALSE on failure.
+ */
+function brandfolder_map_media_entities_to_attachments(array $media_entity_ids): array|bool {
+  $result = [];
+  try {
+    if ($media_entities = \Drupal::entityTypeManager()->getStorage('media')->loadMultiple($media_entity_ids)) {
+      $url_generator = \Drupal::service('file_url_generator');
+      foreach ($media_entities as $media_entity_id => /* @var MediaInterface $media */ $media) {
+        $attachment_id = $media?->getSource()?->getSourceFieldValue($media);
+        if ($attachment_id) {
+          $attachment = [
+            'id' => $attachment_id,
+          ];
+          $image_file = $media?->bf_image?->entity;
+          if ($image_file) {
+            if ($image_file_uri = $image_file->getFileUri()) {
+              $url = $url_generator?->generateAbsoluteString($image_file_uri);
+              if ($url) {
+                $attachment['cdn_url'] = $url;
+              }
+            }
+            $attachment['filename'] = $image_file?->filename?->first()?->value;
+            $attachment['mimetype'] = $image_file?->filemime?->first()?->value;
+            $attachment['size'] = $image_file?->filesize?->first()?->value;
+          }
+          $result[$attachment_id] = $attachment;
+        }
+        else {
+          $logger = \Drupal::logger('brandfolder');
+          $logger->error('Could not determine a Brandfolder attachment ID for media entity ID !media_entity_id', ['!media_entity_id' => $media_entity_id]);
+        }
+      }
+    }
+  }
+  catch (\Exception $e) {
+    $logger = \Drupal::logger('brandfolder');
+    $logger->error('Could not determine Brandfolder attachment IDs for media entity IDs !media_entity_ids', ['!media_entity_ids' => implode(', ', $media_entity_ids)]);
+    $result = FALSE;
+  }
+
+  return $result;
 }
 
 /**

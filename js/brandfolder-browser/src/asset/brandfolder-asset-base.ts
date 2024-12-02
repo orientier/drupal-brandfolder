@@ -117,6 +117,14 @@ export class BrandfolderAssetBase extends LitElement {
   bfCdnUrlBase: string | null = null
 
   /**
+   * Image to display while loading the preferred preview image.
+   *
+   * @todo: Display this image while the preferred preview image is loading and then swap.
+   */
+  @property({type: String, attribute: false})
+  imagePlaceholderUrl: string | null = null
+
+  /**
    * Lifecycle method called before update() to compute values needed during
    * the update.
    */
@@ -136,6 +144,24 @@ export class BrandfolderAssetBase extends LitElement {
       const cdnUrl = this.asset.attributes.cdn_url
       this.cdnUrl = cdnUrl
       this.bfCdnUrlBase = cdnUrl.replace(/^(.*)\/as\/.*$/, '$1')
+
+      if (cdnUrl) {
+        // Store the basic CDN URL without any default query params.
+        this.cdnUrl = cdnUrl.replace(/^([^?]*)(\?.*)?$/, '$1')
+        // Set the default image URL for display, with CDN image
+        // transformations/directives.
+        let imagePlaceholderUrl = this.cdnUrl
+        // Add URL params for supported URL/image types.
+        const imgIsSvg = (imagePlaceholderUrl.match(/\.svg$/))
+        if (!imgIsSvg) {
+          // @todo: Calculate image dimensions based on the first attachment's width and height values/aspect ratio.
+          imagePlaceholderUrl += '?width=200&height=150&fit=bounds&blur=12p&saturation=50&auto=webp&quality=80'
+        }
+        this.imagePlaceholderUrl = imagePlaceholderUrl
+      }
+      else {
+        this.imagePlaceholderUrl = this.thumbnailUrl
+      }
     }
   }
 }

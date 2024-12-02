@@ -214,15 +214,15 @@ class BrandfolderBrowserController extends ControllerBase {
         'tags' => [],
       ];
       $collections = $gatekeeper->getCollections();
-      if (!empty($collections)) {
+      if (count($collections) > 1) {
         $control_schema['collections'] = $collections;
       }
       $sections = $gatekeeper->getSections();
-      if (!empty($sections)) {
+      if (count($sections) > 1) {
         $control_schema['sections'] = $sections;
       }
       $labels = $gatekeeper->getLabels();
-      if (!empty($labels)) {
+      if (count($labels) > 1) {
         $control_schema['labels'] = $labels;
       }
 
@@ -271,6 +271,39 @@ class BrandfolderBrowserController extends ControllerBase {
         'assets' => $result->data,
         'meta'   => $result->meta,
         'controlSchema' => $control_schema,
+      ];
+    }
+
+    return new JsonResponse($response_data);
+  }
+
+  /**
+   * Handler for Brandfolder browsers requesting attachment data.
+   */
+  public function bfBrowserGetAttachmentsById(Request $request) : JsonResponse {
+    $request_data = [];
+    $content = $request->getContent();
+    if (!empty($content)) {
+      $request_data = Json::decode($content);
+    }
+
+    $required_request_fields = [
+      'attachmentIds',
+    ];
+    foreach ($required_request_fields as $required_key) {
+      if (empty($request_data[$required_key])) {
+        return new JsonResponse(FALSE);
+      }
+    }
+
+    $attachment_ids = $request_data['attachmentIds'];
+    $result = $this->brandfolderGatekeeper->fetchAttachmentsById($attachment_ids);
+
+    $response_data = FALSE;
+    if ($result) {
+      $response_data = [
+        'attachments' => $result->data,
+        'meta'   => $result->meta,
       ];
     }
 
