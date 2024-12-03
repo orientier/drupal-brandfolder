@@ -1,10 +1,19 @@
 brandfolder-browser:
-  version: 2.0.1
+  version: 2.0.2
   js:
     js/brandfolder-browser/dist/brandfolder-browser-bundled.js: {
       minified: true,
       attributes: { type: module }
     }
+bf-browser-host-manager:
+  version: 1.0.0
+  js:
+    js/bf-browser-host-manager.js: {
+      minified: false,
+    }
+  dependencies:
+    - core/drupal
+    - core/once
 brandfolder-admin:
   version: 1.x
   css:

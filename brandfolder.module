@@ -311,12 +311,12 @@ function brandfolder_views_pre_build(ViewExecutable $view) {
  */
 function brandfolder_browser_media_library_form_manipulator(&$form, FormStateInterface $form_state, MediaType $media_type) {
   $media_source = $media_type->getSource();
+  /* @var Drupal\brandfolder\Service\BrandfolderGatekeeper $gatekeeper */
   $gatekeeper = \Drupal::getContainer()
     ->get('brandfolder.gatekeeper');
   $gatekeeper->loadFromMediaSource($media_source);
 
   $context = ['media_library'];
-  $selected_media_entity_ids = [];
   $selection_limit = -1;
   $build_info = $form_state->getBuildInfo();
   if ($build_info['base_form_id'] == 'views_form_media_library_widget' && isset($build_info['args'][0]) && $build_info['args'][0] instanceof ViewExecutable) {
@@ -326,25 +326,26 @@ function brandfolder_browser_media_library_form_manipulator(&$form, FormStateInt
         $state = MediaLibraryState::fromRequest($view->getRequest());
         $selection_limit = $state->getAvailableSlots();
         $ml_opener_params = $state->getOpenerParameters();
-
         $field_name = $ml_opener_params['field_name'];
         $context[] = $field_name;
-
-        $user_input = $form_state->getUserInput();
-        if (!empty($user_input[$field_name]['selection'])) {
-          $selected_media_entity_ids = array_map(function($input) {
-            return $input['target_id'];
-          }, $user_input[$field_name]['selection']);
-        }
-
       } catch (Exception $e) {}
     }
   }
 
-  $selected_bf_attachments = brandfolder_map_media_entities_to_attachments($selected_media_entity_ids);
+  // Note that we don't want to pass any previously-selected attachments
+  // through to the Brandfolder browser, because the way the Media Library
+  // widget works is to always add new selections to previous ones (and only
+  // allow itself to be opened if slots remain). Selecting the same media entity
+  // multiple times in the same multi-cardinality Drupal media reference field
+  // is perfectly valid, too. Displaying prior selections and associated counts
+  // within the BF browser would be confusing/conflicting/misleading (e.g.
+  // deselecting them would not cause the associated media entities to be
+  // removed from the lower deltas on the parent field; the BF browser would
+  // incorrectly prevent those same items from being reselected; and the "x of y
+  // items selected" messaging would be inaccurate).
 
   $context_string = implode('-', $context);
-  brandfolder_browser_init($form, $form_state, $gatekeeper, $selected_bf_attachments, $selection_limit, $context_string);
+  brandfolder_browser_init($form, $form_state, $gatekeeper, [], $selection_limit, $context_string);
 
   // Completely replace standard validation with our own custom
   // validators/processors.
@@ -418,6 +419,8 @@ function brandfolder_browser_init(array &$form, FormStateInterface $form_state, 
     ],
     '#default_value' => implode(',', array_keys($selected_attachments)),
   ];
+
+  $form['#attached']['library'][] = 'brandfolder/bf-browser-host-manager';
 }
 
 /**
@@ -794,12 +797,14 @@ function brandfolder_map_media_entity_to_attachment(int $media_entity_id): bool|
 }
 
 /**
- * Given a Drupal media entity ID, return a Brandfolder attachment ID.
+ * Given an array of Drupal media entity IDs, return corresponding Brandfolder
+ * attachment IDs.
  *
  * @param array $media_entity_ids
  *
  * @return string[] | false
- *  An array keyed by attachment ID, whose values are lightweight attachment
+ *  An array for each of the provided entities that are Brandfolder-sourced,
+ *  keyed by attachment ID. Array values are lightweight attachment
  *  arrays (currently consisting only of id and cdn_url). FALSE on failure.
  */
 function brandfolder_map_media_entities_to_attachments(array $media_entity_ids): array|bool {
@@ -808,6 +813,9 @@ function brandfolder_map_media_entities_to_attachments(array $media_entity_ids):
     if ($media_entities = \Drupal::entityTypeManager()->getStorage('media')->loadMultiple($media_entity_ids)) {
       $url_generator = \Drupal::service('file_url_generator');
       foreach ($media_entities as $media_entity_id => /* @var MediaInterface $media */ $media) {
+        if (!is_media_brandfolder_sourced($media)) {
+          continue;
+        }
         $attachment_id = $media?->getSource()?->getSourceFieldValue($media);
         if ($attachment_id) {
           $attachment = [

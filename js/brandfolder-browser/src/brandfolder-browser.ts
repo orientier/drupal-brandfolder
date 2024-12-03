@@ -492,7 +492,6 @@ export class BrandfolderBrowser extends LitElement {
    * Handle attachment selection events.
    */
   private _attachmentSelectionHandler = (e: CustomEvent) => {
-    // @todo: Manage selection limits
     const {attachmentId, attachment, isSelected} = e.detail
     if (!attachmentId?.length) {
       return
@@ -514,19 +513,18 @@ export class BrandfolderBrowser extends LitElement {
       selectedAttachments
     }
 
-    // Find the closest form ancestor, then find the hidden input element
-    // named "selected_bf_attachment_ids" and append the attachment ID to its
-    // value if it's not already present.
-    const browserElement = e.target as HTMLElement
-    const form = browserElement.closest('form')
-    if (form) {
-      const selectedAttachmentIdsInput = form.querySelector(
-        'input[name="selected_bf_attachment_ids"]'
-      ) as HTMLInputElement
-      if (selectedAttachmentIdsInput) {
-        selectedAttachmentIdsInput.value = Object.keys(this._browserContext.selectedAttachments).join(',')
-      }
-    }
+    // Dispatch an event with the new list of selected attachment IDs, so
+    // our host/ancestor(s) can act as needed.
+    this.dispatchEvent(
+      new CustomEvent('brandfolderBrowserAttachmentSelectionChange', {
+        detail: {
+          selectedAttachmentIds: Object.keys(selectedAttachments),
+          selectionLimit: this._browserContext.selectionLimit,
+        },
+        bubbles: true,
+        composed: true,
+      })
+    )
   }
 
   /**

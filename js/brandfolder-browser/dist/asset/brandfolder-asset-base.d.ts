@@ -83,9 +83,9 @@ export declare class BrandfolderAssetBase extends LitElement {
      */
     bfCdnUrlBase: string | null;
     /**
-     * Default image URL for display.
+     * Image to display while loading the preferred preview image.
      *
-     * @todo: Use low-res version of the CDN image as a preview while the thumbnail is loading.
+     * @todo: Display this image while the preferred preview image is loading and then swap.
      */
     imagePlaceholderUrl: string | null;
     /**

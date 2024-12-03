@@ -250,7 +250,6 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
          * Handle attachment selection events.
          */
         this._attachmentSelectionHandler = (e) => {
-            // @todo: Manage selection limits
             const { attachmentId, attachment, isSelected } = e.detail;
             if (!attachmentId?.length) {
                 return;
@@ -271,17 +270,16 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
                 ...this._browserContext,
                 selectedAttachments
             };
-            // Find the closest form ancestor, then find the hidden input element
-            // named "selected_bf_attachment_ids" and append the attachment ID to its
-            // value if it's not already present.
-            const browserElement = e.target;
-            const form = browserElement.closest('form');
-            if (form) {
-                const selectedAttachmentIdsInput = form.querySelector('input[name="selected_bf_attachment_ids"]');
-                if (selectedAttachmentIdsInput) {
-                    selectedAttachmentIdsInput.value = Object.keys(this._browserContext.selectedAttachments).join(',');
-                }
-            }
+            // Dispatch an event with the new list of selected attachment IDs, so
+            // our host/ancestor(s) can act as needed.
+            this.dispatchEvent(new CustomEvent('brandfolderBrowserAttachmentSelectionChange', {
+                detail: {
+                    selectedAttachmentIds: Object.keys(selectedAttachments),
+                    selectionLimit: this._browserContext.selectionLimit,
+                },
+                bubbles: true,
+                composed: true,
+            }));
         };
         this.addEventListener('bfAssetDetailClose', this._assetDetailCloseHandler);
         this.addEventListener('bfAttachmentSelection', this._attachmentSelectionHandler);
@@ -295,7 +293,6 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
      */
     connectedCallback() {
         super.connectedCallback();
-        let previouslySelectedAttachmentIds = null;
         // Apply any configurable settings.
         if (this.settings && typeof this.settings === 'string') {
             const settings = JSON.parse(this.settings);
@@ -305,22 +302,8 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
             if (settings.assetsPerPage) {
                 this._assetsPerPage = settings.assetsPerPage;
             }
-            if (settings.selectedAttachmentIds) {
-                previouslySelectedAttachmentIds = settings.selectedAttachmentIds;
-                // Generate an object keyed by the given IDs, where each value is a
-                // basic object with placeholder attachments.
-                this._browserContext.selectedAttachments = previouslySelectedAttachmentIds.reduce((acc, id) => {
-                    acc[id] = {
-                        id,
-                        mimetype: 'image/jpeg',
-                        extension: 'jpg',
-                        filename: `loading-${id}.jpg`,
-                        size: 12345,
-                        width: 800,
-                        height: 600,
-                    };
-                    return acc;
-                }, {});
+            if (settings.selectedAttachments) {
+                this._browserContext.selectedAttachments = settings.selectedAttachments;
             }
             if (settings.selectionLimit) {
                 this._browserContext.selectionLimit = settings.selectionLimit;
@@ -469,6 +452,7 @@ BrandfolderBrowser.styles = css `
       height: var(--bf-browser-height);
       color: var(--color-gray-800);
       box-sizing: border-box;
+      overflow: hidden;
     }
 
     :host([format='full']) {
@@ -476,10 +460,6 @@ BrandfolderBrowser.styles = css `
       top: 0;
       left: 0;
       z-index: 1;
-    }
-
-    :host(.is-asset-detail-open) {
-      overflow: hidden;
     }
 
     .bf-browser__inner {
@@ -495,7 +475,7 @@ BrandfolderBrowser.styles = css `
 
     .bf-browser__results-container {
       grid-area: 2 / 1 / span 1 / -1;
-      padding: 0.5rem;
+      padding: 0.5rem 0.5rem 1.5rem;
       overflow: scroll;
     }
 

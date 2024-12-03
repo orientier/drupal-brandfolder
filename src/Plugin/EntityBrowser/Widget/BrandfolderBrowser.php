@@ -197,7 +197,8 @@ class BrandfolderBrowser extends WidgetBase {
     $gatekeeper = $this->brandfolderGatekeeper;
     $gatekeeper->loadFromMediaSource($media_source);
 
-    // @todo: Test in field contexts where we might have previously selected entities on first browser load.
+    // @todo: Selected entities won't be found here even when the host field has some of its values set (in the case of a multi-cardinality field). And the cardinality value below will be the total number of allowed items, not the number of items actually allowed to be selected in this session.
+    // @todo: Test with various EB config options (append/replace/prepend).
     $selected_bf_attachments = [];
     $selected_entities = &$form_state->get(['entity_browser', 'selected_entities']);
     if (!empty($selected_entities)) {
