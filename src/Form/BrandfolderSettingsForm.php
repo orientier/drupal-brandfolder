@@ -183,6 +183,30 @@ class BrandfolderSettingsForm extends ConfigFormBase {
 
 
     /************************************
+     * Brandfolder Browser
+     ************************************/
+    $form['bf_browser'] = [
+      '#type'  => 'details',
+      '#title' => $this->t('Brandfolder Browser'),
+      '#description' => $this->t('Settings related to the custom Brandfolder Browser interface via which BF items are selected for use in Drupal. You may need to clear caches before seeing changes take effect.'),
+    ];
+
+    $form['bf_browser']['customize_entity_browser_modal_pages'] = [
+      '#type'          => 'checkbox',
+      '#title'         => $this->t('Customize Entity Browser modal pages for Brandfolder Browsers'),
+      '#default_value' => $config->get('customize_entity_browser_modal_pages') ?? TRUE,
+      '#description' => $this->t('If enabled, we will modify the structure/content of the page within which entity browsers are rendered in a modal/iframe, when an entity browser includes a Brandfolder Browser widget. This is recommended to maximize the (already limited) screen real estate available to the BF browser, but you can disable if needed.'),
+    ];
+
+    $form['bf_browser']['disable_system_messages_on_browser_pages'] = [
+      '#type'          => 'checkbox',
+      '#title'         => $this->t('Disable system messages on Brandfolder Browser pages'),
+      '#default_value' => $config->get('disable_system_messages_on_browser_pages') ?? TRUE,
+      '#description' => $this->t('If enabled, Drupal system messages will not be shown on Brandfolder Browser pages. This is recommended to maximize the (already limited) screen real estate available to the BF browser and improve layout, but you can opt out, e.g. if your browser post-selection context needs this messaging. Note: this will only take effect if you elect to customize page output in the first place (see above).'),
+    ];
+
+
+    /************************************
      * Image Optimization
      ************************************/
     $form['image_optimization'] = [
@@ -447,6 +471,8 @@ class BrandfolderSettingsForm extends ConfigFormBase {
     $config->set('verbose_log_mode', $form_state->getValue('verbose_log_mode'));
 
     $config->set('metadata_sync_mode', $form_state->getValue('metadata_sync_mode'));
+    $config->set('customize_entity_browser_modal_pages', $form_state->getValue('customize_entity_browser_modal_pages'));
+    $config->set('disable_system_messages_on_browser_pages', $form_state->getValue('disable_system_messages_on_browser_pages'));
     $config->set('io_format_auto', $form_state->getValue('io_format_auto'));
     $config->set('io_format_auto_force', $form_state->getValue('io_format_auto_force'));
     $config->set('io_auto_webp', $form_state->getValue('io_auto_webp'));

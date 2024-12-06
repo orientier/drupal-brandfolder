@@ -317,7 +317,7 @@ function brandfolder_browser_media_library_form_manipulator(&$form, FormStateInt
   $gatekeeper->loadFromMediaSource($media_source);
 
   $context = ['media_library'];
-  $selection_limit = -1;
+  $selection_limit = NULL;
   $build_info = $form_state->getBuildInfo();
   if ($build_info['base_form_id'] == 'views_form_media_library_widget' && isset($build_info['args'][0]) && $build_info['args'][0] instanceof ViewExecutable) {
     $view = $build_info['args'][0];
@@ -370,12 +370,11 @@ function brandfolder_browser_media_library_form_manipulator(&$form, FormStateInt
  * @param \Drupal\Core\Form\FormStateInterface $form_state
  * @param \Drupal\brandfolder\Service\BrandfolderGatekeeper $gatekeeper
  * @param array $selected_attachments
- * @param int $selection_limit
- *  This should be -1 if there is no limit.
+ * @param int|null $selection_limit
  * @param string|null $context_id
  * @param array $bf_browser_settings
  */
-function brandfolder_browser_init(array &$form, FormStateInterface $form_state, BrandfolderGatekeeper $gatekeeper, array $selected_attachments = [], int $selection_limit = -1, string $context_id = NULL, array $bf_browser_settings = []): void {
+function brandfolder_browser_init(array &$form, FormStateInterface $form_state, BrandfolderGatekeeper $gatekeeper, array $selected_attachments = [], int $selection_limit = NULL, string $context_id = NULL, array $bf_browser_settings = []): void {
 
   $bf_browser_id = $form_state->getValue('brandfolder_browser_id');
   if (empty($bf_browser_id)) {
@@ -481,7 +480,7 @@ function brandfolder_browser_to_media_library_selection_converter(array &$form, 
 /**
  * Implements hook_theme().
  */
-function brandfolder_theme() {
+function brandfolder_theme($existing, $type, $theme, $path): array {
   return [
     //    'brandfolder_browser_widget' => [
     //      'render element' => 'element',
@@ -492,6 +491,10 @@ function brandfolder_theme() {
         'browser_format' => NULL,
         'browser_settings' => NULL,
       ],
+    ],
+    'page__brandfolder_browser_host_page' => [
+      'base hook' => 'page',
+      'path' => $path . '/templates',
     ],
   ];
 }
@@ -515,6 +518,64 @@ function template_preprocess_brandfolder_browser_widget(&$variables) {
     $variables['data'][$child] = $element[$child];
   }
 }
+
+
+/**
+ * Implements hook_preprocess_page__brandfolder_browser_host_page().
+ */
+function brandfolder_preprocess_page__brandfolder_browser_host_page(&$variables) {
+  // Do not display system messages in the modal/iframe hosting the BF browser.
+  $config = \Drupal::config('brandfolder.settings');
+  $disable_messages = $config->get('disable_system_messages_on_browser_pages');
+  if ($disable_messages !== FALSE) {
+    $variables['messages'] = '';
+  }
+}
+
+
+/**
+ * Implements hook_theme_suggestions_alter().
+ */
+function brandfolder_theme_suggestions_alter(array &$suggestions, array $variables, $hook) {
+  // Customize the theming for Entity Browser modal/iframe pages when they
+  // involve Brandfolder browsers (if users haven't opted out of this).
+  if ($hook == 'page' && (in_array('page__entity_browser__modal', $suggestions) || in_array('page__entity_browser__iframe', $suggestions))) {
+    // Check module config to see if the Entity Browser modal page
+    // customization option is enabled.
+    $config = \Drupal::config('brandfolder.settings');
+    $is_customization_enabled = $config->get('customize_entity_browser_modal_pages');
+    if ($is_customization_enabled !== FALSE) {
+      // Determine the EB ID from the suggestion names.
+      $entity_browser_id = NULL;
+      foreach ($suggestions as $suggestion) {
+        if (preg_match('/^page__entity_browser__(modal|iframe)__([a-z0-9_\-]+)$/', $suggestion, $matches)) {
+          $entity_browser_id = $matches[2];
+          break;
+        }
+      }
+      // Check to see if the entity browser contains a Brandfolder widget.
+      try {
+        /* @var \Drupal\entity_browser\Entity\EntityBrowser $eb */
+        $eb = \Drupal::entityTypeManager()
+          ->getStorage('entity_browser')
+          ->load($entity_browser_id);
+        if ($eb) {
+          foreach ($eb->getWidgets() as $widget) {
+            if ($widget->getPluginId() == 'brandfolder_browser') {
+              // Use a custom suggestion name that's logical but won't
+              // conflict with standard generated ones.
+              $suggestions[] = 'page__brandfolder_browser_host_page';
+              break;
+            }
+          }
+        }
+      } catch (\Exception $e) {
+        return;
+      }
+    }
+  }
+}
+
 
 //function brandfolder_preprocess_html(&$variables) {
 //  $original_path = \Drupal::request()->query->get('original_path');

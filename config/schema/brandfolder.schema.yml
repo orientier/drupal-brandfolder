@@ -23,6 +23,12 @@ brandfolder.settings:
     alt_text_custom_field:
       type: string
       label: 'The ID of a Brandfolder custom field used to store alt-text for images'
+    customize_entity_browser_modal_pages:
+      type: boolean
+      label: 'Whether to customize the page structure within which Brandfolder Browser Entity Browsers are rendered'
+    disable_system_messages_on_browser_pages:
+      type: boolean
+      label: 'Whether to disable Drupal system messages on Brandfolder browser pages'
     verbose_log_mode:
       type: boolean
       label: 'Whether to log things like Brandfolder API calls, etc.'
