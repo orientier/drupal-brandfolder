@@ -19,7 +19,7 @@ export declare class BfBrowserCheckboxesControl extends BfBrowserControlBase {
     /**
      * Render the checkboxes control.
      */
-    render(): import("lit-html").TemplateResult<1> | "";
+    render(): "" | import("lit-html").TemplateResult<1>;
 }
 declare global {
     interface HTMLElementTagNameMap {

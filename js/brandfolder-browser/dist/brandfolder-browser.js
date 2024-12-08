@@ -87,6 +87,12 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
          */
         this.settings = null;
         /**
+         * A selector for an ancestor element containing/hosting the browser, where
+         * that element is the most relevant from a layout perspective (such that its
+         * size will be used to calculate browser size if needed).
+         */
+        this.layoutHostSelector = null;
+        /**
          * The URL to which API requests should be sent.
          */
         this._apiEndpoint = '/brandfolder-browser-update';
@@ -95,18 +101,9 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
          */
         this._assetsPerPage = 100;
         /**
-         * The format in which the browser should be displayed. Options:
-         * - 'inline' (default): Display the browser inline within the page.
-         * - 'full': Display the browser in a way that consumes all available space
-         *    in the host window/frame/document.
-         */
-        // @state()
-        // private _format = 'inline'
-        /**
          * The recommended height of the browser, in pixels.
          */
-        // @state()
-        // private _height: number | null = null
+        this._height = null;
         /**
          * Active asset.
          */
@@ -144,61 +141,17 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
             selectionLimit: null,
         };
         /**
-         * Callback executed when the element is removed from the document.
-         */
-        // override disconnectedCallback() {
-        //   if (this._format === 'inline') {
-        //     window.removeEventListener('resize', this._calibrateHeight)
-        //   }
-        //   super.disconnectedCallback()
-        // }
-        /**
-         * Callback executed when the element is updated.
-         */
-        // override updated(_changedProperties: Map<string | number | symbol, unknown>) {
-        //   if (this._format === 'inline') {
-        //     // After fetching and rendering new assets, determine whether the
-        //     // browser's height should be constrained in order to achieve
-        //     // the best UX within the containing context.
-        //     if (_changedProperties.has('_assetList')) {
-        //       this._calibrateHeight()
-        //     }
-        //   }
-        // }
-        /**
          * Set the browser's height based on context.
          */
-        // private _calibrateHeight = () => {
-        //   console.log('Calibrating height...')
-        //   this.style.setProperty('--bf-browser-height', '100%')
-        //   const heightConstraint = this._determineHeightConstraint()
-        //   if (heightConstraint) {
-        //     this.style.setProperty('--bf-browser-height', `${heightConstraint}px`)
-        //   }
-        // }
+        this._calibrateSize = () => {
+            const heightConstraint = this._determineHeightConstraint();
+            if (heightConstraint) {
+                this.style.setProperty('--bf-browser-height', `${heightConstraint}px`);
+            }
+        };
         /**
-         * Determine the height to which the browser should be constrained in order to
-         * achieve the best UX within the containing elements.
-         */
-        // private _determineHeightConstraint() {
-        //   // Ascend the DOM tree to find the first ancestor with a height that is
-        //   // less than this element's "natural" height. If one is found, use its
-        //   // height as the constraint.
-        //   const thisHeight = this.getBoundingClientRect().height
-        //   let ancestor = this.parentElement
-        //   while (ancestor) {
-        //     const ancestorHeight = ancestor.getBoundingClientRect().height
-        //     if (ancestorHeight < thisHeight) {
-        //       return ancestorHeight
-        //     }
-        //     ancestor = ancestor.parentElement
-        //   }
-        //
-        //   return null
-        // }
-        /**
-         * Async task for communicating with the Drupal backend (to submit user input,
-         * fetch assets from Brandfolder, etc.).
+         * Async task for communicating with the host site backend (to submit user
+         * input, fetch assets from Brandfolder, etc.).
          */
         this._browserUpdateTask = new Task(this, {
             task: async ([requestedPage], { signal, }) => {
@@ -296,37 +249,66 @@ let BrandfolderBrowser = class BrandfolderBrowser extends LitElement {
         // Apply any configurable settings.
         if (this.settings && typeof this.settings === 'string') {
             const settings = JSON.parse(this.settings);
-            if (settings.apiEndpoint) {
+            if (settings?.apiEndpoint) {
                 this._apiEndpoint = settings.apiEndpoint;
             }
-            if (settings.assetsPerPage) {
+            if (settings?.assetsPerPage) {
                 this._assetsPerPage = settings.assetsPerPage;
             }
-            if (settings.selectedAttachments) {
+            if (settings?.selectedAttachments) {
                 this._browserContext.selectedAttachments = settings.selectedAttachments;
             }
-            if (settings.selectionLimit) {
+            if (settings?.selectionLimit) {
                 this._browserContext.selectionLimit = settings.selectionLimit;
             }
-            // if (settings.format) {
-            //   this._format = settings.format
-            // }
-            // if (settings.height) {
-            //   this._height = settings.height
-            // }
+            if (settings?.layoutHostSelector && !this.layoutHostSelector) {
+                this.layoutHostSelector = settings.layoutHostSelector;
+            }
+            if (settings?.height) {
+                this._height = settings.height;
+                this.style.setProperty('--bf-browser-height', `${this._height}px`);
+            }
+            else if (this.layoutHostSelector) {
+                // If no explicit height was provided, and we know of a relevant host
+                // element, we should calculate browser size based on that element.
+                this._calibrateSize();
+                window.addEventListener('resize', this._calibrateSize);
+            }
         }
         // Perform an initial data fetch (requesting the first page of assets).
         this._browserUpdateTask.run([1]).then();
-        // if (this._format === 'inline') {
-        //   // We might need to adjust the browser height when the window is resized
-        //   // (e.g. when the browser lives within a modal that occupies a certain
-        //   // percentage of the viewport).
-        //   window.addEventListener('resize', this._calibrateHeight)
-        // } else if (this._format === 'full') {
-        //   if (typeof this.settings === 'object' && this._height) {
-        //     this.style.height = `${this._height}px`
-        //   }
-        // }
+    }
+    /**
+     * Callback executed when the element is removed from the document.
+     */
+    disconnectedCallback() {
+        window.removeEventListener('resize', this._calibrateSize);
+        super.disconnectedCallback();
+    }
+    /**
+     * Callback executed when the element is updated.
+     */
+    updated(_changedProperties) {
+        this._calibrateSize();
+    }
+    /**
+     * Determine the height to which the browser should be constrained in order to
+     * achieve the best UX within the containing elements.
+     */
+    _determineHeightConstraint() {
+        if (!this?.layoutHostSelector) {
+            return null;
+        }
+        const ancestor = this.closest(this?.layoutHostSelector);
+        if (!ancestor) {
+            return null;
+        }
+        // Calculate the interior height of the element (without padding).
+        const computedStyle = getComputedStyle(ancestor);
+        const elementHeight = ancestor.offsetHeight;
+        const paddingTop = parseInt(computedStyle.paddingTop, 10);
+        const paddingBottom = parseInt(computedStyle.paddingBottom, 10);
+        return elementHeight - paddingTop - paddingBottom;
     }
     /**
      * Submit the search/filter/sort form.
@@ -450,6 +432,7 @@ BrandfolderBrowser.styles = css `
       background: white;
       width: 100%;
       height: var(--bf-browser-height);
+      min-height: 300px;
       color: var(--color-gray-800);
       box-sizing: border-box;
       overflow: hidden;
@@ -503,11 +486,17 @@ __decorate([
     property({ type: String, attribute: 'settings' })
 ], BrandfolderBrowser.prototype, "settings", void 0);
 __decorate([
+    property({ type: String, attribute: false })
+], BrandfolderBrowser.prototype, "layoutHostSelector", void 0);
+__decorate([
     state()
 ], BrandfolderBrowser.prototype, "_apiEndpoint", void 0);
 __decorate([
     state()
 ], BrandfolderBrowser.prototype, "_assetsPerPage", void 0);
+__decorate([
+    state()
+], BrandfolderBrowser.prototype, "_height", void 0);
 __decorate([
     state()
 ], BrandfolderBrowser.prototype, "_activeAsset", void 0);

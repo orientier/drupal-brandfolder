@@ -80,6 +80,7 @@ class BrandfolderBrowser extends WidgetBase {
     return array_merge(parent::defaultConfiguration(), [
       'submit_text' => $this->t('Select'),
       'media_type' => NULL,
+      'browser_height' => NULL,
     ]);
   }
 
@@ -171,10 +172,20 @@ class BrandfolderBrowser extends WidgetBase {
       $form['media_type'] = [
         '#type' => 'select',
         '#title' => $this->t('Media type'),
-        '#default_value' => !empty($this->configuration['media_type']) ? $this->configuration['media_type'] : NULL,
+        '#default_value' => $this->configuration['media_type'],
         '#options' => $media_type_options,
       ];
     }
+
+    $form['browser_height'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Browser height'),
+      '#description' => $this->t('The desired height of the Brandfolder browser in pixels. Set this for best results (because the browser cannot easily deduce the optimal height when in an iframe and unaware of other variables).'),
+      // @todo: Let people enter values in %, vh, etc.
+      '#default_value' => $this->configuration['browser_height'],
+      '#min' => 300,
+      '#max' => 10000,
+    ];
 
     return $form;
   }
@@ -214,12 +225,23 @@ class BrandfolderBrowser extends WidgetBase {
     $entity_browser_id = $this->configuration['entity_browser_id'];
     $entity_browser = \Drupal::service('entity_type.manager')->getStorage('entity_browser')->load($entity_browser_id);
     $bf_browser_settings = [];
-    if ($entity_browser->display == 'iframe') {
+    if ($entity_browser->display == 'iframe' || $entity_browser->display == 'modal') {
       $bf_browser_settings['format'] = 'full';
     }
-    if ($entity_browser->display_configuration['height']) {
-      $bf_browser_settings['height'] = $entity_browser->display_configuration['height'];
+    // Determine the best fixed height for the Brandfolder browser.
+    $bf_browser_height = NULL;
+    $config = $this->getConfiguration();
+    if (!empty($config['settings']['browser_height'])) {
+      $bf_browser_height = $config['settings']['browser_height'];
     }
+    elseif ($entity_browser->display_configuration['height']) {
+      // Venture a rough guess at an optimal height based on a minimal
+      // containing page with the Claro theme. We could get more nuanced here,
+      // but should just encourage people to explicitly set a height for
+      // these contexts.
+      $bf_browser_height = max([$entity_browser->display_configuration['height'] - 180, 300]);
+    }
+    $bf_browser_settings['height'] = $bf_browser_height;
 
     brandfolder_browser_init($form, $form_state, $gatekeeper, $selected_bf_attachments, $selection_limit, $context_string, $bf_browser_settings);
 

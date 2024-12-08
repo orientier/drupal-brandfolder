@@ -1,4 +1,5 @@
 import { LitElement } from 'lit';
+import { BfAttachmentList } from "./attachment/brandfolder-attachment-base";
 import './brandfolder-media-container';
 import './brandfolder-browser-selection-tray';
 import './asset/brandfolder-asset-base';
@@ -15,10 +16,9 @@ import './controls/bf-browser-control--labels';
 import './controls/bf-browser-control--search';
 import './controls/bf-browser-control--select';
 import './controls/bf-browser-control--tags';
-import { BfAttachmentList } from "./attachment/brandfolder-attachment-base";
 type BfBrowserSettings = {
     height?: number;
-    format?: 'inline' | 'full';
+    layoutHostSelector?: string;
     apiEndpoint?: string;
     assetsPerPage?: number;
     selectedAttachments?: BfAttachmentList;
@@ -53,6 +53,12 @@ export declare class BrandfolderBrowser extends LitElement {
      */
     settings: BfBrowserSettings | string | null;
     /**
+     * A selector for an ancestor element containing/hosting the browser, where
+     * that element is the most relevant from a layout perspective (such that its
+     * size will be used to calculate browser size if needed).
+     */
+    layoutHostSelector: string | null;
+    /**
      * The URL to which API requests should be sent.
      */
     private _apiEndpoint;
@@ -61,14 +67,9 @@ export declare class BrandfolderBrowser extends LitElement {
      */
     private _assetsPerPage;
     /**
-     * The format in which the browser should be displayed. Options:
-     * - 'inline' (default): Display the browser inline within the page.
-     * - 'full': Display the browser in a way that consumes all available space
-     *    in the host window/frame/document.
-     */
-    /**
      * The recommended height of the browser, in pixels.
      */
+    private _height;
     /**
      * Active asset.
      */
@@ -113,19 +114,23 @@ export declare class BrandfolderBrowser extends LitElement {
     /**
      * Callback executed when the element is removed from the document.
      */
+    disconnectedCallback(): void;
     /**
      * Callback executed when the element is updated.
      */
+    updated(_changedProperties: Map<string | number | symbol, unknown>): void;
     /**
      * Set the browser's height based on context.
      */
+    private _calibrateSize;
     /**
      * Determine the height to which the browser should be constrained in order to
      * achieve the best UX within the containing elements.
      */
+    private _determineHeightConstraint;
     /**
-     * Async task for communicating with the Drupal backend (to submit user input,
-     * fetch assets from Brandfolder, etc.).
+     * Async task for communicating with the host site backend (to submit user
+     * input, fetch assets from Brandfolder, etc.).
      */
     private _browserUpdateTask;
     /**

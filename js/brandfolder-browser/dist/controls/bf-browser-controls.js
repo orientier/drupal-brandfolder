@@ -303,6 +303,8 @@ BfBrowserControls.styles = css `
       display: flex;
       flex-wrap: wrap;
       gap: 1rem 0.5rem;
+      max-height: calc(var(--bf-browser-height) - 6rem);
+      overflow: scroll;
     }
 
     .bf-control-item {

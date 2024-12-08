@@ -344,8 +344,17 @@ function brandfolder_browser_media_library_form_manipulator(&$form, FormStateInt
   // incorrectly prevent those same items from being reselected; and the "x of y
   // items selected" messaging would be inaccurate).
 
+  $bf_browser_settings = [
+    'layoutHostSelector' => '#drupal-modal',
+  ];
+  $bf_config = \Drupal::config('brandfolder.settings');
+  $preferred_browser_height = $bf_config->get('media_library_bf_browser_height');
+  if ($preferred_browser_height) {
+    $bf_browser_settings['height'] = $preferred_browser_height;
+  }
+
   $context_string = implode('-', $context);
-  brandfolder_browser_init($form, $form_state, $gatekeeper, [], $selection_limit, $context_string);
+  brandfolder_browser_init($form, $form_state, $gatekeeper, [], $selection_limit, $context_string, $bf_browser_settings);
 
   // Completely replace standard validation with our own custom
   // validators/processors.
@@ -531,7 +540,6 @@ function brandfolder_preprocess_page__brandfolder_browser_host_page(&$variables)
     $variables['messages'] = '';
   }
 }
-
 
 /**
  * Implements hook_theme_suggestions_alter().

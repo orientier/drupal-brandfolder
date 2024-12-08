@@ -205,6 +205,16 @@ class BrandfolderSettingsForm extends ConfigFormBase {
       '#description' => $this->t('If enabled, Drupal system messages will not be shown on Brandfolder Browser pages. This is recommended to maximize the (already limited) screen real estate available to the BF browser and improve layout, but you can opt out, e.g. if your browser post-selection context needs this messaging. Note: this will only take effect if you elect to customize page output in the first place (see above).'),
     ];
 
+    $form['bf_browser']['media_library_bf_browser_height'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Browser Height for Media Library'),
+      '#description' => $this->t('An explicit height for the Brandfolder browser in pixels, when rendered in a Media Library context. If this setting is empty, the browser will do its best to occupy the available space in an optimal way. If that is not working well for you, you can experiment with this setting.'),
+      // @todo: Let people enter values in %, vh, etc.
+      '#default_value' => $config->get('media_library_bf_browser_height'),
+      '#min' => 300,
+      '#max' => 10000,
+    ];
+
 
     /************************************
      * Image Optimization
@@ -308,7 +318,7 @@ class BrandfolderSettingsForm extends ConfigFormBase {
         '#type'          => 'number',
         '#min'           => 16,
         '#max'           => 1920,
-        '#title'         => $this->t('Sample image width'),
+        '#title'         => $this->t('Sample image width (in pixels)'),
         '#default_value' => $config->get('sample_image_width') ?? 400,
         '#description'   => $this->t('Optionally adjust the width of the sample images below, for testing. The default is 400px.'),
       ];
@@ -473,6 +483,7 @@ class BrandfolderSettingsForm extends ConfigFormBase {
     $config->set('metadata_sync_mode', $form_state->getValue('metadata_sync_mode'));
     $config->set('customize_entity_browser_modal_pages', $form_state->getValue('customize_entity_browser_modal_pages'));
     $config->set('disable_system_messages_on_browser_pages', $form_state->getValue('disable_system_messages_on_browser_pages'));
+    $config->set('media_library_bf_browser_height', $form_state->getValue('media_library_bf_browser_height'));
     $config->set('io_format_auto', $form_state->getValue('io_format_auto'));
     $config->set('io_format_auto_force', $form_state->getValue('io_format_auto_force'));
     $config->set('io_auto_webp', $form_state->getValue('io_auto_webp'));
