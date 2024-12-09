@@ -73,13 +73,14 @@ export class BfBrowserLabelsControl extends BfBrowserControlBase {
    */
   private renderLabelNode(labelNode: BfLabelTreeNode): TemplateResult {
     const labelObject = labelNode?.label
+    const labelId = labelObject?.id ?? ''
     const depth = labelObject?.attributes?.depth
     const depthIndicator = '-'.repeat(depth - 1).replace(/^-/, ' -')
 
     return html`
       <option
-        value=${labelObject?.id}
-        .selected=${!!this?.controlInput?.labels?.[labelObject?.id]}
+        value=${labelId}
+        .selected=${!!this?.controlInput?.labels?.[labelId]}
       >
         ${depthIndicator} ${labelObject?.attributes?.name}
       </option>

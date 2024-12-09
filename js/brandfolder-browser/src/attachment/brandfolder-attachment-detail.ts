@@ -76,8 +76,9 @@ export class BrandfolderAttachmentDetail extends BrandfolderAttachmentBase {
    */
   override render() {
     const isSelectionLimitReached = this.browserContext?.selectionLimit && Object.keys(this.browserContext.selectedAttachments).length >= this.browserContext.selectionLimit
+    const isInputDisabled = !!(isSelectionLimitReached && !this._isSelected)
     // @todo: When selection limit has been reached, show a helpful tooltip (when user hovers over disabled checkbox) in addition to disabling selection of additional items.
-    const isInputDisabled = isSelectionLimitReached && !this._isSelected
+    const filename = this?.filename ?? ''
 
     return html`
       <div class="bf-attachment__inner">
@@ -86,13 +87,13 @@ export class BrandfolderAttachmentDetail extends BrandfolderAttachmentBase {
             <img
               slot="media"
               class="bf-attachment__image"
-              src="${this.imageSrcUrl}"
-              alt="${this?.filename}"
+              src="${this?.imageSrcUrl ?? '#'}"
+              alt="${filename}"
             />
           </brandfolder-media-container>
         </div>
         <div class="bf-attachment__info">
-          <div class="bf-attachment__name">${this?.filename}</div>
+          <div class="bf-attachment__name">${filename}</div>
           <div class="bf-attachment__metadata">
             <div class="bf-attachment__metadata-item">
               ${this?.mimetype}

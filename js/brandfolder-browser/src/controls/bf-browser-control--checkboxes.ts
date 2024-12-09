@@ -95,7 +95,7 @@ export class BfBrowserCheckboxesControl extends BfBrowserControlBase {
       <div class="bf-browser-checkboxes-control__inner">
         ${Object.entries(schemaData).map(
           ([itemId, itemLabel]) => {
-            const isSelected = userInputData && userInputData.includes(itemId)
+            const isSelected = !!(userInputData && userInputData.includes(itemId))
             const inputId = `input--${itemId}`
 
             return html`

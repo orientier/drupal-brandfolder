@@ -16,8 +16,8 @@ export class BrandfolderAssetPreview extends BrandfolderAssetBase {
         <img
           slot="media"
           class="brandfolder-asset__image"
-          src="${this?.thumbnailUrl}"
-          alt="${this?.name}"
+          src="${this?.thumbnailUrl ?? '#'}"
+          alt="${this?.name ?? ''}"
         />
       </brandfolder-media-container>
     `

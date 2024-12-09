@@ -166,7 +166,7 @@ export class BrandfolderAssetDetail extends BrandfolderAssetBase {
         </div>
         <div class="brandfolder-asset__content">
           <header class="brandfolder-asset__header">
-            <h2 class="brandfolder-asset__name">${this?.name}</h2>
+            <h2 class="brandfolder-asset__name">${this?.name ?? 'Asset Detail'}</h2>
           </header>
           <div class="brandfolder-asset__info">
             <div class="brandfolder-asset__image-wrapper">
@@ -175,7 +175,7 @@ export class BrandfolderAssetDetail extends BrandfolderAssetBase {
                   slot="media"
                   class="brandfolder-asset__image"
                   src="${imgUrl}"
-                  alt="${this?.name}"
+                  alt="${this?.name ?? ''}"
                 />
               </brandfolder-media-container>
             </div>

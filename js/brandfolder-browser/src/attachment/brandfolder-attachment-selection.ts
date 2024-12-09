@@ -66,6 +66,8 @@ export class BrandfolderAttachmentSelection extends BrandfolderAttachmentBase {
    * Render the component.
    */
   override render() {
+    const filename = this?.filename ?? ''
+
     return html`
       <div class="bf-attachment__inner">
         <div class="bf-attachment__image-wrapper">
@@ -78,7 +80,7 @@ export class BrandfolderAttachmentSelection extends BrandfolderAttachmentBase {
               slot="media"
               class="bf-attachment__image"
               src="${this.imageSrcUrl}"
-              alt="${this?.filename}"
+              alt="${filename}"
             />
             ` : ''}
           </brandfolder-media-container>
@@ -91,7 +93,7 @@ export class BrandfolderAttachmentSelection extends BrandfolderAttachmentBase {
             x
           </div>
           <div class="bf-attachment__info">
-            <div class="bf-attachment__name">${this?.filename}</div>
+            <div class="bf-attachment__name">${filename}</div>
           </div>
         </div>
       </div>
