@@ -1,5 +1,5 @@
 brandfolder-browser:
-  version: 2.0.17
+  version: 2.0.18
   js:
     js/brandfolder-browser/dist/brandfolder-browser-bundled.js: {
       minified: true,

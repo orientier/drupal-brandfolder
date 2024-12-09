@@ -11,8 +11,7 @@ brandfolder.browser_update:
   defaults:
     _controller: '\Drupal\brandfolder\Controller\BrandfolderBrowserController::bfBrowserUpdate'
   requirements:
-#    _permission: 'read brandfolder assets'
-    _access: 'TRUE'
+    _permission: 'read brandfolder assets'
 
 brandfolder.browser_get_attachments:
   path: '/brandfolder-browser-get-attachments'
