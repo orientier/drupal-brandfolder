@@ -55,6 +55,7 @@ export class BrandfolderAssetDetail extends BrandfolderAssetBase {
       background: var(--color-white);
       padding: 1.5rem;
       display: grid;
+      grid-template-rows: auto 1fr;
       grid-template-columns: 1fr 1fr;
       gap: 1rem;
       height: 100%;
@@ -74,14 +75,19 @@ export class BrandfolderAssetDetail extends BrandfolderAssetBase {
       max-height: max(20rem, 50vh);
     }
 
-    .brandfolder-asset__info,
-    .brandfolder-asset__attachments {
-      padding: 1rem;
+    .brandfolder-asset__header {
+      grid-area: 1 / 1 / 2 / -1;
+      padding: 1rem 1rem 0;
     }
 
     .brandfolder-asset__name {
-      margin: 0 0 1rem;
+      margin: 0;
       font-size: 1.5rem;
+    }
+
+    .brandfolder-asset__info,
+    .brandfolder-asset__attachments {
+      padding: 1rem;
     }
 
     .brandfolder-asset__metadata {
@@ -159,8 +165,10 @@ export class BrandfolderAssetDetail extends BrandfolderAssetBase {
           </div>
         </div>
         <div class="brandfolder-asset__content">
-          <div class="brandfolder-asset__info">
+          <header class="brandfolder-asset__header">
             <h2 class="brandfolder-asset__name">${this?.name}</h2>
+          </header>
+          <div class="brandfolder-asset__info">
             <div class="brandfolder-asset__image-wrapper">
               <brandfolder-media-container .displayFormat=${'large'}>
                 <img

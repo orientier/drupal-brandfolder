@@ -52,6 +52,10 @@ export class BrandfolderAttachmentDetail extends BrandfolderAttachmentBase {
     .attachment__selection-status label {
       cursor: pointer;
     }
+    .attachment__selection-status.disallowed input,
+    .attachment__selection-status.disallowed label {
+      cursor: not-allowed;
+    }
     .attachment__selection-status input {
       width: 1.25rem;
       height: 1.25rem;
@@ -73,6 +77,7 @@ export class BrandfolderAttachmentDetail extends BrandfolderAttachmentBase {
   override render() {
     const isSelectionLimitReached = this.browserContext?.selectionLimit && Object.keys(this.browserContext.selectedAttachments).length >= this.browserContext.selectionLimit
     // @todo: When selection limit has been reached, show a helpful tooltip (when user hovers over disabled checkbox) in addition to disabling selection of additional items.
+    const isInputDisabled = isSelectionLimitReached && !this._isSelected
 
     return html`
       <div class="bf-attachment__inner">
@@ -101,13 +106,13 @@ export class BrandfolderAttachmentDetail extends BrandfolderAttachmentBase {
           </div>
         </div>
         <div class="attachment__selection">
-          <div class="attachment__selection-status">
+          <div class="attachment__selection-status ${isInputDisabled ? 'disallowed' : 'allowed'}">
             <input
               id="attachment-selection--${this.attachmentId}"
               name="attachment-selection--${this.attachmentId}"
               type="checkbox"
               .checked=${live(this._isSelected)}
-              ?disabled=${isSelectionLimitReached && !this._isSelected}
+              ?disabled=${isInputDisabled}
               @change=${this._attachmentSelectionHandler}
             />
             <label for="attachment-selection--${this.attachmentId}">

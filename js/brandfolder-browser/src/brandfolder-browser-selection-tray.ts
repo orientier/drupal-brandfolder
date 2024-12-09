@@ -19,7 +19,7 @@ export class BrandfolderBrowserSelectionTray extends LitElement {
       --selection-item-size: 6rem;
     }
     .selection-tray__inner {
-      box-shadow: 0 0.5rem 1.5rem var(--color-gray-600);
+      background: var(--color-gray-100);
     }
 
     /* @todo Make this a component/pattern and dedupe with Controls. */
@@ -31,7 +31,7 @@ export class BrandfolderBrowserSelectionTray extends LitElement {
     }
     .selection-tray__inner.is-openable .selection-tray__header:hover {
       cursor: pointer;
-      background: var(--color-gray-50);
+      background: var(--color-gray-200);
     }
     .selection-tray__title,
     .selection-tray__open-indicator {
@@ -41,7 +41,8 @@ export class BrandfolderBrowserSelectionTray extends LitElement {
       padding: 0.2rem;
     }
     .selection-tray__title {
-      font-size: 1rem;
+      font-size: 0.9rem;
+      font-family: monospace;
       font-weight: normal;
     }
     .selection-tray__open-indicator {

@@ -107,7 +107,7 @@ export class BfBrowserControls extends LitElement {
 
     .controls__header,
     .controls__main {
-      background: var(--color-gray-50);
+      background: var(--color-gray-100);
     }
 
     .controls__header {
