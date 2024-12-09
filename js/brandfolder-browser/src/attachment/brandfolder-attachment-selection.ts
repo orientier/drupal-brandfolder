@@ -2,6 +2,8 @@ import {css, html} from 'lit'
 import {customElement} from 'lit/decorators.js'
 import {BrandfolderAttachmentBase} from "./brandfolder-attachment-base";
 
+import '../brandfolder-media-container'
+
 /**
  * An element corresponding to an attachment in Brandfolder.
  */

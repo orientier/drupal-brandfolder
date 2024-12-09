@@ -1,8 +1,10 @@
 import {css, html} from 'lit'
 import {customElement} from 'lit/decorators.js'
-import {bfBrowserFormatFilesize} from "../brandfolder-browser";
+import {bfBrowserFormatFilesize} from '../bf-browser-utils'
 import {live} from "lit/directives/live.js";
 import {BrandfolderAttachmentBase} from "./brandfolder-attachment-base";
+
+import '../brandfolder-media-container'
 
 /**
  * An element corresponding to an attachment in Brandfolder.

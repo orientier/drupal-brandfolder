@@ -2,7 +2,10 @@ import {html, css} from 'lit'
 import {customElement} from 'lit/decorators.js'
 import { unsafeHTML } from 'lit/directives/unsafe-html.js'
 import {BrandfolderAssetBase} from './brandfolder-asset-base'
-import {bfBrowserFormatDateAndTime} from "../brandfolder-browser";
+import {bfBrowserFormatDateAndTime} from '../bf-browser-utils'
+
+import '../brandfolder-media-container'
+import '../attachment/brandfolder-attachment-detail'
 
 /**
  * An element displaying the details of an individual asset and allowing users

@@ -2,6 +2,8 @@ import {html} from 'lit'
 import {customElement} from 'lit/decorators.js'
 import {BrandfolderAssetBase} from './brandfolder-asset-base'
 
+import '../brandfolder-media-container'
+
 /**
  * An element corresponding to an asset in Brandfolder.
  */

@@ -1,1 +1,0 @@
-{"version":3,"file":"brandfolder-asset-preview.d.ts","sourceRoot":"","sources":["../../src/asset/brandfolder-asset-preview.ts"],"names":[],"mappings":"AAEA,OAAO,EAAC,oBAAoB,EAAC,MAAM,0BAA0B,CAAA;AAE7D;;GAEG;AACH,qBACa,uBAAwB,SAAQ,oBAAoB;IAEtD,MAAM;CAYhB;AAED,OAAO,CAAC,MAAM,CAAC;IACb,UAAU,qBAAqB;QAC7B,2BAA2B,EAAE,uBAAuB,CAAA;KACrD;CACF"}

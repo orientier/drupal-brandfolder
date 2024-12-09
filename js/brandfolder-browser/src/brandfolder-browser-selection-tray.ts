@@ -6,6 +6,8 @@ import {
 } from "./brandfolder-browser-context";
 import {consume} from "@lit/context";
 
+import './attachment/brandfolder-attachment-selection'
+
 /**
  * An element to display a list of currently selected attachments, allow
  * deselection, etc.

@@ -1,2 +1,6 @@
 vendor
 composer.lock
+# Ignore compiled/generated files for BF browser, except the one bundled file
+# needed for distribution.
+js/brandfolder-browser/dist
+!js/brandfolder-browser/dist/brandfolder-browser-bundled.js

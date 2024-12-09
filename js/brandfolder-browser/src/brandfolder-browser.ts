@@ -13,24 +13,12 @@ import {
   BfBrowserControlSchema,
   BfBrowserUserInput,
 } from './controls/bf-browser-controls'
-// Import all subcomponents and class dependencies so we can compile
-// everything into a single JS file with this file as the sole entry point.
-import './brandfolder-media-container'
+
 import './brandfolder-browser-selection-tray'
-import './asset/brandfolder-asset-base'
 import './asset/brandfolder-asset-detail'
 import './asset/brandfolder-asset-preview'
-import './attachment/brandfolder-attachment-base'
-import './attachment/brandfolder-attachment-detail'
-import './attachment/brandfolder-attachment-selection'
 import './controls/bf-browser-controls'
-import './controls/bf-browser-control-base'
-import './controls/bf-browser-control-item'
-import './controls/bf-browser-control--checkboxes'
-import './controls/bf-browser-control--labels'
-import './controls/bf-browser-control--search'
-import './controls/bf-browser-control--select'
-import './controls/bf-browser-control--tags'
+
 
 type BfAssetFetchMeta = {
   current_page: number
@@ -53,50 +41,6 @@ type BfBrowserSettings = {
   assetsPerPage?: number
   selectedAttachments?: BfAttachmentList
   selectionLimit?: number
-}
-
-/**
- * Format a date (or date+time) string according to our preferred
- * date-only format.
- */
-export function bfBrowserFormatDate(date: string) {
-  return new Intl.DateTimeFormat('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  }).format(new Date(date))
-}
-
-/**
- * Format a date+time string according to our preferred format.
- */
-export function bfBrowserFormatDateAndTime(datetime: string) {
-  return new Intl.DateTimeFormat('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: 'numeric',
-  }).format(new Date(datetime))
-}
-
-/**
- * Format a file size (in bytes) as a human-readable string.
- */
-export function bfBrowserFormatFilesize(size: number) {
-  let sizeString = ''
-  if (size) {
-    const units = ['B', 'KB', 'MB', 'GB', 'TB']
-    let unitIndex = 0
-    let sizeInUnits = size
-    while (sizeInUnits >= 1024 && unitIndex < units.length - 1) {
-      sizeInUnits /= 1024
-      unitIndex++
-    }
-    sizeString = `${sizeInUnits.toFixed(1)} ${units[unitIndex]}`
-  }
-
-  return sizeString
 }
 
 /**

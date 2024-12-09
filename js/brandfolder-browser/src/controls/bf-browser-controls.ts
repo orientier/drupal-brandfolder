@@ -7,6 +7,13 @@ import {
 } from 'lit/decorators.js'
 import {BfLabelTreeNode} from "./bf-browser-control--labels";
 
+import './bf-browser-control-item'
+import './bf-browser-control--checkboxes'
+import './bf-browser-control--labels'
+import './bf-browser-control--search'
+import './bf-browser-control--select'
+import './bf-browser-control--tags'
+
 export type BfKvList = {
   [key: string]: string
 }
