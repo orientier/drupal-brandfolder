@@ -8,7 +8,6 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\StringTranslation\TranslationInterface;
-use Drupal\key\KeyRepository;
 use Drupal\media\MediaSourceInterface;
 
 /**
@@ -102,7 +101,7 @@ class BrandfolderGatekeeper {
   /**
    * Brandfolder API client.
    *
-   * @var Brandfolder $bf_client
+   * @var BrandfolderClient $bf_client
    */
   protected $bf_client;
 
@@ -116,25 +115,19 @@ class BrandfolderGatekeeper {
   /**
    * BrandfolderGatekeeper constructor.
    *
-   * @param \Drupal\Core\StringTranslation\TranslationInterface $string_translation
-   * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $logger_factory
-   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
-   * @param \Drupal\key\KeyRepository $key_repository
+   * @param TranslationInterface $string_translation
+   * @param LoggerChannelFactoryInterface $logger_factory
+   * @param ConfigFactoryInterface $config_factory
+   * @param BrandfolderKeyService $key_service
    *
    * @throws \Exception
    */
-  public function __construct(TranslationInterface $string_translation, LoggerChannelFactoryInterface $logger_factory, ConfigFactoryInterface $config_factory, KeyRepository $key_repository) {
+  public function __construct(TranslationInterface $string_translation, LoggerChannelFactoryInterface $logger_factory, ConfigFactoryInterface $config_factory, BrandfolderKeyService $key_service) {
     $this->stringTranslation = $string_translation;
     $this->logger = $logger_factory->get('brandfolder');
     $this->configFactory = $config_factory;
     $bf_config = $this->configFactory->get('brandfolder.settings');
-    $api_key = NULL;
-    $api_key_id = $bf_config->get("api_key_ids.admin");
-    if ($api_key_id) {
-      if ($key_entity = $key_repository->getKey($api_key_id)) {
-        $api_key = $key_entity->getKeyValue();
-      }
-    }
+    $api_key = $key_service->getApiKey('admin');
     $brandfolder_id = $bf_config->get('brandfolder_id');
     if ($api_key && $brandfolder_id) {
       $this->default_brandfolder_id = $brandfolder_id;
@@ -155,22 +148,22 @@ class BrandfolderGatekeeper {
   /**
    * Instance creator.
    *
-   * @param \Drupal\Core\StringTranslation\TranslationInterface $string_translation
-   * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $logger_factory
-   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
-   * @param \Drupal\key\KeyRepository $key_repository
+   * @param TranslationInterface $string_translation
+   * @param LoggerChannelFactoryInterface $logger_factory
+   * @param ConfigFactoryInterface $config_factory
+   * @param BrandfolderKeyService $key_service
    *
    * @return static
    *   Returns an instance of this service.
    *
    * @throws \Exception
    */
-  public function create(TranslationInterface $string_translation, LoggerChannelFactoryInterface $logger_factory, ConfigFactoryInterface $config_factory, KeyRepository $key_repository): static {
+  public function create(TranslationInterface $string_translation, LoggerChannelFactoryInterface $logger_factory, ConfigFactoryInterface $config_factory, BrandfolderKeyService $key_service): static {
     return new static(
       $string_translation,
       $logger_factory,
       $config_factory,
-      $key_repository,
+      $key_service,
     );
   }
 

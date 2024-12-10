@@ -453,6 +453,13 @@ class BrandfolderSettingsForm extends ConfigFormBase {
       $config_name = "api_key_ids.$api_key_type";
       $field_name = "api_key_ids_$api_key_type";
       $config->set($config_name, $form_state->getValue($field_name));
+
+      // Remove any old config entries directly listing API keys. These have
+      // been deprecated in favor of using the Key module, but we allowed
+      // transitional use. (If this form has been successfully submitted, that
+      // means new keys have been configured and it's safe to delete the old
+      // config items).
+      $config->clear("api_keys.$api_key_type");
     }
     $old_brandfolder = $config->get('brandfolder_id');
     $specified_brandfolder = $form_state->getValue('brandfolder_brandfolder_id');
