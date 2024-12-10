@@ -146,14 +146,4 @@ function brandfolder_update_10601() {
   $installer = \Drupal::service('module_installer');
   // Install the Key module.
   $installer->install(['key']);
-
-  // Update Brandfolder module configuration.
-  $config_factory = \Drupal::configFactory();
-  $config = $config_factory->getEditable('brandfolder.settings');
-  $key_types = ['admin', 'collaborator', 'guest'];
-  foreach ($key_types as $key_type) {
-    // Initialize the corresponding new config entry.
-    $config->set("api_key_ids.$key_type", '');
-  }
-  $config->save(TRUE);
 }
