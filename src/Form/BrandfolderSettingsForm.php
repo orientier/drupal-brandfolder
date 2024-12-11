@@ -409,27 +409,33 @@ class BrandfolderSettingsForm extends ConfigFormBase {
       $api_key_id = $form_state->getValue($field_name);
       if (!empty($api_key_id)) {
         if ($key_entity = $this->key_repository->getKey($api_key_id)) {
-          $api_key = $key_entity->getKeyValue();
+          $api_key = $key_entity->getKeyValue() ?? '';
           $bf = brandfolder_api(NULL, $api_key);
-          if ($config->get('verbose_log_mode')) {
-            $bf->enableVerboseLogging();
-          }
-          $brandfolders = $bf->listAllBrandfolderNames();
-          // Note that the getBrandfolders request will return a 200 response
-          // even if the API key is invalid, and the brandfolders array will
-          // simply be empty. This is a quirk of the Brandfolder API.
-          if (!empty($brandfolders)) {
-            $a_valid_api_key_exists = TRUE;
+          if ($bf) {
+            if ($config->get('verbose_log_mode')) {
+              $bf->enableVerboseLogging();
+            }
+            $brandfolders = $bf->listAllBrandfolderNames();
+            // Note that the getBrandfolders request will return a 200 response
+            // even if the API key is invalid, and the brandfolders array will
+            // simply be empty. This is a quirk of the Brandfolder API.
+            if (!empty($brandfolders)) {
+              $a_valid_api_key_exists = TRUE;
+            }
+            else {
+              $message = $this->t('Could not connect to Brandfolder using the @key_type API key. Make sure the key is correct and is linked to a Brandfolder user who has permission to access at least one Brandfolder.', ['@key_type' => $api_key_type]);
+              $form_state->setErrorByName($field_name, $message);
+            }
+            if ($config->get('verbose_log_mode')) {
+              foreach ($bf->getLogData() as $log_entry) {
+                $this->logger('brandfolder')->debug($log_entry);
+              }
+              $bf->clearLogData();
+            }
           }
           else {
-            $message = $this->t('Could not connect to Brandfolder using the @key_type API key. Make sure the key is correct and is linked to a Brandfolder user who has permission to access at least one Brandfolder.', ['@key_type' => $api_key_type]);
+            $message = $this->t('The @key_type API key does not appear to be valid. Make sure the key is correctly defined.', ['@key_type' => $api_key_type]);
             $form_state->setErrorByName($field_name, $message);
-          }
-          if ($config->get('verbose_log_mode')) {
-            foreach ($bf->getLogData() as $log_entry) {
-              $this->logger('brandfolder')->debug($log_entry);
-            }
-            $bf->clearLogData();
           }
         }
       }
