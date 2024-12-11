@@ -2,27 +2,24 @@
 
 /**
  * @file
- * Contains brandfolder.module.
+ * Contains miscellaneous Brandfolder module functions.
  */
 
 use Drupal\brandfolder\Service\BrandfolderGatekeeper;
 use Drupal\brandfolder\Plugin\media\Source\BrandfolderImage;
-use Drupal\Component\Utility\DeprecationHelper;
-use Drupal\Component\Utility\Html;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Routing\RouteMatchInterface;
 use Brandfolder\BrandfolderClient;
 use Drupal\Core\Render\Element;
-use Drupal\Core\Url;
 use Drupal\field\Entity\FieldStorageConfig;
 use Drupal\file\Entity\File;
 use Drupal\media\Entity\Media;
 use Drupal\media\MediaInterface;
+use Drupal\media\MediaSourceInterface;
 use Drupal\media\MediaTypeInterface;
 use Drupal\Core\Entity\EntityMalformedException;
 use Drupal\media_library\MediaLibraryState;
 use Drupal\views\ViewExecutable;
-use Drupal\Core\Form\FormBuilderInterface;
 use Drupal\media\Entity\MediaType;
 use Drupal\Core\Database\Query\Merge;
 use Drupal\Core\Entity\EntityStorageException;
@@ -251,26 +248,6 @@ function brandfolder_image_media_entity_form_submit(&$form, FormStateInterface $
 }
 
 /**
- * Implements hook_views_pre_render().
- */
-function brandfolder_views_pre_render(ViewExecutable $view) {
-  // If this is a Media Library view pertaining to a Brandfolder-sourced media
-  // type, remove view header and footer, as they are not part of our custom
-  // browsing experience.
-  if ($view->storage->id() == 'media_library') {
-    if (isset($view->args[0])) {
-      $media_type_id = $view->args[0];
-      $media_type = \Drupal::entityTypeManager()
-        ->getStorage('media_type')
-        ->load($media_type_id);
-      if ($media_type && $media_type->getSource() instanceof BrandfolderImage) {
-        $view->header = $view->footer = [];
-      }
-    }
-  }
-}
-
-/**
  * Implements hook_views_pre_build().
  *
  * @todo: Remove/short-circuit more Views processes that are unnecessary for Brandfolder media given that we're replacing the view with our custom browser.
@@ -282,12 +259,27 @@ function brandfolder_views_pre_build(ViewExecutable $view) {
   if ($view->storage->id() == 'media_library') {
     if (isset($view->args[0])) {
       $media_type_id = $view->args[0];
-      $media_type = \Drupal::entityTypeManager()
-        ->getStorage('media_type')
-        ->load($media_type_id);
-      if ($media_type && $media_type->getSource() instanceof BrandfolderImage) {
+      if (is_media_type_brandfolder_sourced($media_type_id)) {
         // Tell view not to use exposed form.
         $view->display_handler->has_exposed = FALSE;
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_views_pre_render().
+ */
+function brandfolder_views_pre_render(ViewExecutable $view) {
+  // If this is a Media Library view pertaining to a Brandfolder-sourced media
+  // type, remove view header/footer/pager, as they are not part of our custom
+  // browsing experience.
+  if ($view->storage->id() == 'media_library') {
+    if (isset($view->args[0])) {
+      $media_type_id = $view->args[0];
+      if (is_media_type_brandfolder_sourced($media_type_id)) {
+        $view->header = $view->footer = [];
+        unset($view->pager);
       }
     }
   }
@@ -1189,6 +1181,29 @@ function brandfolder_entity_embed_media_image_source_field_alter(&$field_name, $
 }
 
 /**
+ * Helper function to determine whether a given media type is sourced from
+ * Brandfolder.
+ *
+ * @param string $media_type_id
+ *
+ * @return bool
+ */
+function is_media_type_brandfolder_sourced(string $media_type_id): bool {
+  try {
+    $media_type = \Drupal::entityTypeManager()
+      ->getStorage('media_type')
+      ->load($media_type_id);
+    if ($media_type instanceof MediaTypeInterface) {
+
+      return is_media_source_brandfolder_related($media_type->getSource());
+    }
+  }
+  catch (\Exception $e) {}
+
+  return FALSE;
+}
+
+/**
  * Helper function to determine whether a given media entity is sourced from
  * Brandfolder.
  *
@@ -1197,19 +1212,27 @@ function brandfolder_entity_embed_media_image_source_field_alter(&$field_name, $
  *
  * @return bool
  */
-function is_media_brandfolder_sourced(int | MediaInterface $media) {
+function is_media_brandfolder_sourced(int | MediaInterface $media): bool {
   if (is_int($media)) {
     $media = Media::load($media);
   }
   if ($media instanceof MediaInterface) {
-    $source = $media->getSource();
 
-    $brandfolder_media_sources = [
-      'brandfolder_image',
-    ];
-
-    return in_array($source->getPluginId(), $brandfolder_media_sources);
+    return is_media_source_brandfolder_related($media->getSource());
   }
 
   return FALSE;
+}
+
+/**
+ * Helper function to determine whether a given media source is
+ * Brandfolder-related.
+ *
+ * @param \Drupal\media\MediaSourceInterface $source
+ *
+ * @return bool
+ */
+function is_media_source_brandfolder_related(MediaSourceInterface $source): bool {
+
+  return str_starts_with($source->getPluginId(), 'brandfolder_');
 }
