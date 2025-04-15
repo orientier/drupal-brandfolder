@@ -44,3 +44,11 @@ brandfolder.settings:
     io_quality:
       type: integer
       label: 'The quality level to use for all compressed images (1-100)'
+
+field.field_settings.image.third_party.brandfolder:
+  type: base_file_field_field_settings
+  label: 'Brandfolder image field settings'
+  mapping:
+    brandfolder_settings:
+      type: string
+      label: 'Brandfolder Settings'

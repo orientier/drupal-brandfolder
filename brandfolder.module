@@ -11,6 +11,8 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Routing\RouteMatchInterface;
 use Brandfolder\BrandfolderClient;
 use Drupal\Core\Render\Element;
+use Drupal\Core\StreamWrapper\StreamWrapperInterface;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\field\Entity\FieldStorageConfig;
 use Drupal\file\Entity\File;
 use Drupal\media\Entity\Media;
@@ -85,18 +87,29 @@ function brandfolder_help($route_name, RouteMatchInterface $route_match) {
 }
 
 /**
- * Implements hook_form_FORM_ID_alter().
+ * Implements hook_field_info_alter().
+ */
+function brandfolder_field_info_alter(&$info) {
+  // Override the core Image field type.
+  $info['image']['class'] = '\Drupal\brandfolder\Plugin\Field\FieldType\BrandfolderCompatibleImageItem';
+  $info['image']['description'] = [
+    new TranslatableMarkup("For uploading images or selecting images from Brandfolder"),
+    new TranslatableMarkup(
+      "Can be configured with options such as allowed file extensions, maximum file size and image dimensions minimums/maximums"
+    ),
+  ];
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter() for field_config_edit_form.
  */
 function brandfolder_form_field_config_edit_form_alter(&$form, FormStateInterface $form_state, $form_id) {
-  // If this is a config form for a file-esque field using the Brandfolder
-  // URI scheme, disable the file upload directory setting.
   $route_params = \Drupal::routeMatch()->getParameters();
   if ($field_config = $route_params->get('field_config', FALSE)) {
-    if ($field_storage = $field_config->getFieldStorageDefinition()) {
-      if ($field_storage->getSetting('uri_scheme') == 'bf') {
-        $form['settings']['file_directory']['#default_value'] = '';
-        $form['settings']['file_directory']['#access'] = FALSE;
-      }
+    if ($field_config->getType() === 'image') {
+      // Add this entity builder to attach our own third-party config data
+      // to the config entity for image fields (i.e. field settings).
+      $form['#entity_builders'][] = 'brandfolder_field_config_edit_form_entity_builder';
     }
   }
 }
@@ -163,6 +176,26 @@ function brandfolder_form_alter(&$form, FormStateInterface $form_state, $form_id
     // This is outside the scope of the Brandfolder module, however.
 //    unset($form['default_value']);
 //  }
+}
+
+/**
+ * Entity builder for field_config_edit_form. When a field config/edit form is
+ * submitted, this function is called to save any Brandfolder settings to the
+ * field config entity.
+ *
+ * @param $entity_type
+ * @param $entity
+ * @param $form
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ *
+ * @return void
+ */
+function brandfolder_field_config_edit_form_entity_builder($entity_type, $entity, $form, FormStateInterface $form_state) {
+  if ($settings = $form_state->getValue('settings')) {
+    if (isset($settings['brandfolder'])) {
+      $entity->setThirdPartySetting('brandfolder', 'brandfolder_settings', json_encode($settings['brandfolder']));
+    }
+  }
 }
 
 /**

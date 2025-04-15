@@ -64,7 +64,7 @@ class BrandfolderStreamWrapper implements StreamWrapperInterface {
    * @inheritDoc
    */
   public static function getType(): int {
-    return StreamWrapperInterface::WRITE_VISIBLE;
+    return StreamWrapperInterface::NORMAL;
   }
 
   /**
@@ -650,7 +650,7 @@ class BrandfolderStreamWrapper implements StreamWrapperInterface {
    * Implements DrupalStreamWrapperInterface::mkdir().
    */
   public function mkdir($uri, $mode, $options): bool {
-    return FALSE;
+    return TRUE;
   }
 
   /**

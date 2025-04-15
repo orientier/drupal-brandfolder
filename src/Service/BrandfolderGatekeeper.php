@@ -9,6 +9,7 @@ use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\StringTranslation\TranslationInterface;
 use Drupal\media\MediaSourceInterface;
+use Drupal\Core\Field\FieldDefinitionInterface;
 
 /**
  * Helps determine which Brandfolder entities should be available in a given
@@ -190,6 +191,47 @@ class BrandfolderGatekeeper {
         'svg',
         'webp',
       ];
+    }
+    $this->setCriteria($criteria);
+  }
+
+ /**
+  * Load criteria associated with a Drupal field (e.g. an image or file field).
+  *
+  * @param \Drupal\Core\Field\FieldDefinitionInterface $field_definition
+  */
+  public function loadFromFieldDefinition(FieldDefinitionInterface $field_definition): void {
+    $criteria = [];
+
+    if (method_exists($field_definition, 'getThirdPartySettings')) {
+      $bf_config = $field_definition->getThirdPartySettings('brandfolder');
+      // @todo: Test in field config edit form context again.
+      if (!empty($bf_config['brandfolder_settings'])) {
+        $bf_settings_json = $bf_config['brandfolder_settings'];
+        $bf_settings = json_decode($bf_settings_json, TRUE);
+        $criteria = $bf_settings['bf_entity_criteria'] ?? [];
+      }
+    }
+    if (method_exists($field_definition, 'getSettings')) {
+      $field_settings = $field_definition->getSettings();
+      if (!empty($field_settings['file_extensions'])) {
+        $extensions_array_raw = explode(' ', $field_settings['file_extensions']);
+        $trimmed = array_map('trim', $extensions_array_raw);
+        $criteria['allowed']['filetype'] = $trimmed;
+      }
+      if (!empty($field_settings['max_filesize'])) {
+        $criteria['max_filesize'] = $field_settings['max_filesize'];
+        // @todo: Convert human-readable file size strings to a number of bytes.
+      }
+      $other_settings = [
+        'min_resolution',
+        'max_resolution',
+      ];
+      foreach ($other_settings as $key) {
+        if (!empty($field_settings[$key])) {
+          $criteria[$key] = $field_settings[$key];
+        }
+      }
     }
     $this->setCriteria($criteria);
   }
