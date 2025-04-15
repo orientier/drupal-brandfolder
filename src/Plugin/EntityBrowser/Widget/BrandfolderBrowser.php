@@ -141,6 +141,22 @@ class BrandfolderBrowser extends WidgetBase {
   }
 
   /**
+   * Get a storage instance for file entities.
+   *
+   * @return \Drupal\Core\Entity\EntityStorageInterface|null
+   */
+  protected function getFileStorage(): ?Drupal\Core\Entity\EntityStorageInterface {
+    try {
+      $storage = $this->entityTypeManager->getStorage('file');
+    }
+    catch (InvalidPluginDefinitionException | PluginNotFoundException $e) {
+      $storage = NULL;
+    }
+
+    return $storage;
+  }
+
+  /**
    * {@inheritdoc}
    */
   public function buildConfigurationForm(array $form, FormStateInterface $form_state): array {
@@ -262,26 +278,47 @@ class BrandfolderBrowser extends WidgetBase {
    * {@inheritdoc}
    */
   protected function prepareEntities(array $form, FormStateInterface $form_state): array {
-    $selected_media_entities = [];
+    $selected_entities = [];
     $selected_attachment_list = $form_state->getValue('selected_bf_attachment_ids');
     if (!empty($selected_attachment_list)) {
       $selected_attachments = explode(',', $selected_attachment_list);
-      $media_type_id = $this->getMediaTypeId();
-      $storage = $this->getMediaStorage();
-      if ($media_type_id && $storage) {
-        foreach ($selected_attachments as $attachment_id) {
-          $bf_media_entity_id = brandfolder_map_attachment_to_media_entity($attachment_id, $media_type_id);
-          if ($bf_media_entity_id) {
-            $media_entity = $storage->load($bf_media_entity_id);
-            if ($media_entity) {
-              $selected_media_entities[] = $media_entity;
+      // Map the selected attachments to the appropriate entity type.
+      // Check the widget validators to see what entity_type we're dealing with.
+      $validators = $form_state->get(['entity_browser', 'validators']);
+      if (!empty($validators['entity_type']['type']) && $validators['entity_type']['type'] === 'file') {
+        $storage = $this->getFileStorage();
+        if ($storage) {
+          foreach ($selected_attachments as $attachment_id) {
+            $bf_file_id = brandfolder_map_attachment_to_file($attachment_id);
+            if ($bf_file_id) {
+              $file_entity = $storage->load($bf_file_id);
+              if ($file_entity) {
+                $selected_entities[] = $file_entity;
+              }
+            }
+          }
+        }
+      }
+      else {
+        // Default to media.
+        // @todo: Consider forced graceful exit if we see that some other unsupported entity type is expected.
+        $media_type_id = $this->getMediaTypeId();
+        $storage = $this->getMediaStorage();
+        if ($media_type_id && $storage) {
+          foreach ($selected_attachments as $attachment_id) {
+            $bf_media_entity_id = brandfolder_map_attachment_to_media_entity($attachment_id, $media_type_id);
+            if ($bf_media_entity_id) {
+              $media_entity = $storage->load($bf_media_entity_id);
+              if ($media_entity) {
+                $selected_entities[] = $media_entity;
+              }
             }
           }
         }
       }
     }
 
-    return $selected_media_entities;
+    return $selected_entities;
   }
 
 }
