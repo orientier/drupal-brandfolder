@@ -105,4 +105,89 @@ class BrandfolderCompatibleImageItem extends ImageItem {
     return $element;
   }
 
+  /**
+   * {@inheritdoc}
+   */
+//  public static function generateSampleValue(FieldDefinitionInterface $field_definition) {
+//    $random = new Random();
+//    $settings = $field_definition->getSettings();
+//    //    static $images = [];
+//    //
+//    //    $min_resolution = empty($settings['min_resolution']) ? '100x100' : $settings['min_resolution'];
+//    //    $max_resolution = empty($settings['max_resolution']) ? '600x600' : $settings['max_resolution'];
+//    //    $extensions = array_intersect(explode(' ', $settings['file_extensions']), ['png', 'gif', 'jpg', 'jpeg']);
+//    //    $extension = array_rand(array_combine($extensions, $extensions));
+//    //
+//    //    $min = explode('x', $min_resolution);
+//    //    $max = explode('x', $max_resolution);
+//    //    if (intval($min[0]) > intval($max[0])) {
+//    //      $max[0] = $min[0];
+//    //    }
+//    //    if (intval($min[1]) > intval($max[1])) {
+//    //      $max[1] = $min[1];
+//    //    }
+//    //    $max_resolution = "$max[0]x$max[1]";
+//    //
+//    //    // Generate a max of 5 different images.
+//    //    if (!isset($images[$extension][$min_resolution][$max_resolution]) || count($images[$extension][$min_resolution][$max_resolution]) <= 5) {
+//    //      /** @var \Drupal\Core\File\FileSystemInterface $file_system */
+//    //      $file_system = \Drupal::service('file_system');
+//    //      $tmp_file = $file_system->tempnam('temporary://', 'generateImage_');
+//    //      $destination = $tmp_file . '.' . $extension;
+//    //      try {
+//    //        $file_system->move($tmp_file, $destination);
+//    //      }
+//    //      catch (FileException $e) {
+//    //        // Ignore failed move.
+//    //      }
+//    //      if ($path = $random->image($file_system->realpath($destination), $min_resolution, $max_resolution)) {
+//    //        $image = File::create();
+//    //        $image->setFileUri($path);
+//    //        $image->setOwnerId(\Drupal::currentUser()->id());
+//    //        $guesser = \Drupal::service('file.mime_type.guesser');
+//    //        $image->setMimeType($guesser->guessMimeType($path));
+//    //        $image->setFileName($file_system->basename($path));
+//    //        $destination_dir = static::doGetUploadLocation($settings);
+//    //        $file_system->prepareDirectory($destination_dir, FileSystemInterface::CREATE_DIRECTORY);
+//    //        $destination = $destination_dir . '/' . basename($path);
+//    //        $file = \Drupal::service('file.repository')->move($image, $destination);
+//    //        $images[$extension][$min_resolution][$max_resolution][$file->id()] = $file;
+//    //      }
+//    //      else {
+//    //        return [];
+//    //      }
+//    //    }
+//    //    else {
+//    //      // Select one of the images we've already generated for this field.
+//    //      $image_index = array_rand($images[$extension][$min_resolution][$max_resolution]);
+//    //      $file = $images[$extension][$min_resolution][$max_resolution][$image_index];
+//    //    }
+//    //
+//    //    [$width, $height] = getimagesize($file->getFileUri());
+//    //    $values = [
+//    //      'target_id' => $file->id(),
+//    //      'alt' => $random->sentences(4),
+//    //      'title' => $random->sentences(4),
+//    //      'width' => $width,
+//    //      'height' => $height,
+//    //    ];
+//    //    return $values;
+//
+//    // If this field is using Brandfolder, then return a specific file.
+//    // Otherwise, invoke the parent method.
+//    if ($settings['uri_scheme'] === 'bf') {
+//      return [
+//        // Temp.
+//        'target_id' => 72,
+//        'alt'       => $random->sentences(4),
+//        'title'     => $random->sentences(4),
+//        'width'     => 5457,
+//        'height'    => 3596,
+//      ];
+//    }
+//    else {
+//      return parent::generateSampleValue($field_definition);
+//    }
+//  }
+
 }
