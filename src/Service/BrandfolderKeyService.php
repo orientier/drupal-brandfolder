@@ -74,9 +74,9 @@ class BrandfolderKeyService {
    * @param string $key_type
    *  "admin", "collaborator", or "guest"
    *
-   * @return string
+   * @return string|null
    */
-  public function getApiKey(string $key_type): string {
+  public function getApiKey(string $key_type): string|null {
     $api_key = NULL;
     // Attempt to retrieve the corresponding key managed by the Key module and
     // referenced in BF module settings.
@@ -90,7 +90,7 @@ class BrandfolderKeyService {
     else {
       $api_key = $this->bfConfig->get("api_keys.$key_type");
       // Log a warning encouraging admins to switch to new key storage model.
-      $msg = 'The Brandfolder module is now using the Key module to manage API keys. Please visit the Brandfolder configuration page to reconfigure your API keys.';
+      $msg = 'The Brandfolder module is now using the Key module to manage API keys. Please visit the Brandfolder configuration page (admin/config/media/brandfolder) to reconfigure your API keys.';
       $this->logger->warning($msg);
     }
 

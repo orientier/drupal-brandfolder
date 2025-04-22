@@ -139,10 +139,8 @@ class BrandfolderGatekeeper {
       }
     }
     else {
-      $msg = 'You must configure an API key and select a Brandfolder. Visit the Brandfolder configuration page or request assistance from an administrator.';
+      $msg = 'You must configure an API key and select a Brandfolder. Visit the Brandfolder configuration page (admin/config/media/brandfolder) or request assistance from an administrator.';
       $this->logger->error($msg);
-      // @todo Friendlier failure/messaging.
-      throw new \Exception($msg);
     }
   }
 
