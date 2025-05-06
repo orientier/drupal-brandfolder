@@ -181,7 +181,7 @@ class BrandfolderBrowser extends WidgetBase {
     if (empty($media_type_options)) {
       $url = Url::fromRoute('entity.media_type.add_form')->toString();
       $form['media_type'] = [
-        '#markup' => $this->t("You don't have any Brandfolder Image media types yet. You should <a href='!link'>create one</a>.", ['!link' => $url]),
+        '#markup' => $this->t('You don\'t have any Brandfolder Image media types yet. You should <a href=":link">create one</a>.', [':link' => $url]),
       ];
     }
     else {
