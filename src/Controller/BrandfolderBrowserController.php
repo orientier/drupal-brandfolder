@@ -12,11 +12,6 @@ use Drupal\Core\TempStore\SharedTempStore;
 use Drupal\Core\TempStore\SharedTempStoreFactory;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
-//use Drupal\Core\Ajax\AppendCommand;
-//use Drupal\Core\Url;
-//use Drupal\examples\Utility\DescriptionTemplateTrait;
-//use Symfony\Component\HttpFoundation\Response;
-
 /**
  * Controller for Brandfolder browser data requests.
  */
@@ -226,6 +221,25 @@ class BrandfolderBrowserController extends ControllerBase {
         $control_schema['labels'] = $labels;
       }
 
+      // @todo: maintain a registry of file types that are actually used and popular for the given Brandfolder and use those.
+      // @todo: Also consider whether filetype is really a useful filter, since assets often have attachments of multiple file types, and we encourage CDN delivery using auto/optimized format options regardless of original image format.
+      $filetype_options = [
+        'avif' => 'AVIF',
+        'gif' => 'GIF',
+        'png' => 'PNG',
+        'jpg' => 'JPG/JPEG',
+        'svg' => 'SVG',
+        'tiff' => 'TIFF',
+        'webp' => 'WebP',
+        //    'mp4' => 'MP4',
+      ];
+      if (isset($gatekeeper_criteria['allowed']['filetype']) && is_array($gatekeeper_criteria['allowed']['filetype'])) {
+        $filetype_options = array_intersect_key($filetype_options, array_flip($gatekeeper_criteria['allowed']['filetype']));
+      }
+      if (isset($gatekeeper_criteria['disallowed']['filetype']) && is_array($gatekeeper_criteria['disallowed']['filetype'])) {
+        $filetype_options = array_diff_key($filetype_options, array_flip($gatekeeper_criteria['disallowed']['filetype']));
+      }
+
       $predefined_date_range_options = [
         'all'        => t('All'),
         '30m' => t('Last 30 Minutes'),
@@ -242,15 +256,6 @@ class BrandfolderBrowserController extends ControllerBase {
           'square' => t('Square'),
           'panorama' => t('Panoramic'),
         ],
-        // @todo: maintain a registry of file types that are actually used and popular for the given Brandfolder and use those.
-        'filetype' => [
-          'jpg' => 'JPG/JPEG',
-          'png' => 'PNG',
-          'svg' => 'SVG',
-          'gif' => 'GIF',
-          'webp' => 'WebP',
-          //    'mp4',
-        ],
         'creationDate' => $predefined_date_range_options,
         'modificationDate' => $predefined_date_range_options,
         'publicationDate' => $predefined_date_range_options,
@@ -266,6 +271,9 @@ class BrandfolderBrowserController extends ControllerBase {
           'desc' => t('Descending'),
         ],
       ];
+      if (!empty($filetype_options)) {
+        $control_schema['filetype'] = $filetype_options;
+      }
 
       $response_data = [
         'assets' => $result->data,

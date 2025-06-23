@@ -105,7 +105,7 @@ class BrandfolderBrowser extends WidgetBase {
   protected function getMediaType(): ?EntityInterface {
     $media_type_id = $this->getMediaTypeId();
 
-    if (empty($media_type_id)) {
+    if (empty($media_type_id) || $media_type_id === 'none') {
       return NULL;
     }
 
@@ -162,7 +162,9 @@ class BrandfolderBrowser extends WidgetBase {
   public function buildConfigurationForm(array $form, FormStateInterface $form_state): array {
     $form = parent::buildConfigurationForm($form, $form_state);
 
-    $media_type_options = [];
+    $media_type_options = [
+      'none' => $this->t('None (use this Entity Browser for Image fields only).'),
+    ];
 
     try {
       $media_types = $this
@@ -181,13 +183,14 @@ class BrandfolderBrowser extends WidgetBase {
     if (empty($media_type_options)) {
       $url = Url::fromRoute('entity.media_type.add_form')->toString();
       $form['media_type'] = [
-        '#markup' => $this->t('You don\'t have any Brandfolder Image media types yet. You should <a href=":link">create one</a>.', [':link' => $url]),
+        '#markup' => $this->t('You don\'t have any Brandfolder Image media types yet. You will need to <a href=":link">create one</a> if you want to use this Entity Browser for any media entity reference fields. Alternatively, you can use this Entity Browser for Image fields, in which case a media type is not necessary.', [':link' => $url]),
       ];
     }
     else {
       $form['media_type'] = [
         '#type' => 'select',
         '#title' => $this->t('Media type'),
+        '#description' => $this->t('If you want to use this Entity Browser widget to select Brandfolder images for media entity reference fields, you will need to tell it which media type to use when creating Drupal media items for the selected Brandfolder images. Alternatively, you can use this Entity Browser for Image fields, in which case choosing a media type is not necessary.'),
         '#default_value' => $this->configuration['media_type'],
         '#options' => $media_type_options,
       ];
@@ -212,17 +215,41 @@ class BrandfolderBrowser extends WidgetBase {
   public function getForm(array &$original_form, FormStateInterface $form_state, array $additional_widget_parameters): array {
     $form = parent::getForm($original_form, $form_state, $additional_widget_parameters);
 
-    $media_type = $this->getMediaType();
-
-    if (!$media_type) {
-      return $form;
-    }
-
     $context = ['entity_browser', 'brandfolder_browser'];
     $context_string = implode('-', $context);
-    $media_source = $media_type->getSource();
     $gatekeeper = $this->brandfolderGatekeeper;
-    $gatekeeper->loadFromMediaSource($media_source);
+
+    $selection_limit = NULL;
+    $validators = $form_state->get(['entity_browser', 'validators']);
+    if (!empty($validators['cardinality']['cardinality'])) {
+      $selection_limit = $validators['cardinality']['cardinality'];
+    }
+
+    if (isset($validators['entity_type']['type']) && $validators['entity_type']['type'] === 'file') {
+      if (!empty($validators['file']['validators'])) {
+        $file_validators = $validators['file']['validators'];
+        // Note that Entity Browser doesn't give us information about the image
+        // field the browser is being used for, so we can't load any
+        // additional configuration like allowed Brandfolder entities.
+        // We also miss out on some core image field settings like max file
+        // size. For that reason, using Entity Browser with Image fields
+        // should be discouraged.
+        // We could try to overcome that limitation, but we'd have to do
+        // something like override \Drupal\entity_browser\Plugin\Field\FieldWidget\FileBrowserWidget
+        // and use field & third-party settings data to add the missing
+        // validators.
+        $gatekeeper->loadFromEntityBrowserFileValidators($file_validators);
+      }
+    }
+    else {
+      // Default to Media.
+      // @todo: Consider explicitly checking for a media type validator.
+      $media_type = $this->getMediaType();
+      if ($media_type) {
+        $media_source = $media_type->getSource();
+        $gatekeeper->loadFromMediaSource($media_source);
+      }
+    }
 
     // @todo: Selected entities won't be found here even when the host field has some of its values set (in the case of a multi-cardinality field). And the cardinality value below will be the total number of allowed items, not the number of items actually allowed to be selected in this session.
     // @todo: Test with various EB config options (append/replace/prepend).
@@ -230,12 +257,6 @@ class BrandfolderBrowser extends WidgetBase {
     $selected_entities = &$form_state->get(['entity_browser', 'selected_entities']);
     if (!empty($selected_entities)) {
       $selected_bf_attachments = brandfolder_map_media_entities_to_attachments($selected_entities);
-    }
-
-    $selection_limit = NULL;
-    $validators = $form_state->get(['entity_browser', 'validators']);
-    if (!empty($validators['cardinality']['cardinality'])) {
-      $selection_limit = $validators['cardinality']['cardinality'];
     }
 
     $entity_browser_id = $this->configuration['entity_browser_id'];

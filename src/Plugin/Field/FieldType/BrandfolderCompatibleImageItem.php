@@ -69,10 +69,11 @@ class BrandfolderCompatibleImageItem extends ImageItem {
     ];
     $element['uri_scheme']['#description'] = t('@public_private_scheme_msg If you choose "@bf_scheme_label," you can use this field to select images stored in Brandfolder (and use them in Drupal without copying any files).', $args);
 
-//    if ($settings['uri_scheme'] === 'bf') {
-////      $element['default_image']['#title'] = $this->t('Default Brandfolder Image');
-//      // @todo: Use BF Browser widget for this default image selector if bf is the active scheme.
-//    }
+    if ($settings['uri_scheme'] === 'bf') {
+      $element['default_image']['#title'] = $this->t('Default Brandfolder Image');
+      // @todo: Use BF Browser widget for this default image selector if bf is the active scheme. Hide until we add a means of selecting a default image from Brandfolder.
+      $element['default_image']['#access'] = FALSE;
+    }
 
     return $element;
   }
@@ -93,7 +94,17 @@ class BrandfolderCompatibleImageItem extends ImageItem {
       $element['file_directory']['#default_value'] = '';
       $element['file_directory']['#access'] = FALSE;
 
-      // @todo: Replace the "Default Image" upload interface with a Brandfolder Browser widget.
+      // "Max upload file size" doesn't really make sense for Brandfolder,
+      // at least with the current one-way integration, so we hide it.
+      // We could use it to limit search results to only BF attachments whose
+      // listed size complies with this limit, but if people are following best
+      // practices and using BF image optimization settings & Drupal image
+      // styles, the original file size is not so relevant.
+      $element['max_filesize']['#default_value'] = '';
+      $element['max_filesize']['#access'] = FALSE;
+
+      // @todo: Replace the "Default Image" upload interface with a Brandfolder Browser widget. Hide it until we add a means of selecting a default image from Brandfolder.
+      $element['default_image']['#access'] = FALSE;
       $element['default_image']['#title'] = t('Default Brandfolder Image');
 
       if ($field_definition = $this->getFieldDefinition()) {

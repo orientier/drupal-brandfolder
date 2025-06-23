@@ -235,6 +235,29 @@ class BrandfolderGatekeeper {
   }
 
   /**
+   * Load criteria from an Entity Browser validators array.
+   */
+  public function loadFromEntityBrowserFileValidators(array $validators): void {
+    $criteria = [];
+    if (!empty($validators['file_validate_extensions'][0])) {
+      $extensions_array_raw = explode(' ', $validators['file_validate_extensions'][0]);
+      $trimmed = array_map('trim', $extensions_array_raw);
+      $criteria['allowed']['filetype'] = $trimmed;
+    }
+    if (!empty($validators['entity_browser_file_validate_image_resolution'])) {
+      [$max_resolution, $min_resolution] = $validators['entity_browser_file_validate_image_resolution'];
+      if (!empty($max_resolution)) {
+        $criteria['max_resolution'] = $max_resolution;
+      }
+      if (!empty($min_resolution)) {
+        $criteria['min_resolution'] = $min_resolution;
+      }
+    }
+
+    $this->setCriteria($criteria);
+  }
+
+  /**
    * Process a set of Brandfolder entities and see if they are allowed by the
    * relevant Drupal configuration/rules.
    *
@@ -421,6 +444,33 @@ class BrandfolderGatekeeper {
         $criterion = "\"$criterion\"";
       });
       $search_components[] = "filetype:(" . implode(' OR ', $extension_list) . ')';
+    }
+
+    // Min and max resolution.
+    // @todo: Consider streamlining/refactoring this, depending on whether we introduce user-facing resolution filters, etc.
+    if (!empty($all_criteria['min_resolution'])) {
+      $width_and_height = explode('x', $all_criteria['min_resolution']);
+      if (count($width_and_height) == 2) {
+        [$min_width, $min_height] = $width_and_height;
+        if ($min_width) {
+          $search_components[] = 'width:>=' . $min_width;
+        }
+        if ($min_height) {
+          $search_components[] = 'height:>=' . $min_height;
+        }
+      }
+    }
+    if (!empty($all_criteria['max_resolution'])) {
+      $width_and_height = explode('x', $all_criteria['max_resolution']);
+      if (count($width_and_height) == 2) {
+        [$max_width, $max_height] = $width_and_height;
+        if ($max_width) {
+          $search_components[] = 'width:<=' . $max_width;
+        }
+        if ($max_height) {
+          $search_components[] = 'height:<=' . $max_height;
+        }
+      }
     }
 
     array_walk($search_components, function(&$component) {
