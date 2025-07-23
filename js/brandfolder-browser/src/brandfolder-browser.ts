@@ -34,7 +34,10 @@ type BfFetchResponse = {
   controlSchema: BfBrowserControlSchema
 }
 
+type BfBrowserFormat = 'full' | 'inline'
+
 type BfBrowserSettings = {
+  format?: BfBrowserFormat
   height?: number
   layoutHostSelector?: string
   apiEndpoint?: string
@@ -83,6 +86,13 @@ export class BrandfolderBrowser extends LitElement {
       top: 0;
       left: 0;
       z-index: 1;
+    }
+
+    :host(:focus),
+    :host *:focus {
+      /* @todo */
+      outline: none !important;
+      box-shadow: none !important;
     }
 
     .bf-browser__inner {
@@ -140,6 +150,12 @@ export class BrandfolderBrowser extends LitElement {
    */
   @property({type: String, attribute: false})
   layoutHostSelector: string | null = null
+
+  /**
+   * The browser format.
+   */
+  // @state()
+  // private _browserFormat: BfBrowserFormat = 'inline'
 
   /**
    * The URL to which API requests should be sent.
@@ -238,6 +254,9 @@ export class BrandfolderBrowser extends LitElement {
     // Apply any configurable settings.
     if (this.settings && typeof this.settings === 'string') {
       const settings: BfBrowserSettings = JSON.parse(this.settings)
+      // if (settings?.format) {
+      //   this._browserFormat = settings.format
+      // }
       if (settings?.apiEndpoint) {
         this._apiEndpoint = settings.apiEndpoint
       }
@@ -521,7 +540,7 @@ export class BrandfolderBrowser extends LitElement {
             `
           : ''}
         <div class="bf-browser__selection-tray-container">
-          <brandfolder-browser-selection-tray .isOpen=${this._isSelectionTrayOpen &&  Object.values(this._browserContext.selectedAttachments).length > 0}>
+          <brandfolder-browser-selection-tray .isOpen=${this._isSelectionTrayOpen && Object.values(this._browserContext.selectedAttachments).length > 0}>
           </brandfolder-browser-selection-tray>
         </div>
       </div>

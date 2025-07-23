@@ -1,50 +1,132 @@
 <?php
-//
-//namespace Drupal\brandfolder\Plugin\Field\FieldWidget;
-//
-//use Drupal\Component\Utility\Html;
-//use Drupal\Component\Utility\NestedArray;
-//use Drupal\Core\Ajax\ReplaceCommand;
-//use Drupal\Core\Ajax\AjaxResponse;
-//use Drupal\Core\Render\Element;
-//use Drupal\image\Plugin\Field\FieldWidget\ImageWidget;
-//use Drupal\Core\Field\FieldItemListInterface;
-//use Drupal\Core\Form\FormStateInterface;
-//use Symfony\Component\HttpFoundation\Request;
-//
-///**
-// * Plugin implementation of the 'brandfolder_image_browser' widget.
-// *
-// * @FieldWidget(
-// *   id = "brandfolder_image_browser",
-// *   label = @Translation("Brandfolder Image Browser"),
-// *   field_types = {
-// *     "image"
-// *   }
-// * )
-// *
-// * @todo: BrandfolderBrowser or BrandfolderBrowserWidget class that can be used by image browser, video browser, etc. descendant widget classes.
-// */
-//class BrandfolderImageBrowserWidget extends ImageWidget {
-//
-//  /**
-//   * {@inheritdoc}
-//   */
-//  public function formElement(FieldItemListInterface $items, $delta, array $element, array &$form, FormStateInterface $form_state) {
-//    $element = parent::formElement($items, $delta, $element, $form, $form_state);
-//
-//    $field_name = $element['#field_name'];
-//
-//    $element['bf_memo'] = [
-//      '#markup' => '<h4>Ultra-Simple Brandfolder Image Browser</h4>',
-//    ];
-//
-//    $field_context_items = $element['#field_parents'];
-//    $field_context_items[] = $element['#field_name'];
-//    $field_context_items[] = $delta;
-//    $field_context_string = implode('_', $field_context_items);
-//
-//    // Generate a unique wrapper HTML ID.
+
+namespace Drupal\brandfolder\Plugin\Field\FieldWidget;
+
+use Drupal\brandfolder\Service\BrandfolderGatekeeper;
+use Drupal\Component\Utility\Html;
+use Drupal\Component\Utility\NestedArray;
+use Drupal\Core\Ajax\ReplaceCommand;
+use Drupal\Core\Ajax\AjaxResponse;
+use Drupal\Core\Field\Attribute\FieldWidget;
+use Drupal\Core\Field\WidgetBase;
+use Drupal\Core\Lock\NullLockBackend;
+use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\Core\Render\Element;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
+use Drupal\file\Entity\File;
+use Drupal\file\Plugin\Field\FieldWidget\FileWidget;
+use Drupal\image\Plugin\Field\FieldWidget\ImageWidget;
+use Drupal\Core\Field\FieldItemListInterface;
+use Drupal\Core\Form\FormStateInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\HttpFoundation\Request;
+
+/**
+ * Plugin implementation of the 'brandfolder_image_browser' widget.
+ *
+ * @todo: BrandfolderBrowserWidget class that can be used by image browser, video browser, etc. descendant widget classes.
+ */
+// @todo: Open this up when it's actually ready for use.
+//#[FieldWidget(
+//  id: 'brandfolder_image_browser',
+//  label: new TranslatableMarkup('Brandfolder Image Browser'),
+//  field_types: ['image'],
+//)]
+class BrandfolderImageBrowserWidget extends ImageWidget {
+
+  /**
+   * The Brandfolder Gatekeeper service.
+   *
+   * @var ?\Drupal\brandfolder\Service\BrandfolderGatekeeper
+   */
+  protected ?BrandfolderGatekeeper $bfGatekeeper;
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition): WidgetBase|ContainerFactoryPluginInterface|FileWidget|BrandfolderImageBrowserWidget {
+    $instance = parent::create($container, $configuration, $plugin_id, $plugin_definition);
+    $instance->bfGatekeeper = $container->get('brandfolder.gatekeeper');
+
+    return $instance;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function settingsForm(array $form, FormStateInterface $form_state): array {
+    $element = parent::settingsForm($form, $form_state);
+
+    if (isset($element['progress_indicator'])) {
+      // Remove the progress indicator setting, as it is not applicable.
+      unset($element['progress_indicator']);
+    }
+
+    return $element;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function settingsSummary(): array {
+    $summary = parent::settingsSummary();
+
+    foreach ($summary as $key => $value) {
+      if ($value instanceof TranslatableMarkup) {
+        $arguments = $value->getArguments();
+        if (isset($arguments['@progress_indicator'])) {
+          unset($summary[$key]);
+        }
+      }
+    }
+
+    return $summary;
+  }
+
+  /**
+   * Overrides \Drupal\file\Plugin\Field\FieldWidget\FileWidget::formMultipleElements().
+   *
+   * Special handling for draggable multiple widgets and 'add more' button.
+   */
+  protected function formMultipleElements(FieldItemListInterface $items, array &$form, FormStateInterface $form_state): array {
+    $elements = parent::formMultipleElements($items, $form, $form_state);
+
+    $cardinality = $this->fieldDefinition->getFieldStorageDefinition()->getCardinality();
+
+    return $elements;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function formElement(FieldItemListInterface $items, $delta, array $element, array &$form, FormStateInterface $form_state): array {
+    $element = parent::formElement($items, $delta, $element, $form, $form_state);
+
+    // @todo: custom form element type for Brandfolder browser widget?
+
+    // @todo: Do we want to keep $element["#process"][0][1]: 'processManagedFile'?
+
+    $field_name = $element['#field_name'];
+
+    $element['bf_memo'] = [
+      '#markup' => '<h4>Brandfolder Image Browser</h4>',
+    ];
+
+    $field_context_items = ['field_widget', 'brandfolder_image_browser', ...$element['#field_parents']];
+    $field_context_items[] = $field_name;
+    $field_context_items[] = $delta;
+    $field_context_string = implode('__', $field_context_items);
+
+    $field_definition = $items->getFieldDefinition();
+    $this->bfGatekeeper->loadFromFieldDefinition($field_definition);
+    $cardinality = $field_definition->getFieldStorageDefinition()->getCardinality();
+    $selection_limit = $cardinality > 0 ? $cardinality : NULL;
+
+    brandfolder_browser_init($element, $form_state, $this->bfGatekeeper, [], $selection_limit, $field_context_string);
+
+    return $element;
+
+    // Generate a unique wrapper HTML ID.
 //    $ajax_wrapper_id = Html::getUniqueId(implode('-', $field_context_items) . '-ajax-wrapper');
 //
 //    $ajax_settings = [
@@ -124,8 +206,8 @@
 //    $element['#attached']['library'][] = 'brandfolder/brandfolder-browser';
 //
 //    return $element;
-//  }
-//
+  }
+
 //  /**
 //   * #ajax callback for asset selection submission/confirmation/processing.
 //   *
@@ -168,56 +250,97 @@
 //
 //    return $response->addCommand(new ReplaceCommand(NULL, $output));
 //  }
-//
-//  /**
-//   * @inerhitDoc
-//   */
+
+
+  /**
+   * Form API callback: Processes an image_image field element.
+   *
+   * Expands the image_image type to include the alt and title fields.
+   *
+   * This method is assigned as a #process callback in formElement() method.
+   */
+  public static function process($element, FormStateInterface $form_state, $form) {
+    return parent::process($element, $form_state, $form);
+  }
+
+  /**
+   * Validate callback for alt and title field, if the user wants them required.
+   *
+   * This is separated in a validate function instead of a #required flag to
+   * avoid being validated on the process callback.
+   */
+  public static function validateRequiredFields($element, FormStateInterface $form_state): void {
+//    // Only do validation if the function is triggered from other places than
+//    // the image process form.
+//    $triggering_element = $form_state->getTriggeringElement();
+//    if (!empty($triggering_element['#submit']) && in_array('file_managed_file_submit', $triggering_element['#submit'], TRUE)) {
+//      $form_state->setLimitValidationErrors([]);
+//    }
+
+    $r = 5;
+  }
+
+
+  /**
+   * {@inheritdoc}
+   */
+  public function massageFormValues(array $values, array $form, FormStateInterface $form_state): array {
+    $new_values = parent::massageFormValues($values, $form, $form_state);
+
+    return $new_values;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function extractFormValues(FieldItemListInterface $items, array $form, FormStateInterface $form_state): void {
+    parent::extractFormValues($items, $form, $form_state);
+  }
+
+  /**
+   * @inerhitDoc
+   */
 //  public static function process($element, FormStateInterface $form_state, $form) {
 //    $element = parent::process($element, $form_state, $form);
 //
-//    $element['#theme'] = 'brandfolder_browser_widget';
-//
-//    if (isset($element['#bf_browser_ajax_wrapper_id'])) {
-//      $element['#prefix'] = '<div id="' . $element['#bf_browser_ajax_wrapper_id'] . '">';
-//      $element['#suffix'] = '</div>';
-//    }
+//    $element['#theme'] = 'brandfolder_image_browser_widget';
 //
 //    return $element;
 //  }
-//
-//  /**
-//   * @inerhitDoc
-//   */
-//  public static function value($element, $input, FormStateInterface $form_state) {
-//    $return = parent::value($element, $input, $form_state);
-//
-//    $cardinality = $element['#cardinality'];
-//
-//    // Map selected Brandfolder asset IDs to Drupal file IDs as applicable.
-//    if (!empty($input)) {
-//      //    $asset_ids = $form_state->getValue('bf_asset_ids', []);
-//      $asset_ids = $input['bf_asset_ids'];
-//      if (!is_array($asset_ids)) {
-//        $asset_ids = [$asset_ids];
-//      }
-//
-//      // @todo Multi vs. single cardinality, etc.
-//      if ($cardinality > 0) {
-//        $asset_ids = array_slice($asset_ids, 0, $cardinality);
-//      }
-//
-//      foreach ($asset_ids as $index => $asset_id) {
-//        if ($fid = brandfolder_map_asset_to_file($asset_id)) {
-//          $return['fids'][$index] = $fid;
-//          // @todo: Review wrt how Drupal handles this single value vs. the 'fids' array.
-//          $return['target_id'] = $fid;
-//        }
-//      }
-//    }
-//
-//    return $return;
-//  }
-//
-//}
-//
-//
+
+  /**
+   * @inerhitDoc
+   */
+  public static function value($element, $input, FormStateInterface $form_state) {
+    $return = parent::value($element, $input, $form_state);
+
+    $cardinality = $element['#cardinality'];
+
+    // Map selected Brandfolder attachment IDs to Drupal file IDs as applicable.
+    if (!empty($input)) {
+      //    $asset_ids = $form_state->getValue('bf_asset_ids', []);
+      $attachment_ids = $input['selected_bf_attachment_ids'];
+      if (!is_array($attachment_ids)) {
+        $attachment_ids = [$attachment_ids];
+      }
+
+      // @todo Multi vs. single cardinality, etc.
+      if ($cardinality > 0) {
+        $attachment_ids = array_slice($attachment_ids, 0, $cardinality);
+      }
+
+      foreach ($attachment_ids as $index => $attachment_id) {
+        if ($fid = brandfolder_map_attachment_to_file($attachment_id)) {
+          $return['fids'][$index] = $fid;
+          // @todo: Review wrt how Drupal handles this single value vs. the 'fids' array.
+          $return['target_id'] = $fid;
+        }
+      }
+    }
+
+    return $return;
+  }
+
+}
+
+

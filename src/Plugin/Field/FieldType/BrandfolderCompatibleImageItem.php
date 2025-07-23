@@ -2,19 +2,24 @@
 
 namespace Drupal\brandfolder\Plugin\Field\FieldType;
 
+use Drupal\brandfolder\Plugin\Field\FieldWidget\BrandfolderImageBrowserWidget;
 use Drupal\brandfolder\Service\BrandfolderGatekeeper;
 use Drupal\Component\Utility\Random;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Field\Attribute\FieldType;
 use Drupal\Core\Field\FieldDefinitionInterface;
+use Drupal\Core\Field\WidgetBase;
 use Drupal\Core\File\Exception\FileException;
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\Core\TypedData\ComplexDataDefinitionInterface;
+use Drupal\Core\TypedData\TraversableTypedDataInterface;
 use Drupal\Core\TypedData\TypedDataInterface;
 use Drupal\file\Entity\File;
 use Drupal\file\Plugin\Field\FieldType\FileFieldItemList;
+use Drupal\file\Plugin\Field\FieldWidget\FileWidget;
 use Drupal\image\Plugin\Field\FieldType\ImageItem;
 
 /**
@@ -27,20 +32,32 @@ class BrandfolderCompatibleImageItem extends ImageItem {
   /**
    * The Brandfolder Gatekeeper service.
    *
-   * @var \Drupal\brandfolder\Service\BrandfolderGatekeeper
+   * @var ?\Drupal\brandfolder\Service\BrandfolderGatekeeper
    */
-  protected BrandfolderGatekeeper $brandfolderGatekeeper;
+  protected ?BrandfolderGatekeeper $bfGatekeeper;
 
   /**
    * {@inheritdoc}
    */
-  public function __construct(ComplexDataDefinitionInterface $definition, $name = NULL, ?TypedDataInterface $parent = NULL) {
-    parent::__construct($definition, $name, $parent);
+  public static function createInstance($definition, $name = NULL, ?TraversableTypedDataInterface $parent = NULL): BrandfolderCompatibleImageItem {
+    $instance = new static($definition, $name, $parent);
 
     /* @var \Drupal\brandfolder\Service\BrandfolderGatekeeper $gatekeeper */
-    $gatekeeper = \Drupal::getContainer()
-      ->get('brandfolder.gatekeeper');
-    $this->brandfolderGatekeeper = $gatekeeper;
+    $gatekeeper = \Drupal::getContainer()->get('brandfolder.gatekeeper');
+    $instance->setGatekeeper($gatekeeper);
+
+    return $instance;
+  }
+
+  /**
+   * Sets the Brandfolder Gatekeeper service.
+   *
+   * @param \Drupal\brandfolder\Service\BrandfolderGatekeeper $gatekeeper
+   *
+   * @return void
+   */
+  public function setGatekeeper(BrandfolderGatekeeper $gatekeeper): void {
+    $this->bfGatekeeper = $gatekeeper;
   }
 
   /**
@@ -70,9 +87,18 @@ class BrandfolderCompatibleImageItem extends ImageItem {
     $element['uri_scheme']['#description'] = t('@public_private_scheme_msg If you choose "@bf_scheme_label," you can use this field to select images stored in Brandfolder (and use them in Drupal without copying any files).', $args);
 
     if ($settings['uri_scheme'] === 'bf') {
-      $element['default_image']['#title'] = $this->t('Default Brandfolder Image');
-      // @todo: Use BF Browser widget for this default image selector if bf is the active scheme. Hide until we add a means of selecting a default image from Brandfolder.
-      $element['default_image']['#access'] = FALSE;
+      if (isset($element['default_image']['uuid'])) {
+        // Use BF Browser element for this default image selector.
+        $element['default_image']['uuid']['#type'] = 'brandfolder_file';
+        $element['default_image']['uuid']['#description'] = $element['default_image']['#description'] = t('When no image is selected, this image will be shown on display.');
+        $element['default_image']['uuid']['#element_validate'] = [
+          '\Drupal\brandfolder\Element\BrandfolderFileFormElement::validateElement',
+          [static::class, 'validateDefaultImageForm'],
+        ];
+      }
+      else {
+        $element['default_image']['#access'] = FALSE;
+      }
     }
 
     return $element;
@@ -103,14 +129,19 @@ class BrandfolderCompatibleImageItem extends ImageItem {
       $element['max_filesize']['#default_value'] = '';
       $element['max_filesize']['#access'] = FALSE;
 
-      // @todo: Replace the "Default Image" upload interface with a Brandfolder Browser widget. Hide it until we add a means of selecting a default image from Brandfolder.
-      $element['default_image']['#access'] = FALSE;
-      $element['default_image']['#title'] = t('Default Brandfolder Image');
+      // Switch the "Default Image" upload interface with a custom Brandfolder form element
+      $element['default_image']['uuid']['#type'] = 'brandfolder_file';
+      $element['default_image']['#description'] = t("When no image is selected, this image will be shown on display and will override the field's default image.");
+      $element['default_image']['uuid']['#element_validate'] = [
+        '\Drupal\brandfolder\Element\BrandfolderFileFormElement::validateElement',
+        [static::class, 'validateDefaultImageForm'],
+      ];
+      // @todo: Load gatekeeper criteria from field definition and pass through to brandfolder_file element? Obviously the field definition is a bit volatile since it's editable on the same parent form as this element.
 
       if ($field_definition = $this->getFieldDefinition()) {
-        $this->brandfolderGatekeeper->loadFromFieldDefinition($field_definition);
+        $this->bfGatekeeper->loadFromFieldDefinition($field_definition);
       }
-      $this->brandfolderGatekeeper->buildConfigForm($element);
+      $this->bfGatekeeper->buildConfigForm($element);
     }
 
     return $element;

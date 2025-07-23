@@ -395,6 +395,7 @@ function brandfolder_browser_media_library_form_manipulator(&$form, FormStateInt
  * @param \Drupal\Core\Form\FormStateInterface $form_state
  * @param \Drupal\brandfolder\Service\BrandfolderGatekeeper $gatekeeper
  * @param array $selected_attachments
+ *  An array of lightweight attachment objects keyed by attachment IDs.
  * @param int|null $selection_limit
  * @param string|null $context_id
  * @param array $bf_browser_settings
@@ -408,6 +409,7 @@ function brandfolder_browser_init(array &$form, FormStateInterface $form_state, 
       $bf_browser_id = $all_input['brandfolder_browser_id'];
     }
     else {
+      // @todo: The ID is currently never stored in form state, so the preceding checks are pointless, and we will always generate a new UUID here. However, it seems it would be good to persist IDs sometimes, if only to avoid cluttering the tempstore. If doing so, consider whether we need to accommodate unlimited browsers within a single form.
       $uuid_service = \Drupal::service('uuid');
       $bf_browser_id = $uuid_service->generate();
     }
@@ -507,9 +509,9 @@ function brandfolder_browser_to_media_library_selection_converter(array &$form, 
  */
 function brandfolder_theme($existing, $type, $theme, $path): array {
   return [
-    //    'brandfolder_browser_widget' => [
-    //      'render element' => 'element',
-    //    ],
+    'brandfolder_image_browser_widget' => [
+      'render element' => 'element',
+    ],
     'brandfolder_browser' => [
       'variables' => [
         'bf_browser_id' => NULL,
@@ -524,25 +526,25 @@ function brandfolder_theme($existing, $type, $theme, $path): array {
   ];
 }
 
-/**
- * Prepares variables for Brandfolder Browser widget templates.
- *
- * Default template: brandfolder-browser-widget.html.twig.
- *
- * @param array $variables
- *   An associative array containing:
- *   - element: A render element representing the Brandfolder Browser widget.
- */
-function template_preprocess_brandfolder_browser_widget(&$variables) {
-  $element = $variables['element'];
-
-  $variables['attributes'] = ['class' => ['brandfolder-browser-widget', 'js-form-managed-file', 'form-managed-file', 'clearfix']];
-
-  $variables['data'] = [];
-  foreach (Element::children($element) as $child) {
-    $variables['data'][$child] = $element[$child];
-  }
-}
+///**
+// * Prepares variables for Brandfolder Browser widget templates.
+// *
+// * Default template: brandfolder-browser-widget.html.twig.
+// *
+// * @param array $variables
+// *   An associative array containing:
+// *   - element: A render element representing the Brandfolder Browser widget.
+// */
+//function template_preprocess_brandfolder_browser_widget(&$variables) {
+//  $element = $variables['element'];
+//
+//  $variables['attributes'] = ['class' => ['brandfolder-browser-widget', 'js-form-managed-file', 'form-managed-file', 'clearfix']];
+//
+//  $variables['data'] = [];
+//  foreach (Element::children($element) as $child) {
+//    $variables['data'][$child] = $element[$child];
+//  }
+//}
 
 
 /**
@@ -776,6 +778,99 @@ function brandfolder_map_attachment_to_file($attachment, $create_new_file = TRUE
   }
 
   return $fid;
+}
+
+/**
+ * Map a single Drupal file ID to a corresponding Brandfolder attachment ID
+ * or lightweight attachment array.
+ *
+ * @param int $fid
+ *  The Drupal file ID to map to a Brandfolder attachment ID.
+ * @param ?string $result_format
+ *  The format of the result. If 'id' (default), return the Brandfolder
+ *  attachment ID. If 'array' or any other value, return a simple attachment
+ *  data array, containing the attachment ID and CDN URL.
+ *
+ * @return bool|string
+ *  The Brandfolder attachment ID if $result_format is 'id', or a lightweight
+ *  attachment array if $result_format is 'array' or any other value. Returns
+ *  FALSE if no mapping is found.
+ */
+function brandfolder_map_file_to_attachment(int $fid, ?string $result_format = 'id'): bool|string {
+  $attachment = FALSE;
+
+  $attachments = brandfolder_map_files_to_attachments([$fid], $result_format);
+  if (!empty($attachments)) {
+    // If the result format is 'id', return the first attachment ID.
+    // Otherwise, return the first lightweight attachment array.
+    $attachment = reset($attachments);
+  }
+
+  return $attachment;
+}
+
+/**
+ * Map an array of Drupal file IDs to corresponding Brandfolder attachment IDs
+ * or lightweight attachment arrays.
+ *
+ * @param string[] $file_ids
+ *  An array of Drupal file IDs to map to Brandfolder attachment IDs.
+ * @param ?string $result_format
+ *  The format of the result. If 'id' (default), return an array of
+ *  Brandfolder attachment IDs. If 'array' or any other value, return an array
+ *  of simple attachment data arrays, each containing the attachment ID and
+ *  CDN URL.
+ *
+ * @return string[]|array[]
+ *  If $result_format is 'id', returns an associative array keyed by
+ *  Drupal file ID, with values being the corresponding Brandfolder
+ *  attachment IDs.
+ *  If $result_format is 'array' or any other value, returns an
+ *  associative array keyed by Brandfolder attachment ID, with values being
+ *  lightweight attachment arrays containing the attachment ID and CDN URL.
+ */
+function brandfolder_map_files_to_attachments(array $file_ids, ?string $result_format = 'id'): array {
+  $result = [];
+
+  if (empty($file_ids)) {
+    return $result;
+  }
+
+  try {
+    $db = \Drupal::database();
+    $query = $db->select('brandfolder_file', 'bf')
+      ->condition('fid', $file_ids, 'IN');
+    if ($result_format === 'id') {
+      $query->fields('bf', ['fid', 'bf_attachment_id']);
+      if ($query->countQuery()->execute()->fetchField()) {
+        $result = $query->execute()->fetchAllKeyed();
+      }
+    }
+    else {
+      // Return an array of lightweight attachment objects, keyed by
+      // attachment ID.
+      $query->fields('bf', ['fid', 'bf_attachment_id', 'uri']);
+      if ($query->countQuery()->execute()->fetchField()) {
+        $query_result = $query->execute();
+        $url_generator = \Drupal::service('file_url_generator');
+        foreach ($query_result as $row) {
+          $attachment_id = $row->bf_attachment_id;
+          $result[$attachment_id] = [
+            'id'      => $attachment_id,
+            'cdn_url' => $url_generator->generateAbsoluteString($row->uri),
+          ];
+        }
+      }
+    }
+  }
+  catch (\Exception $e) {
+    $logger = \Drupal::logger('brandfolder');
+    $logger->error('Could not retrieve Brandfolder attachment IDs for the provided file IDs (@ids). Message: @message', ['@ids' => implode(', ', $file_ids), '@message' => $e->getMessage()]);
+
+    return [];
+  }
+
+  return $result;
 }
 
 /**

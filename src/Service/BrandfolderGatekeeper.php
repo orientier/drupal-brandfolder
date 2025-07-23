@@ -142,6 +142,10 @@ class BrandfolderGatekeeper {
       $msg = 'You must configure an API key and select a Brandfolder. Visit the Brandfolder configuration page (admin/config/media/brandfolder) or request assistance from an administrator.';
       $this->logger->error($msg);
     }
+    // Ensure any default baseline criteria are set (even though users of this
+    // service will typically use a load method that will overwrite/extend the
+    // defaults).
+    $this->setCriteria();
   }
 
   /**
@@ -203,7 +207,6 @@ class BrandfolderGatekeeper {
 
     if (method_exists($field_definition, 'getThirdPartySettings')) {
       $bf_config = $field_definition->getThirdPartySettings('brandfolder');
-      // @todo: Test in field config edit form context again.
       if (!empty($bf_config['brandfolder_settings'])) {
         $bf_settings_json = $bf_config['brandfolder_settings'];
         $bf_settings = json_decode($bf_settings_json, TRUE);
@@ -216,10 +219,6 @@ class BrandfolderGatekeeper {
         $extensions_array_raw = explode(' ', $field_settings['file_extensions']);
         $trimmed = array_map('trim', $extensions_array_raw);
         $criteria['allowed']['filetype'] = $trimmed;
-      }
-      if (!empty($field_settings['max_filesize'])) {
-        $criteria['max_filesize'] = $field_settings['max_filesize'];
-        // @todo: Convert human-readable file size strings to a number of bytes.
       }
       $other_settings = [
         'min_resolution',
@@ -801,6 +800,31 @@ class BrandfolderGatekeeper {
     $criteria = array_merge($defaults, $criteria);
 
     $this->criteria = $criteria;
+  }
+
+  /**
+   * Get the allowed file types for Brandfolder entities.
+   *
+   * @return array
+   */
+  public function getAllowedFiletypes(): array {
+    return $this->criteria['allowed']['filetype'] ?? [];
+  }
+
+  /**
+   * Set allowed file types for Brandfolder entities.
+   *
+   * @param array $filetypes
+   *
+   * @return void
+   */
+  public function setAllowedFiletypes(array $filetypes): void {
+    if (empty($filetypes)) {
+      $this->criteria['allowed']['filetype'] = [];
+    }
+    else {
+      $this->criteria['allowed']['filetype'] = array_map('trim', $filetypes);
+    }
   }
 
   /**
