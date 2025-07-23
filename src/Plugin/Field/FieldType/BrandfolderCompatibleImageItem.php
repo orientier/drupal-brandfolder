@@ -129,14 +129,16 @@ class BrandfolderCompatibleImageItem extends ImageItem {
       $element['max_filesize']['#default_value'] = '';
       $element['max_filesize']['#access'] = FALSE;
 
-      // Switch the "Default Image" upload interface with a custom Brandfolder form element
-      $element['default_image']['uuid']['#type'] = 'brandfolder_file';
-      $element['default_image']['#description'] = t("When no image is selected, this image will be shown on display and will override the field's default image.");
-      $element['default_image']['uuid']['#element_validate'] = [
-        '\Drupal\brandfolder\Element\BrandfolderFileFormElement::validateElement',
-        [static::class, 'validateDefaultImageForm'],
-      ];
-      // @todo: Load gatekeeper criteria from field definition and pass through to brandfolder_file element? Obviously the field definition is a bit volatile since it's editable on the same parent form as this element.
+      if (isset($element['default_image']['uuid'])) {
+        // Switch the "Default Image" upload interface with a custom Brandfolder form element
+        $element['default_image']['uuid']['#type'] = 'brandfolder_file';
+        $element['default_image']['#description'] = t("When no image is selected, this image will be shown on display and will override the field's default image.");
+        $element['default_image']['uuid']['#element_validate'] = [
+          '\Drupal\brandfolder\Element\BrandfolderFileFormElement::validateElement',
+          [static::class, 'validateDefaultImageForm'],
+        ];
+        // @todo: Load gatekeeper criteria from field definition and pass through to brandfolder_file element? Obviously the field definition is a bit volatile since it's editable on the same parent form as this element.
+      }
 
       if ($field_definition = $this->getFieldDefinition()) {
         $this->bfGatekeeper->loadFromFieldDefinition($field_definition);

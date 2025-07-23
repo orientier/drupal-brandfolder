@@ -227,18 +227,22 @@ class BrandfolderBrowser extends WidgetBase {
 
     if (isset($validators['entity_type']['type']) && $validators['entity_type']['type'] === 'file') {
       if (!empty($validators['file']['validators'])) {
-        $file_validators = $validators['file']['validators'];
-        // Note that Entity Browser doesn't give us information about the image
-        // field the browser is being used for, so we can't load any
-        // additional configuration like allowed Brandfolder entities.
-        // We also miss out on some core image field settings like max file
-        // size. For that reason, using Entity Browser with Image fields
-        // should be discouraged.
-        // We could try to overcome that limitation, but we'd have to do
-        // something like override \Drupal\entity_browser\Plugin\Field\FieldWidget\FileBrowserWidget
-        // and use field & third-party settings data to add the missing
-        // validators.
-        $gatekeeper->loadFromEntityBrowserFileValidators($file_validators);
+        // When Entity Browser is used with a Brandfolder file/image field, it
+        // should always use the "Brandfolder Entity Browser"
+        // (brandfolder_entity_browser_file) field widget, which extends
+        // \Drupal\entity_browser\Plugin\Field\FieldWidget\FileBrowserWidget
+        // and provides a field-specific BF gatekeeper.
+        // Use that here if present.
+        if (isset($validators['file']['validators']['brandfolder_gatekeeper_criteria'])) {
+          $criteria = $validators['file']['validators']['brandfolder_gatekeeper_criteria'];
+          $gatekeeper->setCriteria($criteria);
+        }
+        else {
+          // Otherwise, do our best to conjure some validation based on the more
+          // limited information that Entity Browser provides.
+          $file_validators = $validators['file']['validators'];
+          $gatekeeper->loadFromEntityBrowserFileValidators($file_validators);
+        }
       }
     }
     else {

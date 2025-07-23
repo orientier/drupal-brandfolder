@@ -322,6 +322,8 @@ class BrandfolderFileFormElement extends FormElementBase {
     $response = new AjaxResponse();
     $response->setAttachments($form['#attached']);
 
+    // @todo: Try getting alt text from BF asset and feeding it to the alt text field on this form if there is one.
+
     return $response->addCommand(new ReplaceCommand(NULL, $output));
   }
 
