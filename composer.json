@@ -29,6 +29,12 @@
             "role": "Tester"
         }
     ],
+    "repositories": {
+        "drupal": {
+            "type": "composer",
+            "url": "https://packages.drupal.org/8"
+        }
+    },
     "require": {
         "brandfolder/brandfolder-sdk-php": "4.x-dev",
         "drupal/key": "^1.0"

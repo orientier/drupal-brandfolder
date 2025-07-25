@@ -58,7 +58,7 @@ export class BfBrowserLabelsControl extends BfBrowserControlBase {
     const selectedOptions = Array.from(this.labelsSelect.selectedOptions)
     const selectedLabelsById = selectedOptions.reduce(
       (acc, option) => {
-        acc[option.value] = option.text
+        acc[option.value] = option?.dataset?.labelName
         return acc
       },
       {} as Record<string, string>
@@ -76,13 +76,15 @@ export class BfBrowserLabelsControl extends BfBrowserControlBase {
     const labelId = labelObject?.id ?? ''
     const depth = labelObject?.attributes?.depth
     const depthIndicator = '-'.repeat(depth - 1).replace(/^-/, ' -')
+    const labelName = labelObject?.attributes?.name
 
     return html`
       <option
         value=${labelId}
         .selected=${!!this?.controlInput?.labels?.[labelId]}
+        data-label-name=${labelName}
       >
-        ${depthIndicator} ${labelObject?.attributes?.name}
+        ${depthIndicator} ${labelName}
       </option>
       ${labelNode?.children ?
         Object.values(labelNode.children).map((child) => this.renderLabelNode(child))

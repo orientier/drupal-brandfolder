@@ -272,9 +272,6 @@ export class BrandfolderBrowser extends LitElement {
       if (settings?.layoutHostSelector && !this.layoutHostSelector) {
         this.layoutHostSelector = settings.layoutHostSelector
       }
-      if (settings?.layoutHostSelector && !this.layoutHostSelector) {
-        this.layoutHostSelector = settings.layoutHostSelector
-      }
       if (settings?.height) {
         this._height = settings.height
         this.style.setProperty('--bf-browser-height', `${this._height}px`)

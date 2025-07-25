@@ -304,6 +304,8 @@ export class BfBrowserControls extends LitElement {
    * Handle the submission of the search/filter/sort form.
    */
   private _controlsSubmissionHandler() {
+    // Close the controls panel so users can see search results.
+    this._isOpen = false
     // Notify ancestors of the submission.
     const options = {
       detail: {userInput: this._controlsInput},
