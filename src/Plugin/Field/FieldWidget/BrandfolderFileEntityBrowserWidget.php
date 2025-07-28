@@ -5,6 +5,7 @@ namespace Drupal\brandfolder\Plugin\Field\FieldWidget;
 use Drupal\brandfolder\Service\BrandfolderGatekeeper;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\entity_browser\Plugin\Field\FieldWidget\FileBrowserWidget;
+use Drupal\Core\Render\Element;
 
 /**
  * Brandfolder-specific Entity Browser file widget.
@@ -51,5 +52,27 @@ class BrandfolderFileEntityBrowserWidget extends FileBrowserWidget {
     return $validators;
   }
 
-  // @todo: Try getting alt text from BF assets when BF files are newly selected, then feed that text to the applicable alt text field on the selected entities form/metadata table.
+  /**
+   * {@inheritdoc}
+   */
+  public function displayCurrentSelection($details_id, array $field_parents, array $entities) {
+    $current_selection = parent::displayCurrentSelection($details_id, $field_parents, $entities);
+
+    // If no alt text has been specified for a selected file, try to fetch an
+    // alt text value from Brandfolder.
+    foreach (Element::children($current_selection) as $key) {
+      if (is_int($key)) {
+        // The key should be a file ID.
+        if ($bf_attachment_id = brandfolder_map_file_to_attachment($key)) {
+          if ($current_selection[$key]['meta']['alt']['#access'] && empty($current_selection[$key]['meta']['alt']['#default_value'])) {
+            if ($alt_text = brandfolder_get_alt_text_from_attachment($bf_attachment_id)) {
+              $current_selection[$key]['meta']['alt']['#default_value'] = $alt_text;
+            }
+          }
+        }
+      }
+    }
+
+    return $current_selection;
+  }
 }

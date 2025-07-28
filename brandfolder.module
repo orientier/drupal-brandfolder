@@ -1215,36 +1215,9 @@ function brandfolder_media_presave(MediaInterface $media) {
     }
 
     if ($is_metadata_fetch_required) {
-      // Pull alt text from Brandfolder if a custom field has been
-      // designated for that.
-      $config = \Drupal::config('brandfolder.settings');
-      $alt_text_custom_field_id = $config->get('alt_text_custom_field');
-      if (!empty($alt_text_custom_field_id)) {
-        // @todo: Update per new SDK.
-        $bf = brandfolder_api();
-        $params = [
-          'include' => 'custom_fields',
-        ];
-        if ($asset = $bf->fetchAsset($bf_asset_id, $params)) {
-          // Look up the current name associated with the given custom field
-          // key ID.
-          if ($custom_field_keys = $bf->listCustomFields(NULL, FALSE, TRUE)) {
-            if (isset($custom_field_keys[$alt_text_custom_field_id])) {
-              $custom_field_name = $custom_field_keys[$alt_text_custom_field_id];
-              if (!empty($asset->data->custom_field_values[$custom_field_name])) {
-                $image_field_data['alt'] = $asset->data->custom_field_values[$custom_field_name];
-                $is_image_update_required = TRUE;
-              }
-            }
-
-          }
-        }
-        if ($bf->verboseLoggingIsEnabled()) {
-          foreach ($bf->getLogData() as $log_entry) {
-            $logger->debug($log_entry);
-          }
-          $bf->clearLogData();
-        }
+      if ($alt_text = brandfolder_get_alt_text_from_asset($bf_asset_id, $logger)) {
+        $image_field_data['alt'] = $alt_text;
+        $is_image_update_required = TRUE;
       }
     }
     if ($is_image_update_required) {
@@ -1259,7 +1232,6 @@ function brandfolder_media_presave(MediaInterface $media) {
     if ($new_thumbnail_data != $existing_thumbnail_data) {
       $media->set('thumbnail', $new_thumbnail_data);
     }
-
 
     // Enforce Brandfolder configuration defined at the media type level.
     // Any violations will typically be caught elsewhere in a more user-friendly
@@ -1277,6 +1249,89 @@ function brandfolder_media_presave(MediaInterface $media) {
       throw new EntityMalformedException($msg);
     }
   }
+}
+
+/**
+ * Helper function to retrieve alt text for a given Brandfolder asset.
+ *
+ * @param string $asset_id
+ *   The ID of the Brandfolder asset.
+ * @param \Psr\Log\LoggerInterface|null $logger
+ *   Optional logger to log debug messages. If not provided, uses the default
+ *   Brandfolder logger.
+ *
+ * @return bool|string
+ *   Returns the alt text if available, FALSE otherwise.
+ */
+function brandfolder_get_alt_text_from_asset(string $asset_id, \Psr\Log\LoggerInterface|null $logger = NULL): bool|string {
+  $alt_text = FALSE;
+
+  if (is_null($logger)) {
+    $logger = \Drupal::logger('brandfolder');
+  }
+
+  // Pull alt text from Brandfolder if a custom field has been
+  // designated for that.
+  $config = \Drupal::config('brandfolder.settings');
+  $alt_text_custom_field_id = $config->get('alt_text_custom_field');
+  if (!empty($alt_text_custom_field_id)) {
+    // @todo: Update per new SDK.
+    $bf = brandfolder_api();
+    $params = [
+      'include' => 'custom_fields',
+    ];
+    if ($asset = $bf->fetchAsset($asset_id, $params)) {
+      // Look up the current name associated with the given custom field
+      // key ID.
+      if ($custom_field_keys = $bf->listCustomFields(NULL, FALSE, TRUE)) {
+        if (isset($custom_field_keys[$alt_text_custom_field_id])) {
+          $custom_field_name = $custom_field_keys[$alt_text_custom_field_id];
+          if (!empty($asset->data->custom_field_values[$custom_field_name])) {
+            $alt_text = $asset->data->custom_field_values[$custom_field_name];
+          }
+        }
+      }
+    }
+    if ($bf->verboseLoggingIsEnabled()) {
+      foreach ($bf->getLogData() as $log_entry) {
+        $logger->debug($log_entry);
+      }
+      $bf->clearLogData();
+    }
+  }
+
+  return $alt_text;
+}
+
+/**
+ * Helper function to retrieve alt text for a given Brandfolder attachment.
+ *
+ * @param string $attachment_id
+ *   The ID of the Brandfolder attachment.
+ * @param \Psr\Log\LoggerInterface|null $logger
+ *   Optional logger to log debug messages. If not provided, uses the default
+ *   Brandfolder logger.
+ *
+ * @return bool|string
+ *   Returns the alt text if available, FALSE otherwise.
+ */
+function brandfolder_get_alt_text_from_attachment(string $attachment_id, \Psr\Log\LoggerInterface|null $logger = NULL): bool|string {
+  $alt_text = FALSE;
+
+  $asset_id = brandfolder_get_asset_from_attachment($attachment_id);
+  if ($asset_id) {
+    $alt_text = brandfolder_get_alt_text_from_asset($asset_id, $logger);
+  }
+  else {
+    if (is_null($logger)) {
+      $logger = \Drupal::logger('brandfolder');
+    }
+    $msg = 'Could not retrieve alt text for attachment ID @attachment_id because it does not appear to be associated with an asset.';
+    $msg_vars = ['@attachment_id' => $attachment_id];
+    $logger->error($msg, $msg_vars);
+  }
+
+  return $alt_text;
 }
 
 /**
