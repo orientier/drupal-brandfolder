@@ -8,6 +8,7 @@
 use Drupal\brandfolder\Service\BrandfolderGatekeeper;
 use Drupal\brandfolder\Plugin\media\Source\BrandfolderImage;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Render\Element\StatusMessages;
 use Drupal\Core\Routing\RouteMatchInterface;
 use Brandfolder\BrandfolderClient;
 use Drupal\Core\Render\Element;
@@ -554,9 +555,7 @@ function brandfolder_preprocess_page__brandfolder_browser_host_page(&$variables)
   // Do not display system messages in the modal/iframe hosting the BF browser.
   $config = \Drupal::config('brandfolder.settings');
   $disable_messages = $config->get('disable_system_messages_on_browser_pages');
-  if ($disable_messages !== FALSE) {
-    $variables['messages'] = '';
-  }
+  $variables['messages'] = $disable_messages === TRUE ? '' : StatusMessages::renderMessages();
 }
 
 /**

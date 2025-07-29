@@ -201,8 +201,8 @@ class BrandfolderSettingsForm extends ConfigFormBase {
     $form['bf_browser']['disable_system_messages_on_browser_pages'] = [
       '#type'          => 'checkbox',
       '#title'         => $this->t('Disable system messages on Brandfolder Browser pages'),
-      '#default_value' => $config->get('disable_system_messages_on_browser_pages') ?? TRUE,
-      '#description' => $this->t('If enabled, Drupal system messages will not be shown on Brandfolder Browser pages. This is recommended to maximize the (already limited) screen real estate available to the BF browser and improve layout, but you can opt out, e.g. if your browser post-selection context needs this messaging. Note: this will only take effect if you elect to customize page output in the first place (see above).'),
+      '#default_value' => $config->get('disable_system_messages_on_browser_pages') ?? FALSE,
+      '#description' => $this->t('If enabled, Drupal system messages will not be shown on Brandfolder Browser pages. This can help maximize the (already limited) screen real estate available to the BF browser and improve layout, but will mean that system error/validation messages are not displayed in the modal. Note: this will only take effect if you elect to customize page output (see above).'),
     ];
 
     $form['bf_browser']['media_library_bf_browser_height'] = [
