@@ -43,13 +43,13 @@ class BrandfolderFileEntityBrowserWidget extends FileBrowserWidget {
    * {@inheritdoc}
    */
   public function getFileValidators($upload = FALSE) {
-    $validators = parent::getFileValidators($upload);
-
-    // Add the Brandfolder Gatekeeper so BF Entity Browser plugins can use it.
+    // Load BF gatekeeper criteria based on the field definition. That will be
+    // used for file validation instead of standard validators.
     $this->bfGatekeeper->loadFromFieldDefinition($this->fieldDefinition);
-    $validators['brandfolder_gatekeeper_criteria'] = $this->bfGatekeeper->getCriteria();
 
-    return $validators;
+    return [
+      'brandfolder_gatekeeper_criteria' => $this->bfGatekeeper->getCriteria(),
+    ];
   }
 
   /**
