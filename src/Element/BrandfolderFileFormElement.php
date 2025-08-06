@@ -2,7 +2,7 @@
 
 namespace Drupal\brandfolder\Element;
 
-use Drupal\Component\Utility\Crypt;
+use Drupal\brandfolder\Ajax\BrandfolderSetAltTextCommand;
 use Drupal\Component\Utility\Html;
 use Drupal\Component\Utility\NestedArray;
 use Drupal\Core\Ajax\AjaxResponse;
@@ -11,9 +11,6 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\Attribute\FormElement;
 use Drupal\Core\Render\Element;
 use Drupal\Core\Render\Element\FormElementBase;
-use Drupal\Core\Site\Settings;
-use Drupal\Core\Url;
-use Drupal\file\Element\ManagedFile;
 use Drupal\file\Entity\File;
 use Symfony\Component\HttpFoundation\Request;
 
@@ -199,8 +196,9 @@ class BrandfolderFileFormElement extends FormElementBase {
 //      '#weight' => -5,
     ];
 
-    // Prefix and suffix used for Ajax replacement.
-    $element['#prefix'] = '<div id="' . $ajax_wrapper_id . '">';
+    // Wrap element in HTML element used for browser scoping and Ajax
+    // replacement.
+    $element['#prefix'] = '<div id="' . $ajax_wrapper_id . '" class="brandfolder-browser-form-element">';
     $element['#suffix'] = '</div>';
 
     return $element;
@@ -322,7 +320,23 @@ class BrandfolderFileFormElement extends FormElementBase {
     $response = new AjaxResponse();
     $response->setAttachments($form['#attached']);
 
-    // @todo: Try getting alt text from BF asset and feeding it to the alt text field on this form if there is one.
+    // Try getting alt text from the BF asset corresponding to the selected
+    // attachment, and add a custom AJAX command to update the relevant alt text
+    // field in the form. This currently only supports the case where
+    // a single attachment selection is allowed per BF file element.
+    if (isset($form['selected_bf_attachment_ids'])) {
+      $selected_bf_attachments = explode(',', $form['selected_bf_attachment_ids']['#value']);
+      if (count($selected_bf_attachments) === 1) {
+        $alt_text = brandfolder_get_alt_text_from_attachment($selected_bf_attachments[0]) ?? '';
+        $triggering_element_name = $form_state->getTriggeringElement()['#name'] ?? '';
+        $alt_text_command = new BrandfolderSetAltTextCommand(
+          '[name="' . $triggering_element_name . '"]',
+          $alt_text
+        );
+        $response->addCommand($alt_text_command);
+        $response->addAttachments(['library' => ['brandfolder/brandfolder-ajax-commands']]);
+      }
+    }
 
     return $response->addCommand(new ReplaceCommand(NULL, $output));
   }
