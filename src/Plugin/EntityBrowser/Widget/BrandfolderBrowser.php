@@ -7,6 +7,7 @@ use Drupal\brandfolder\Service\BrandfolderGatekeeper;
 use Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException;
 use Drupal\Component\Plugin\Exception\PluginNotFoundException;
 use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Entity\EntityTypeBundleInfoInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
@@ -36,6 +37,13 @@ class BrandfolderBrowser extends WidgetBase {
   protected BrandfolderGatekeeper $brandfolderGatekeeper;
 
   /**
+   * EntityTypeBundleInfo service.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeBundleInfoInterface
+   */
+  protected EntityTypeBundleInfoInterface $entityTypeBundleInfo;
+
+  /**
    * Constructor.
    *
    * @param array $configuration
@@ -53,9 +61,10 @@ class BrandfolderBrowser extends WidgetBase {
    * @param \Drupal\brandfolder\Service\BrandfolderGatekeeper $brandfolder_gatekeeper
    *   The Brandfolder Gatekeeper service.
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, EventDispatcherInterface $event_dispatcher, EntityTypeManagerInterface $entity_type_manager, WidgetValidationManager $validation_manager, BrandfolderGatekeeper $brandfolder_gatekeeper) {
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, EventDispatcherInterface $event_dispatcher, EntityTypeManagerInterface $entity_type_manager, WidgetValidationManager $validation_manager, BrandfolderGatekeeper $brandfolder_gatekeeper, EntityTypeBundleInfoInterface $entity_type_bundle_info) {
     parent::__construct($configuration, $plugin_id, $plugin_definition, $event_dispatcher, $entity_type_manager, $validation_manager);
     $this->brandfolderGatekeeper = $brandfolder_gatekeeper;
+    $this->entityTypeBundleInfo = $entity_type_bundle_info;
   }
 
   /**
@@ -69,7 +78,8 @@ class BrandfolderBrowser extends WidgetBase {
       $container->get('event_dispatcher'),
       $container->get('entity_type.manager'),
       $container->get('plugin.manager.entity_browser.widget_validation'),
-      $container->get('brandfolder.gatekeeper')
+      $container->get('brandfolder.gatekeeper'),
+      $container->get('entity_type.bundle.info'),
     );
   }
 
@@ -310,7 +320,8 @@ class BrandfolderBrowser extends WidgetBase {
       // Map the selected attachments to the appropriate entity type.
       // Check the widget validators to see what entity_type we're dealing with.
       $validators = $form_state->get(['entity_browser', 'validators']);
-      if (!empty($validators['entity_type']['type']) && $validators['entity_type']['type'] === 'file') {
+      $required_entity_type = $validators['entity_type']['type'] ?? 'media';
+      if ($required_entity_type === 'file') {
         $storage = $this->getFileStorage();
         if ($storage) {
           foreach ($selected_attachments as $attachment_id) {
@@ -324,22 +335,59 @@ class BrandfolderBrowser extends WidgetBase {
           }
         }
       }
-      else {
-        // Default to media.
-        // @todo: Consider forced graceful exit if we see that some other unsupported entity type is expected.
+      elseif ($required_entity_type === 'media') {
         $media_type_id = $this->getMediaTypeId();
-        $storage = $this->getMediaStorage();
-        if ($media_type_id && $storage) {
-          foreach ($selected_attachments as $attachment_id) {
-            $bf_media_entity_id = brandfolder_map_attachment_to_media_entity($attachment_id, $media_type_id);
-            if ($bf_media_entity_id) {
-              $media_entity = $storage->load($bf_media_entity_id);
-              if ($media_entity) {
-                $selected_entities[] = $media_entity;
+        $entity_browser_id = $this->configuration['entity_browser_id'];
+        $widget_config_url = Url::fromRoute('entity.entity_browser.edit_widgets', ['entity_browser' => $entity_browser_id]);
+        if (!$media_type_id || $media_type_id === 'none') {
+          // If this user has Entity Browser admin permissions, show an error directing them to the config page for the BF widget for this browser.
+          if (Drupal::currentUser()->hasPermission('administer entity browser')) {
+            $form_state->setError($form['widget'], $this->t('No Brandfolder media type has been configured for this Entity Browser widget, so it cannot be used to select media entities. Please <a href=":link">select a Brandfolder media type</a> for this widget.', [':link' => $widget_config_url->toString()]));
+          }
+          else {
+            // Otherwise, show a more generic error.
+            $form_state->setError($form['widget'], $this->t('No Brandfolder media type has been configured for this Entity Browser widget, so it cannot be used to select media entities. Please contact a site administrator.'));
+          }
+
+          return $selected_entities;
+        }
+        else {
+          // Make sure this media type still exists.
+          $media_bundles = $this->entityTypeBundleInfo->getBundleInfo('media');
+          if (!isset($media_bundles[$media_type_id])) {
+            // If this user has Entity Browser admin permissions, show an error directing them to the config page for the BF widget for this browser.
+            if (Drupal::currentUser()
+              ->hasPermission('administer entity browser')) {
+              $form_state->setError($form['widget'], $this->t('The Brandfolder media type %media_type_id configured for this Entity Browser widget no longer exists, so it cannot be used to select media entities. Please <a href=":link">select a different Brandfolder media type</a> for this widget.', [
+                '%media_type_id' => $media_type_id,
+                ':link'          => $widget_config_url->toString()
+              ]));
+            }
+            else {
+              // Otherwise, show a more generic error.
+              $form_state->setError($form['widget'], $this->t('The Brandfolder media type %media_type_id configured for this Entity Browser widget no longer exists, so it cannot be used to select media entities. Please contact a site administrator.', ['%media_type_id' => $media_type_id]));
+            }
+
+            return $selected_entities;
+          }
+
+          $storage = $this->getMediaStorage();
+          if ($storage) {
+            foreach ($selected_attachments as $attachment_id) {
+              $bf_media_entity_id = brandfolder_map_attachment_to_media_entity($attachment_id, $media_type_id);
+              if ($bf_media_entity_id) {
+                $media_entity = $storage->load($bf_media_entity_id);
+                if ($media_entity) {
+                  $selected_entities[] = $media_entity;
+                }
               }
             }
           }
         }
+      }
+      else {
+        // Unsupported entity type.
+        $form_state->setError($form['widget'], $this->t('The Brandfolder Entity Browser widget does not support selection of entities of type %entity_type.', ['%entity_type' => $required_entity_type]));
       }
     }
 
