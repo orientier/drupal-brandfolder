@@ -7,6 +7,8 @@
 
 use Drupal\brandfolder\Service\BrandfolderGatekeeper;
 use Drupal\brandfolder\Plugin\media\Source\BrandfolderImage;
+use Drupal\Core\Entity\EntityTypeInterface;
+use Drupal\Core\Field\BaseFieldDefinition;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\Element\StatusMessages;
 use Drupal\Core\Routing\RouteMatchInterface;
@@ -111,6 +113,41 @@ function brandfolder_form_field_config_edit_form_alter(&$form, FormStateInterfac
       // Add this entity builder to attach our own third-party config data
       // to the config entity for image fields (i.e. field settings).
       $form['#entity_builders'][] = 'brandfolder_field_config_edit_form_entity_builder';
+    }
+  }
+}
+
+/**
+ * Implements hook_entity_field_info_alter().
+ */
+function brandfolder_entity_bundle_field_info_alter(array &$fields, EntityTypeInterface $entity_type, $bundle): void {
+  if ($entity_type->id() === 'media') {
+    // Create a virtual field called 'field_media_image' that reflects the
+    // Brandfolder image field for Brandfolder-Image-sourced media types.
+    // This will help with compatibility with other modules, custom theme
+    // templates, etc. that expect a standard field_media_image field to be
+    // present on image-esque media entities.
+    $field_name = 'field_media_image';
+
+    // Only proceed if this is a Brandfolder-Image-sourced media type and the
+    // field hasn't already been defined elsewhere for whatever reason.
+    if (is_media_type_brandfolder_sourced($bundle)) {
+      if (!isset($fields[$field_name])) {
+
+        $fields[$field_name] = BaseFieldDefinition::create('image')
+          ->setLabel(t('Media Image (virtual field)'))
+          ->setDescription(t('A computed, read-only field reflecting the Brandfolder image field, for Brandfolder-Image-sourced media types.'))
+
+          // This is the key: it tells Drupal the value is computed, not stored.
+          ->setComputed(TRUE)
+
+          // Specify the class that contains the logic to compute the value.
+          ->setClass('\Drupal\brandfolder\Plugin\Field\FieldType\VirtualMediaImageFieldValue')
+
+          // Ensure it can't be modified or configured via the UI.
+          ->setReadOnly(TRUE)
+          ->setInternal(TRUE);
+      }
     }
   }
 }
